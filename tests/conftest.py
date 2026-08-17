@@ -1,1 +1,1 @@
-"""Shared pytest configuration for VisioGen."""
+"""Shared pytest configuration for Visiogen."""

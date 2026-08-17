@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from vega.models import (
+from visiogen.models import (
     DiagramEdge,
     DiagramGraph,
     DiagramNode,

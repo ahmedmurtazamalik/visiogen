@@ -1,4 +1,4 @@
-# Vega Text-to-Visio Baseline Implementation Plan
+# Visiogen Text-to-Visio Baseline Implementation Plan
 
 > **For Hermes:** Execute this plan task-by-task with strict test-driven development. Do not advance past a milestone gate until its acceptance criteria pass. Use fresh implementation/review context for each milestone, and preserve all evidence under `artifacts/` or the milestone commit.
 
@@ -12,7 +12,7 @@
 
 ## 1. Execution Rules
 
-1. Work from `/home/murtaza/Murtaza/Vega` and use `project/` as the application repository root.
+1. Work from `/home/murtaza/Murtaza/Visiogen` and use `project/` as the application repository root.
 2. Use `python3` and a `uv`-managed virtual environment; never install into the PEP 668 system environment.
 3. Follow vertical TDD for production behavior: write one focused test, run it and confirm the expected failure, add the minimum implementation, run the focused test, then run the relevant test module/suite.
 4. Do not create extraction, layout, and rendering in one module. Enforce the dependency direction:
@@ -58,24 +58,24 @@ project/
   pyproject.toml
   README.md
   .gitignore
-  src/vega/__init__.py
-  src/vega/models.py
-  src/vega/config.py
-  src/vega/extractor.py
-  src/vega/normalization.py
-  src/vega/layout.py
-  src/vega/shape_mapper.py
-  src/vega/renderer.py
-  src/vega/validation.py
-  src/vega/pipeline.py
-  src/vega/cli.py
-  src/vega/providers/__init__.py
-  src/vega/providers/base.py
-  src/vega/providers/local_qwen.py
-  src/vega/providers/gemini.py
-  src/vega/layouts/__init__.py
-  src/vega/layouts/graphviz_layout.py
-  src/vega/layouts/fallback_layered.py
+  src/visiogen/__init__.py
+  src/visiogen/models.py
+  src/visiogen/config.py
+  src/visiogen/extractor.py
+  src/visiogen/normalization.py
+  src/visiogen/layout.py
+  src/visiogen/shape_mapper.py
+  src/visiogen/renderer.py
+  src/visiogen/validation.py
+  src/visiogen/pipeline.py
+  src/visiogen/cli.py
+  src/visiogen/providers/__init__.py
+  src/visiogen/providers/base.py
+  src/visiogen/providers/local_qwen.py
+  src/visiogen/providers/gemini.py
+  src/visiogen/layouts/__init__.py
+  src/visiogen/layouts/graphviz_layout.py
+  src/visiogen/layouts/fallback_layered.py
   templates/TEMPLATE.md
   scripts/validate_in_visio.ps1
   tests/conftest.py
@@ -84,7 +84,7 @@ project/
 ```
 
 **Implementation notes:**
-- `pyproject.toml` defines package `vega`, `src` layout, Python `>=3.11`, runtime dependencies, test dependencies, and a `vega = "vega.cli:main"` script.
+- `pyproject.toml` defines package `visiogen`, `src` layout, Python `>=3.11`, runtime dependencies, test dependencies, and a `visiogen = "visiogen.cli:main"` script.
 - Keep dependency versions constrained but do not lock the `vsdx` version until M2 identifies the working release.
 - `.gitignore` covers `.venv/`, Python caches, coverage, `.env*` except `.env.example`, local GGUF/model directories, and `artifacts/*` except intentional acceptance fixtures/reports.
 - Placeholder modules contain docstrings only; no speculative APIs.
@@ -92,11 +92,11 @@ project/
 **Verification:**
 
 ```bash
-cd /home/murtaza/Murtaza/Vega/project
+cd /home/murtaza/Murtaza/Visiogen/project
 uv sync
-uv run python3 -c "import vega"
+uv run python3 -c "import visiogen"
 uv run pytest -q
-uv run vega --help
+uv run visiogen --help
 ```
 
 Expected: import succeeds, empty test run has no collection/import errors, CLI help exits 0.
@@ -105,7 +105,7 @@ Expected: import succeeds, empty test run has no collection/import errors, CLI h
 
 After the scaffold and verification, present `git status --short` and stop so the user can connect/confirm the Git remote and create the initial commit according to their staged-repository preference. Do not implement M1 before this checkpoint.
 
-**Suggested commit:** `Create Vega project scaffold`
+**Suggested commit:** `Create Visiogen project scaffold`
 
 **Gate M0:** package import and CLI help work from a clean environment; repository ownership/remote is confirmed.
 
@@ -116,7 +116,7 @@ After the scaffold and verification, present `git status --short` and stop so th
 ### Task M1.1: Define graph models
 
 **Files:**
-- Modify: `project/src/vega/models.py`
+- Modify: `project/src/visiogen/models.py`
 - Create: `project/tests/test_models.py`
 
 **Public contract:**
@@ -143,7 +143,7 @@ uv run pytest -q
 ### Task M1.2: Separate provider DTOs from canonical models
 
 **Files:**
-- Modify: `project/src/vega/extractor.py`
+- Modify: `project/src/visiogen/extractor.py`
 - Create/modify: `project/tests/test_extractors.py`
 
 Define extraction-only Pydantic DTOs that do not declare `x`, `y`, `width`, or `height`. Configure them to reject extra fields, so model-produced geometry is a schema error rather than ignored input. Add a deterministic conversion function to `DiagramGraph`.
@@ -155,7 +155,7 @@ Define extraction-only Pydantic DTOs that do not declare `x`, `y`, `width`, or `
 ### Task M1.3: Normalize and validate graph references
 
 **Files:**
-- Modify: `project/src/vega/normalization.py`
+- Modify: `project/src/visiogen/normalization.py`
 - Create: `project/tests/test_normalization.py`
 
 Define explicit exception types, preferably under the same module initially:
@@ -212,7 +212,7 @@ Document template page name, marker, intended use, and any required shape/master
 ### Task M2.2: Prove the Python library operations on Ubuntu
 
 **Files:**
-- Modify: `project/src/vega/renderer.py`
+- Modify: `project/src/visiogen/renderer.py`
 - Create: `project/tests/test_renderer_spike.py`
 - Create: `project/artifacts/spike/` outputs locally (ignored until explicitly approved)
 
@@ -274,7 +274,7 @@ Run a Windows open/save smoke test after expansion before changing mapper code.
 ### Task M3.2: Implement node and edge mapping
 
 **Files:**
-- Modify: `project/src/vega/shape_mapper.py`
+- Modify: `project/src/visiogen/shape_mapper.py`
 - Create: `project/tests/test_shape_mapper.py`
 
 Use immutable mapping data and typed return models such as `NodeVisualSpec` and `EdgeVisualSpec`. Cover every `NodeType`, `RelationType`, direction, and explicit line style. Explicit graph line style wins over a relation default; relation determines default arrow/weight behavior; direction determines begin/end arrows.
@@ -308,8 +308,8 @@ For ambiguous text, choose and document one baseline behavior before provider wo
 ### Task M4.2: Define provider protocol, errors, and shared prompt
 
 **Files:**
-- Modify: `project/src/vega/providers/base.py`
-- Modify: `project/src/vega/extractor.py`
+- Modify: `project/src/visiogen/providers/base.py`
+- Modify: `project/src/visiogen/extractor.py`
 - Create/modify: `project/tests/test_extractors.py`
 
 Define:
@@ -328,7 +328,7 @@ Also define `ProviderError`, `ExtractionValidationError`, a shared system prompt
 ### Task M4.3: Implement explicit configuration
 
 **Files:**
-- Modify: `project/src/vega/config.py`
+- Modify: `project/src/visiogen/config.py`
 - Create: `project/tests/test_config.py`
 - Create: `project/.env.example`
 
@@ -339,7 +339,7 @@ Parse provider, local base URL/model, Gemini model/key, timeout, and debug polic
 ### Task M4.4: Implement local Qwen adapter
 
 **Files:**
-- Modify: `project/src/vega/providers/local_qwen.py`
+- Modify: `project/src/visiogen/providers/local_qwen.py`
 - Create: `project/tests/providers/test_local_qwen.py`
 
 Target OpenAI-compatible `/v1/chat/completions` through a small HTTP/client adapter. Send schema-constrained or JSON-only output as supported by the endpoint, low-variance generation settings, configured timeout/model, and no fallback. Convert transport, HTTP, malformed JSON, and schema failures into typed errors while retaining safe request metadata.
@@ -351,7 +351,7 @@ Tests use a fake client and assert request construction plus error translation. 
 ### Task M4.5: Implement Gemini adapter
 
 **Files:**
-- Modify: `project/src/vega/providers/gemini.py`
+- Modify: `project/src/visiogen/providers/gemini.py`
 - Create: `project/tests/providers/test_gemini.py`
 
 Use `google-genai` structured output against the extraction DTO schema. Model comes from configuration. Tests use an injected fake SDK client. Never log or serialize `GEMINI_API_KEY`.
@@ -371,7 +371,7 @@ Add parametrized mocked provider tests proving both adapters feed the same canon
 ### Task M5.1: Define positioned output contract and sizing
 
 **Files:**
-- Modify: `project/src/vega/layout.py`
+- Modify: `project/src/visiogen/layout.py`
 - Create: `project/tests/test_layout.py`
 
 Define `PageGeometry`, `LayoutResult`, and `LayoutError`. The result contains a new graph with center-based inches in Visio bottom-left coordinates plus page dimensions. Add deterministic label wrapping and min/max size rules keyed by visual family.
@@ -383,7 +383,7 @@ Test positive dimensions, input immutability, stable output, bounded long-label 
 ### Task M5.2: Generate and parse Graphviz layout
 
 **Files:**
-- Modify: `project/src/vega/layouts/graphviz_layout.py`
+- Modify: `project/src/visiogen/layouts/graphviz_layout.py`
 - Create: `project/tests/test_graphviz_layout.py`
 - Add DOT snapshots under `project/tests/fixtures/dot/`
 
@@ -396,7 +396,7 @@ Test missing executable, nonzero exit, malformed output, quoted IDs, both orient
 ### Task M5.3: Implement deterministic fallback
 
 **Files:**
-- Modify: `project/src/vega/layouts/fallback_layered.py`
+- Modify: `project/src/visiogen/layouts/fallback_layered.py`
 - Create: `project/tests/test_fallback_layout.py`
 
 Use stable topological/layer ordering for directed graphs and stable input order for cycles/undirected components. Place containers first, then children on an internal grid. Grow page bounds with margins. Quality may be lower than Graphviz but geometry must remain valid.
@@ -424,7 +424,7 @@ Create shared assertions for:
 ### Task M6.1: Build template inventory and output-page setup
 
 **Files:**
-- Modify: `project/src/vega/renderer.py`
+- Modify: `project/src/visiogen/renderer.py`
 - Modify: `project/tests/test_renderer.py`
 
 Implement read-only template loading, marker discovery with duplicate/missing-marker errors, and the proven output-page strategy. Never save over the canonical template. Tests copy the template to temporary paths and assert the source checksum is unchanged.
@@ -465,7 +465,7 @@ Verify source template unchanged, output ZIP/XML readable, expected labels prese
 ### Task M7.1: Compose the public pipeline
 
 **Files:**
-- Modify: `project/src/vega/pipeline.py`
+- Modify: `project/src/visiogen/pipeline.py`
 - Create: `project/tests/test_pipeline.py`
 
 Implement:
@@ -490,17 +490,17 @@ TDD slices: successful call order; provider failure preserves available diagnost
 ### Task M7.2: Implement CLI commands
 
 **Files:**
-- Modify: `project/src/vega/cli.py`
+- Modify: `project/src/visiogen/cli.py`
 - Create: `project/tests/test_cli.py`
 
 Commands:
-- `vega generate --provider local|gemini (--text TEXT | --input-file PATH) --output PATH [--debug-dir PATH]`
-- `vega render-graph --graph PATH --output PATH [--debug-dir PATH]`
-- `vega validate PATH [--json-report PATH]`
+- `visiogen generate --provider local|gemini (--text TEXT | --input-file PATH) --output PATH [--debug-dir PATH]`
+- `visiogen render-graph --graph PATH --output PATH [--debug-dir PATH]`
+- `visiogen validate PATH [--json-report PATH]`
 
 Make `--text` and `--input-file` mutually exclusive. Return stable nonzero exit codes for input/config, provider/extraction, graph/layout, rendering, and validation failures. Human errors go to stderr without tracebacks by default; add `--verbose` for diagnostics.
 
-**Suggested commit:** `Add Vega command line interface`
+**Suggested commit:** `Add Visiogen command line interface`
 
 ### Task M7.3: Add saved-graph replay
 
@@ -515,7 +515,7 @@ Prove `render-graph` uses normalization/layout/mapping/rendering without constru
 ### Task M8.1: Implement Ubuntu package validation
 
 **Files:**
-- Modify: `project/src/vega/validation.py`
+- Modify: `project/src/visiogen/validation.py`
 - Create: `project/tests/test_validation.py`
 - Add intentionally broken fixture packages under `project/tests/fixtures/vsdx/` only if compact and legally safe.
 
@@ -585,10 +585,10 @@ Run from a clean checkout/environment:
 ```bash
 uv sync --frozen
 uv run pytest -q
-uv run pytest --cov=vega --cov-report=term-missing
-uv run vega --help
-uv run vega render-graph --graph tests/fixtures/graphs/headphone.json --output artifacts/release/headphone.vsdx --debug-dir artifacts/release/headphone-debug
-uv run vega validate artifacts/release/headphone.vsdx --json-report artifacts/release/headphone-validation.json
+uv run pytest --cov=visiogen --cov-report=term-missing
+uv run visiogen --help
+uv run visiogen render-graph --graph tests/fixtures/graphs/headphone.json --output artifacts/release/headphone.vsdx --debug-dir artifacts/release/headphone-debug
+uv run visiogen validate artifacts/release/headphone.vsdx --json-report artifacts/release/headphone-validation.json
 ```
 
 Also confirm:
@@ -601,7 +601,7 @@ Also confirm:
 
 **Suggested commits:**
 - `Add end-to-end acceptance artifacts`
-- `Document Vega setup and limitations`
+- `Document Visiogen setup and limitations`
 - `Complete baseline acceptance`
 
 **Definition of done:** A user can explicitly select local Qwen or Gemini, describe a supported diagram, inspect each JSON boundary, receive a structurally valid editable `.vsdx`, and open/move/relabel/reconnect/save the file in Microsoft Visio without a repair prompt. Representative 5–25 element outputs are useful first drafts, and known limitations are explicit.

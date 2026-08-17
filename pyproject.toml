@@ -22,10 +22,10 @@ dev = [
 ]
 
 [project.scripts]
-vega = "vega.cli:main"
+visiogen = "visiogen.cli:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/vega"]
+packages = ["src/visiogen"]
 
 [tool.pytest.ini_options]
 addopts = "-ra"

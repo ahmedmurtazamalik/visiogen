@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from vega.models import DiagramEdge, DiagramGraph, DiagramNode
-from vega.normalization import (
+from visiogen.models import DiagramEdge, DiagramGraph, DiagramNode
+from visiogen.normalization import (
     GraphNormalizationError,
     normalize_extracted_graph,
     normalize_graph,

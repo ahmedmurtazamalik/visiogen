@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from vega.models import DiagramGraph, DiagramNode
+from visiogen.models import DiagramGraph, DiagramNode
 
 _CONTAINER_TYPES = frozenset({"housing", "subsystem"})
 

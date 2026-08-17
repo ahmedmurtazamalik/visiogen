@@ -111,7 +111,7 @@ project/
   pyproject.toml
   README.md
   src/
-    vega/
+    visiogen/
       __init__.py
       models.py
       config.py
@@ -179,7 +179,7 @@ Do not require Ollama in the baseline. The local provider should target an OpenA
 
 ## 8. Core Data Contract
 
-Define the contract in `src/vega/models.py` with Pydantic.
+Define the contract in `src/visiogen/models.py` with Pydantic.
 
 ```python
 from typing import Literal
@@ -330,7 +330,7 @@ Acceptance:
 
 - `python3 -m pytest` runs successfully.
 - All package imports resolve.
-- `python3 -m vega.cli --help` runs.
+- `python3 -m visiogen.cli --help` runs.
 - Generated artifacts and local model files are ignored by Git.
 
 ### M1 — Data contract and normalization
@@ -465,11 +465,11 @@ Use the official Google SDK and structured output support. Select the Gemini mod
 Environment variables:
 
 ```text
-VEGA_LLM_PROVIDER=local|gemini
-VEGA_LOCAL_BASE_URL=http://127.0.0.1:8080/v1
-VEGA_LOCAL_MODEL=<configured model name>
+VISIOGEN_LLM_PROVIDER=local|gemini
+VISIOGEN_LOCAL_BASE_URL=http://127.0.0.1:8080/v1
+VISIOGEN_LOCAL_MODEL=<configured model name>
 GEMINI_API_KEY=<secret>
-VEGA_GEMINI_MODEL=<configured model name>
+VISIOGEN_GEMINI_MODEL=<configured model name>
 ```
 
 Do not commit keys. Do not silently switch providers after an error.
@@ -594,18 +594,18 @@ def generate_vsdx(
 CLI examples:
 
 ```bash
-python3 -m vega.cli generate \
+python3 -m visiogen.cli generate \
   --provider local \
   --text "Start with login, then validate credentials..." \
   --output artifacts/login.vsdx
 
-python3 -m vega.cli generate \
+python3 -m visiogen.cli generate \
   --provider gemini \
   --input-file tests/fixtures/text/headphone.txt \
   --output artifacts/headphone.vsdx \
   --debug-dir artifacts/headphone-debug
 
-python3 -m vega.cli render-graph \
+python3 -m visiogen.cli render-graph \
   --graph tests/fixtures/graphs/headphone.json \
   --output artifacts/headphone-no-llm.vsdx
 ```

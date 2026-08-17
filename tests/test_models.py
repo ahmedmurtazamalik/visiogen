@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from vega.models import DiagramEdge, DiagramGraph, DiagramNode
+from visiogen.models import DiagramEdge, DiagramGraph, DiagramNode
 
 
 def sample_graph() -> DiagramGraph:

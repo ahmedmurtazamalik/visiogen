@@ -1,8 +1,8 @@
 import pytest
 from pydantic import ValidationError
 
-from vega.extractor import ExtractedDiagramGraph
-from vega.models import DiagramGraph
+from visiogen.extractor import ExtractedDiagramGraph
+from visiogen.models import DiagramGraph
 
 
 def extracted_payload() -> dict:
