@@ -1,0 +1,15 @@
+{
+  "title": "Controller subsystem",
+  "diagram_type": "system_block",
+  "orientation": "left_to_right",
+  "nodes": [
+    {"id": "control", "type": "subsystem", "label": "Control subsystem"},
+    {"id": "processor", "type": "processor", "label": "Processor", "parent_id": "control"},
+    {"id": "memory", "type": "memory", "label": "Memory", "parent_id": "control"},
+    {"id": "sensor", "type": "sensor", "label": "External sensor"}
+  ],
+  "edges": [
+    {"id": "e1", "source": "sensor", "target": "processor", "relation": "data", "direction": "forward", "style": "solid"},
+    {"id": "e2", "source": "processor", "target": "memory", "relation": "data", "direction": "bidirectional", "style": "solid"}
+  ]
+}

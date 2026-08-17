@@ -1,0 +1,14 @@
+{
+  "title": "Linear approval flow",
+  "diagram_type": "flowchart",
+  "orientation": "top_to_bottom",
+  "nodes": [
+    {"id": "start", "type": "terminator", "label": "Start"},
+    {"id": "review", "type": "process", "label": "Review request"},
+    {"id": "end", "type": "terminator", "label": "Finish"}
+  ],
+  "edges": [
+    {"id": "e1", "source": "start", "target": "review", "relation": "flow", "direction": "forward", "style": "solid"},
+    {"id": "e2", "source": "review", "target": "end", "relation": "flow", "direction": "forward", "style": "solid"}
+  ]
+}
