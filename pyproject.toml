@@ -1,0 +1,35 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "visiogen"
+version = "0.1.0"
+description = "Generate editable Visio diagrams from structured text descriptions"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "google-genai>=1.0,<2",
+  "httpx>=0.28,<1",
+  "networkx>=3.4,<4",
+  "pydantic>=2.11,<3",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3,<9",
+  "pytest-cov>=6,<7",
+]
+
+[project.scripts]
+vega = "vega.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/vega"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["tests"]
+markers = [
+  "integration: requires an external model provider or desktop application",
+]

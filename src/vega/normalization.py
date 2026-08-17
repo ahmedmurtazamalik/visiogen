@@ -1,0 +1,1 @@
+"""Diagram graph normalization."""

@@ -1,0 +1,1 @@
+"""Canonical diagram data models."""

@@ -1,0 +1,1 @@
+"""Template-based VSDX rendering."""

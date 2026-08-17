@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Environments and tooling
+.venv/
+.env*
+!.env.example
+
+# Local models
+*.gguf
+models/
+
+# Generated output
+artifacts/*
+!artifacts/.gitkeep
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
