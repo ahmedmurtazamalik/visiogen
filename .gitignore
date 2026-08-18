@@ -18,6 +18,10 @@ models/
 artifacts/*
 !artifacts/.gitkeep
 
+# Microsoft Office and Visio lock/temporary files
+~$*
+*.~vsdx
+
 # Editors and OS
 .vscode/
 .idea/
