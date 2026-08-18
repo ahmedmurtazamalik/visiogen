@@ -24,7 +24,7 @@ Each marker occurs exactly once in the canonical package.
 
 The template connector is glued between the process and component shapes. Moving either endpoint shape in Microsoft Visio must preserve the connection.
 
-The exact Python `vsdx` package version and APIs remain unconfirmed until the Ubuntu M2 spike succeeds.
+The renderer spike uses the pinned `vsdx==0.6.1` package. Visiogen supplements its public APIs with tested XML-level handling for nested shape IDs, external ShapeSheet references, page-level connector records, and package namespace serialization.
 
 ## Authoring environment
 
@@ -47,6 +47,21 @@ Validated in Microsoft Visio LTSC MSO Version 2409, Build 16.0.18014.20000, 64-b
 - The dynamic connector rerouted while remaining glued at both ends.
 
 M2.1 is accepted. M2.2 must separately prove that Python-generated copies retain these properties.
+
+## M2.2 Ubuntu structural acceptance
+
+The Ubuntu feasibility renderer:
+
+- Loads all five markers by exact text and rejects missing or duplicate markers.
+- Copies the complete top-level object for each marker, including the native container group.
+- Assigns unique IDs recursively to nested copied shapes.
+- Relabels and repositions each copied object without mutating the canonical template.
+- Retargets the generated callout to the generated component.
+- Copies both page-level connector records and retargets all connector ShapeSheet formulas to generated endpoint IDs.
+- Serializes XML package parts with their declared default namespaces instead of ElementTree `ns0` prefixes.
+- Refuses to overwrite the canonical template path.
+
+Automated Ubuntu checks prove ZIP/package readability, unique shape IDs, exact generated labels, expected geometry, connector records, glue formulas, callout targeting, clean namespace serialization, and successful LibreOffice headless conversion. Microsoft Visio remains the authority for the M2.3 no-repair and movement tests.
 
 ## Editing rules
 
