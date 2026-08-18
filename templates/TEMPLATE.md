@@ -56,6 +56,7 @@ The Ubuntu feasibility renderer:
 - Copies the complete top-level object for each marker, including the native container group.
 - Assigns unique IDs recursively to nested copied shapes.
 - Relabels and repositions each copied object without mutating the canonical template.
+- Removes the source palette objects and their connection records from the generated output.
 - Retargets the generated callout to the generated component.
 - Copies both page-level connector records and retargets all connector ShapeSheet formulas to generated endpoint IDs.
 - Serializes XML package parts with their declared default namespaces instead of ElementTree `ns0` prefixes.

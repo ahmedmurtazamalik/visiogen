@@ -49,6 +49,21 @@ def test_render_feasibility_spike_copies_relabels_and_repositions_parts(
         assert component.y == pytest.approx(5.0)
 
 
+def test_rendered_output_excludes_template_palette_objects(tmp_path: Path) -> None:
+    output_path = tmp_path / "minimal.vsdx"
+    renderer.render_feasibility_spike(TEMPLATE_PATH, output_path)
+
+    with VisioFile(str(output_path)) as document:
+        page = document.get_page_by_name("Template Palette")
+        remaining_markers = {
+            shape.text.strip()
+            for shape in page.all_shapes
+            if shape.text.strip() in renderer.TEMPLATE_MARKERS
+        }
+
+    assert remaining_markers == set()
+
+
 def test_generated_connector_is_glued_to_generated_endpoints(tmp_path: Path) -> None:
     output_path = tmp_path / "minimal.vsdx"
     renderer.render_feasibility_spike(TEMPLATE_PATH, output_path)

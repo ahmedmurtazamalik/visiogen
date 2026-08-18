@@ -182,6 +182,28 @@ def _copy_connector_connections(
         page.add_connect(Connect(xml=connection_xml, page=page))
 
 
+def _remove_template_palette(palette: TemplatePalette) -> None:
+    """Remove the source palette objects and their connections from the output page."""
+
+    shapes_element = palette.page.xml.find(f"{namespace}Shapes")
+    if shapes_element is None:
+        raise TemplateValidationError("Template page does not contain a Shapes element")
+
+    source_shapes = {part.shape.xml for part in palette.shapes.values()}
+    source_ids = {part.shape.ID for part in palette.shapes.values()}
+    for shape_xml in source_shapes:
+        shapes_element.remove(shape_xml)
+
+    connects_element = palette.page.xml.find(f"{namespace}Connects")
+    if connects_element is not None:
+        for connect_xml in list(connects_element):
+            if (
+                connect_xml.attrib.get("FromSheet") in source_ids
+                or connect_xml.attrib.get("ToSheet") in source_ids
+            ):
+                connects_element.remove(connect_xml)
+
+
 def _namespace_safe_xml_to_file(
     xml: ET.ElementTree,
     filename: str,
@@ -262,6 +284,7 @@ def render_feasibility_spike(
                 copies[component_marker].center_x_y,
             )
 
+        _remove_template_palette(palette)
         _save_vsdx(palette.document, destination)
 
     return destination
