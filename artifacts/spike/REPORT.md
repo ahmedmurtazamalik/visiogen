@@ -16,7 +16,7 @@ M2 remains partial until the exact generated artifact below passes the M2.3 chec
 - Generated artifact size: `224836` bytes
 - Renderer dependency: `vsdx==0.6.1`
 
-The generated binary is intentionally Git-ignored. Validate the attached/downloaded file against the checksum above rather than assuming another regenerated file is byte-identical.
+The exact generated binary is committed at `artifacts/spike/minimal.vsdx` so the Windows validator receives the same bytes through `git pull`. Verify its checksum before testing.
 
 ## Reproduction command
 

@@ -20,6 +20,7 @@ artifacts/*
 !artifacts/spike/
 artifacts/spike/*
 !artifacts/spike/REPORT.md
+!artifacts/spike/minimal.vsdx
 
 # Microsoft Office and Visio lock/temporary files
 ~$*
