@@ -36,6 +36,18 @@ The exact Python `vsdx` package version and APIs remain unconfirmed until the Ub
 
 Product IDs and session IDs are deliberately not recorded because they are unnecessary for compatibility testing.
 
+## M2.1 Windows acceptance
+
+Validated in Microsoft Visio LTSC MSO Version 2409, Build 16.0.18014.20000, 64-bit:
+
+- Closed and reopened `template.vsdx` without a repair or corruption prompt.
+- All palette objects and marker text were preserved after reopening.
+- Moving the process shape kept its connector endpoint attached.
+- Moving the component rectangle kept its connector endpoint attached.
+- The dynamic connector rerouted while remaining glued at both ends.
+
+M2.1 is accepted. M2.2 must separately prove that Python-generated copies retain these properties.
+
 ## Editing rules
 
 1. Preserve every marker exactly.
