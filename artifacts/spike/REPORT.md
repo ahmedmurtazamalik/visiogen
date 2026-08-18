@@ -1,10 +1,10 @@
 # M2 VSDX Template-Copying Spike
 
-## Verdict: PARTIAL — Ubuntu validated, Microsoft Visio acceptance pending
+## Verdict: PASS — Ubuntu structure and Microsoft Visio behavior validated
 
-The Ubuntu half of M2 is successful. Visiogen can copy all five template objects, relabel and reposition them, preserve the native container and callout structures, and create a copied dynamic connector whose page-level connection records and ShapeSheet formulas target the copied endpoints.
+Visiogen copies all five template objects, relabels and repositions them, removes the source palette, preserves the native container and callout structures, and creates a dynamic connector whose page-level connection records and ShapeSheet formulas target the copied endpoints.
 
-M2 remains partial until the exact generated artifact below passes the M2.3 checks in Microsoft Visio on Windows.
+The exact artifact below passed Ubuntu package checks and authoritative Windows acceptance in Microsoft Visio.
 
 ## Exact artifact identity
 
@@ -70,19 +70,16 @@ ZIP timestamps mean a fresh run may produce different package bytes even when th
 
 All three candidates are superseded and must not be used for final M2.3 acceptance.
 
-## M2.3 Windows acceptance procedure
+## M2.3 Windows acceptance
 
-Using Microsoft Visio LTSC MSO Version 2409, Build 16.0.18014.20000, 64-bit:
+Validated with artifact SHA-256 `7b1453254f1390b7bc07e3bcd9d65226d11bf935de6ae547350da4c16076f4d2` in Microsoft Visio LTSC MSO Version 2409, Build 16.0.18014.20000, 64-bit:
 
-1. Verify the downloaded file's SHA-256 is exactly `7b1453254f1390b7bc07e3bcd9d65226d11bf935de6ae547350da4c16076f4d2`.
-2. Open `minimal.vsdx` in Microsoft Visio.
-3. Confirm there is no repair, corruption, or unreadable-content prompt.
-4. Confirm the five generated labels and objects are present and editable.
-5. Move `Generated Process`; confirm the `feeds` connector endpoint follows it.
-6. Move `Generated Component`; confirm the other endpoint follows it.
-7. Confirm `Generated Subsystem` behaves as a native container.
-8. Confirm callout `101` remains a native editable callout.
-9. Save the file, close Visio, and reopen it.
-10. Confirm there is still no repair prompt and the generated objects remain editable and glued.
+- Opened without a repair, corruption, or unreadable-content prompt.
+- Contained only the five generated editable objects and labels.
+- Moving `Generated Process` kept the `feeds` connector attached.
+- Moving `Generated Component` kept both `feeds` and callout `101` attached.
+- The subsystem remained a native editable container.
+- Callout `101` remained a native editable callout.
+- Saving, closing, and reopening preserved the objects and attachments without a repair prompt.
 
-If all ten checks pass, M2 can be marked validated. If Visio repairs the file or glue fails, M2 remains partial and the exact prompt and repaired file must be retained for diagnosis.
+M2 is accepted. The VSDX template-copying, connector-glue, and callout-association risks are sufficiently retired for M3.

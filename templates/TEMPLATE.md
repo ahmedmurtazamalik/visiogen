@@ -64,11 +64,30 @@ The Ubuntu feasibility renderer:
 
 Automated Ubuntu checks prove ZIP/package readability, unique shape IDs, exact generated labels, expected geometry, connector records, glue formulas, callout targeting, clean namespace serialization, and successful LibreOffice headless conversion. Microsoft Visio remains the authority for the M2.3 no-repair and movement tests.
 
+## M2.3 Windows acceptance
+
+The exact accepted generated artifact is:
+
+- Generator source commit: `c47f844df7d933355f29876c423873480e867e8d`.
+- Artifact publication commit: `beee9b404bca15e47828815f8619293a0912ce6a`.
+- Artifact SHA-256: `7b1453254f1390b7bc07e3bcd9d65226d11bf935de6ae547350da4c16076f4d2`.
+
+Validated in Microsoft Visio LTSC MSO Version 2409, Build 16.0.18014.20000, 64-bit:
+
+- Opened without a repair, corruption, or unreadable-content prompt.
+- Only the five generated editable objects and labels remained in the output.
+- Moving either endpoint shape kept `feeds` attached.
+- Moving `Generated Component` kept callout `101` attached.
+- The subsystem container and reference callout remained native editable Visio objects.
+- Save, close, and reopen completed without repair and preserved the attachments.
+
+M2 is fully accepted against these exact artifact bytes.
+
 ## Editing rules
 
 1. Preserve every marker exactly.
 2. Keep marker values unique.
 3. Never overwrite generated diagrams onto this file.
-4. Do not add the complete production palette until M2 passes.
+4. Expand the palette only with real Visio objects and preserve the accepted connector, container, and callout semantics.
 5. Validate every binary template revision by closing and reopening it in Microsoft Visio without a repair prompt.
 6. Close Visio before staging changes so its temporary owner/lock file is removed.
