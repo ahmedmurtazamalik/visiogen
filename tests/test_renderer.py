@@ -113,12 +113,17 @@ def test_generated_callout_leader_touches_generated_component(tmp_path: Path) ->
         target_row = callout.xml.find(
             f"{namespace}Section[@N='User']/{namespace}Row[@N='msvSDTargetIntersection']"
         )
-        target_value = target_row.find(f"{namespace}Cell[@N='Value']").attrib["F"]
+        target_cell = target_row.find(f"{namespace}Cell[@N='Value']")
+        target_value = target_cell.attrib["V"]
+        target_formula = target_cell.attrib["F"]
         match = re.fullmatch(r"PNT\(([^,]+),([^\)]+)\)", target_value)
 
         assert match is not None
         assert float(match.group(1)) == pytest.approx(local_x)
         assert float(match.group(2)) == pytest.approx(local_y)
+        assert f"Sheet.{component.ID}!PinX" in target_formula
+        assert f"Sheet.{component.ID}!PinY" in target_formula
+        assert f"Sheet.{component.ID}!Height" in target_formula
         assert component.x - component.width / 2 <= global_x <= component.x + component.width / 2
         assert global_y == pytest.approx(component.y - component.height / 2)
 
