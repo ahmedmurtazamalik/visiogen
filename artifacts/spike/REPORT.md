@@ -8,12 +8,12 @@ M2 remains partial until the exact generated artifact below passes the M2.3 chec
 
 ## Exact artifact identity
 
-- Generator source commit: `e7fba80f567fccb06090abfe7c98bb143ea9464d`
+- Generator source commit: `8264861d457b02697fdf60128b474cfda05548e0`
 - Canonical template source commit: `d2cf49446027d3b6130ff0d3793ace37e754fc58`
 - Canonical template SHA-256: `646d9144b031224ba6211dc12193de48c424b3479ba44d14786b50a864484159`
 - Generated artifact: `artifacts/spike/minimal.vsdx`
-- Generated artifact SHA-256: `5999fd15655481c5badd3f12522ddea83e22818b431a6abe47fd77018e937be3`
-- Generated artifact size: `224836` bytes
+- Generated artifact SHA-256: `b13789bf6ceb0ec92924168d73eba75c2ac70b3aa51e6b1ed35b67ac0d9683de`
+- Generated artifact size: `206480` bytes
 - Renderer dependency: `vsdx==0.6.1`
 
 The exact generated binary is committed at `artifacts/spike/minimal.vsdx` so the Windows validator receives the same bytes through `git pull`. Verify its checksum before testing.
@@ -35,6 +35,8 @@ ZIP timestamps mean a fresh run may produce different package bytes even when th
   - `Generated Subsystem`
   - `101`
   - `feeds`
+- The generated page contains exactly five top-level objects.
+- No `__template_*` marker or source palette object remains in the generated output.
 - All page shape IDs are unique; no nested container IDs are duplicated.
 - Generated process shape ID: `11`.
 - Generated component shape ID: `12`.
@@ -49,8 +51,8 @@ ZIP timestamps mean a fresh run may produce different package bytes even when th
 - `python3 -m zipfile -t` completed successfully.
 - Linux `file` identified the result as `Microsoft Visio 2013+`.
 - LibreOffice headless converted the exact artifact to a one-page PDF successfully.
-- Full automated suite: `33 passed`.
-- Total test coverage: `97%`; renderer coverage: `95%`.
+- Full automated suite: `34 passed`.
+- Total test coverage: `96%`; renderer coverage: `95%`.
 
 ## `vsdx==0.6.1` limitations handled by Visiogen
 
@@ -60,11 +62,15 @@ ZIP timestamps mean a fresh run may produce different package bytes even when th
 4. ElementTree's global namespace registry can serialize Visio parts with `ns0` prefixes. Visiogen serializes each package part with its root namespace declared as the default.
 5. The library emits a debug print while recalculating connector geometry. Visiogen contains that output.
 
+## Superseded Windows observation
+
+The earlier candidate with SHA-256 `5999fd15655481c5badd3f12522ddea83e22818b431a6abe47fd77018e937be3` opened without a repair prompt and contained all five generated objects, but it incorrectly retained the source palette objects. It is superseded and must not be used for final M2.3 acceptance.
+
 ## M2.3 Windows acceptance procedure
 
 Using Microsoft Visio LTSC MSO Version 2409, Build 16.0.18014.20000, 64-bit:
 
-1. Verify the downloaded file's SHA-256 is exactly `5999fd15655481c5badd3f12522ddea83e22818b431a6abe47fd77018e937be3`.
+1. Verify the downloaded file's SHA-256 is exactly `b13789bf6ceb0ec92924168d73eba75c2ac70b3aa51e6b1ed35b67ac0d9683de`.
 2. Open `minimal.vsdx` in Microsoft Visio.
 3. Confirm there is no repair, corruption, or unreadable-content prompt.
 4. Confirm the five generated labels and objects are present and editable.
