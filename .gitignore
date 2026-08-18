@@ -17,6 +17,9 @@ models/
 # Generated output
 artifacts/*
 !artifacts/.gitkeep
+!artifacts/spike/
+artifacts/spike/*
+!artifacts/spike/REPORT.md
 
 # Microsoft Office and Visio lock/temporary files
 ~$*
