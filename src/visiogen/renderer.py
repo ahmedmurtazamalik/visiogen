@@ -165,6 +165,44 @@ def _copy_shape_tree(shape: Shape, page: Page) -> Shape:
     return copied_shape
 
 
+def _attach_callout_leader(callout: Shape, target: Shape) -> None:
+    """Point a copied callout's leader at the bottom edge of its target shape."""
+
+    local_x = target.x - callout.x + float(callout.cell_value("LocPinX"))
+    local_y = (
+        target.y
+        - target.height / 2
+        - callout.y
+        + float(callout.cell_value("LocPinY"))
+    )
+    point = f"PNT({local_x:.15g},{local_y:.15g})"
+
+    user_section = callout.xml.find(f"{namespace}Section[@N='User']")
+    geometry = callout.xml.find(f"{namespace}Section[@N='Geometry'][@IX='0']")
+    if user_section is None or geometry is None:
+        raise TemplateValidationError("Template callout lacks target or leader geometry")
+
+    target_cell = user_section.find(
+        f"{namespace}Row[@N='msvSDTargetIntersection']/{namespace}Cell[@N='Value']"
+    )
+    leader_cell = user_section.find(
+        f"{namespace}Row[@N='LeaderEnd']/{namespace}Cell[@N='Value']"
+    )
+    leader_row = geometry.find(f"{namespace}Row[@T='LineTo'][@IX='2']")
+    if target_cell is None or leader_cell is None or leader_row is None:
+        raise TemplateValidationError("Template callout lacks a usable leader endpoint")
+
+    leader_x = leader_row.find(f"{namespace}Cell[@N='X']")
+    leader_y = leader_row.find(f"{namespace}Cell[@N='Y']")
+    if leader_x is None or leader_y is None:
+        raise TemplateValidationError("Template callout leader lacks X/Y cells")
+
+    target_cell.attrib.update({"V": point, "F": point})
+    leader_cell.attrib["V"] = point
+    leader_x.attrib["V"] = f"{local_x:.15g}"
+    leader_y.attrib["V"] = f"{local_y:.15g}"
+
+
 def _copy_connector_connections(
     page: Page,
     source_connector: Shape,
@@ -271,6 +309,10 @@ def render_feasibility_spike(
         _retarget_sheet_references(
             copies["__template_reference_callout__"],
             id_map,
+        )
+        _attach_callout_leader(
+            copies["__template_reference_callout__"],
+            copies[component_marker],
         )
         _copy_connector_connections(
             page=palette.page,

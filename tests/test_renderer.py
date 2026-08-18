@@ -96,6 +96,33 @@ def test_generated_callout_targets_generated_component(tmp_path: Path) -> None:
         assert f"Sheet.{component.ID}!" in callout.cell_formula("Relationships")
 
 
+def test_generated_callout_leader_touches_generated_component(tmp_path: Path) -> None:
+    output_path = tmp_path / "minimal.vsdx"
+    renderer.render_feasibility_spike(TEMPLATE_PATH, output_path)
+
+    with VisioFile(str(output_path)) as document:
+        page = document.get_page_by_name("Template Palette")
+        component = page.find_shape_by_text("Generated Component")
+        callout = page.find_shape_by_text("101")
+        geometry = callout.xml.find(f"{namespace}Section[@N='Geometry'][@IX='0']")
+        leader_end = geometry.find(f"{namespace}Row[@T='LineTo'][@IX='2']")
+        local_x = float(leader_end.find(f"{namespace}Cell[@N='X']").attrib["V"])
+        local_y = float(leader_end.find(f"{namespace}Cell[@N='Y']").attrib["V"])
+        global_x = callout.x - float(callout.cell_value("LocPinX")) + local_x
+        global_y = callout.y - float(callout.cell_value("LocPinY")) + local_y
+        target_row = callout.xml.find(
+            f"{namespace}Section[@N='User']/{namespace}Row[@N='msvSDTargetIntersection']"
+        )
+        target_value = target_row.find(f"{namespace}Cell[@N='Value']").attrib["F"]
+        match = re.fullmatch(r"PNT\(([^,]+),([^\)]+)\)", target_value)
+
+        assert match is not None
+        assert float(match.group(1)) == pytest.approx(local_x)
+        assert float(match.group(2)) == pytest.approx(local_y)
+        assert component.x - component.width / 2 <= global_x <= component.x + component.width / 2
+        assert global_y == pytest.approx(component.y - component.height / 2)
+
+
 def test_render_feasibility_spike_does_not_print_library_debug_output(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
