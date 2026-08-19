@@ -29,4 +29,4 @@ The Codex adapter runs each request in an ephemeral temporary directory with a r
 
 Local Qwen and Gemini remain available only through explicit `local` or `gemini` selection; neither is a silent fallback for Codex.
 
-The known-good Visio template and its connector, callout, container, and save/reopen behavior have passed Microsoft Visio acceptance. See [`docs/M4_EXTRACTION.md`](docs/M4_EXTRACTION.md) for provider contracts, real-provider evidence, and the accepted provider decision. See [`docs/M5_LAYOUT.md`](docs/M5_LAYOUT.md) for deterministic geometry architecture and acceptance evidence.
+The known-good Visio template and its connector, callout, container, and save/reopen behavior have passed Microsoft Visio acceptance. See [`docs/M4_EXTRACTION.md`](docs/M4_EXTRACTION.md) for provider contracts, real-provider evidence, and the accepted provider decision. See [`docs/M5_LAYOUT.md`](docs/M5_LAYOUT.md) for deterministic geometry architecture and acceptance evidence. See [`docs/M6_RENDERING.md`](docs/M6_RENDERING.md) for native template-based rendering, structural evidence, and the pending checksum-bound Microsoft Visio gate.
