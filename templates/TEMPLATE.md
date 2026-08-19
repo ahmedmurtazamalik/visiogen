@@ -128,6 +128,22 @@ Microsoft Visio LTSC MSO Version 2409, Build 16.0.18014.20000, 64-bit validation
 
 M3.1 is accepted. M3.2 semantic mapping may proceed against this exact canonical template.
 
+## M3.2 deterministic visual mapping
+
+`src/visiogen/shape_mapper.py` provides immutable `NodeVisualSpec` and `EdgeVisualSpec` values:
+
+- Every one of the 25 `NodeType` literals resolves explicitly to a documented production marker.
+- `data_store` and `memory` reuse `database`; `processor` reuses `controller`; `actuator` and `communication_module` reuse `component_rectangle`; `transducer` reuses `sensor`; and `service` reuses `external_system`.
+- `subsystem` and `housing` are the only container-capable node visuals.
+- Every combination of 7 relation types and 4 directions resolves deterministically.
+- Direction alone controls begin/end arrow placement.
+- Relation defaults control line style and weight; an explicit graph line style overrides the relation default.
+- Power uses a distinct weight, mechanical defaults to dashed, and association defaults to dotted.
+- Unknown semantic values and missing template markers fail with `ShapeMappingError`; no silent visual fallback exists.
+- Mapping data and returned visual specifications are immutable.
+
+The complete suite passes with 48 tests, and `shape_mapper.py` has 100% statement coverage. M3 is accepted.
+
 ## Editing rules
 
 1. Preserve every marker exactly.
