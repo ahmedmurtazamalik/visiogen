@@ -51,6 +51,73 @@ def size_node(node: DiagramNode) -> NodeSize:
     )
 
 
+def wrapped_graph(graph: DiagramGraph) -> DiagramGraph:
+    """Return a deep copy with deterministic visual line breaks."""
+
+    prepared = graph.model_copy(deep=True)
+    for node in prepared.nodes:
+        node.label = size_node(node).wrapped_label
+    return prepared
+
+
+def add_container_geometry(
+    graph: DiagramGraph,
+    geometry: dict[str, NodeGeometry],
+) -> None:
+    """Add one-level container boxes around already-positioned children."""
+
+    children_by_parent: dict[str, list[str]] = {}
+    for node in graph.nodes:
+        if node.parent_id is not None:
+            children_by_parent.setdefault(node.parent_id, []).append(node.id)
+    nodes_by_id = {node.id: node for node in graph.nodes}
+    for parent_id in sorted(children_by_parent):
+        try:
+            boxes = [geometry[node_id] for node_id in children_by_parent[parent_id]]
+        except KeyError as exc:
+            raise LayoutError(f"missing child geometry for container '{parent_id}'") from exc
+        left = min(x - width / 2 for x, _, width, _ in boxes) - 0.5
+        right = max(x + width / 2 for x, _, width, _ in boxes) + 0.5
+        bottom = min(y - height / 2 for _, y, _, height in boxes) - 0.5
+        top = max(y + height / 2 for _, y, _, height in boxes) + 0.9
+        minimum = size_node(nodes_by_id[parent_id])
+        geometry[parent_id] = (
+            round((left + right) / 2, 4),
+            round((bottom + top) / 2, 4),
+            round(max(right - left, minimum.width), 4),
+            round(max(top - bottom, minimum.height), 4),
+        )
+
+
+def fit_page_to_geometry(
+    geometry: dict[str, NodeGeometry],
+    *,
+    margin: float = 0.5,
+    minimum_width: float = 0.0,
+    minimum_height: float = 0.0,
+) -> PageGeometry:
+    """Shift boxes inside a margin and return a page enclosing every box."""
+
+    left = min(x - width / 2 for x, _, width, _ in geometry.values())
+    bottom = min(y - height / 2 for _, y, _, height in geometry.values())
+    shift_x = max(0.0, margin - left)
+    shift_y = max(0.0, margin - bottom)
+    if shift_x or shift_y:
+        for node_id, (x, y, width, height) in tuple(geometry.items()):
+            geometry[node_id] = (
+                round(x + shift_x, 4),
+                round(y + shift_y, 4),
+                width,
+                height,
+            )
+    right = max(x + width / 2 for x, _, width, _ in geometry.values())
+    top = max(y + height / 2 for _, y, _, height in geometry.values())
+    return PageGeometry(
+        width=round(max(minimum_width, right + margin), 4),
+        height=round(max(minimum_height, top + margin), 4),
+    )
+
+
 class PageGeometry(BaseModel):
     """Final Visio page dimensions in inches."""
 

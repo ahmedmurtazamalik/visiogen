@@ -9,9 +9,11 @@ from typing import Protocol
 from visiogen.layout import (
     LayoutError,
     LayoutResult,
-    PageGeometry,
+    add_container_geometry,
     apply_geometry,
+    fit_page_to_geometry,
     size_node,
+    wrapped_graph,
 )
 from visiogen.models import DiagramGraph, DiagramNode, RelationType
 
@@ -185,58 +187,6 @@ def _restore_node_sizes(
         geometry[node_id] = (x, y, size.width, size.height)
 
 
-def _add_container_geometry(
-    graph: DiagramGraph,
-    geometry: dict[str, tuple[float, float, float, float]],
-) -> None:
-    children_by_parent: dict[str, list[str]] = {}
-    for node in graph.nodes:
-        if node.parent_id is not None:
-            children_by_parent.setdefault(node.parent_id, []).append(node.id)
-
-    nodes_by_id = {node.id: node for node in graph.nodes}
-    for parent_id in sorted(children_by_parent):
-        try:
-            child_boxes = [geometry[node_id] for node_id in children_by_parent[parent_id]]
-        except KeyError as exc:
-            raise LayoutError("malformed Graphviz plain output") from exc
-        left = min(x - width / 2 for x, _, width, _ in child_boxes) - 0.5
-        right = max(x + width / 2 for x, _, width, _ in child_boxes) + 0.5
-        bottom = min(y - height / 2 for _, y, _, height in child_boxes) - 0.5
-        top = max(y + height / 2 for _, y, _, height in child_boxes) + 0.9
-        minimum = size_node(nodes_by_id[parent_id])
-        width = max(right - left, minimum.width)
-        height = max(top - bottom, minimum.height)
-        center_x = (left + right) / 2
-        center_y = (bottom + top) / 2
-        geometry[parent_id] = (
-            round(center_x, 4),
-            round(center_y, 4),
-            round(width, 4),
-            round(height, 4),
-        )
-
-
-def _page_geometry(
-    graph_width: float,
-    graph_height: float,
-    geometry: dict[str, tuple[float, float, float, float]],
-) -> PageGeometry:
-    right = max(x + width / 2 for x, _, width, _ in geometry.values())
-    top = max(y + height / 2 for _, y, _, height in geometry.values())
-    return PageGeometry(
-        width=round(max(graph_width + 2 * _PAGE_MARGIN, right + _PAGE_MARGIN), 4),
-        height=round(max(graph_height + 2 * _PAGE_MARGIN, top + _PAGE_MARGIN), 4),
-    )
-
-
-def _with_wrapped_labels(graph: DiagramGraph) -> DiagramGraph:
-    prepared = graph.model_copy(deep=True)
-    for node in prepared.nodes:
-        node.label = size_node(node).wrapped_label
-    return prepared
-
-
 class GraphvizLayout:
     """Primary deterministic layout strategy backed by ``dot -Tplain``."""
 
@@ -271,6 +221,14 @@ class GraphvizLayout:
             raise LayoutError("Graphviz layout command failed") from exc
         graph_width, graph_height, geometry = _parse_plain(completed.stdout)
         _restore_node_sizes(graph, geometry)
-        _add_container_geometry(graph, geometry)
-        page = _page_geometry(graph_width, graph_height, geometry)
-        return apply_geometry(_with_wrapped_labels(graph), geometry, page)
+        try:
+            add_container_geometry(graph, geometry)
+        except LayoutError as exc:
+            raise LayoutError("malformed Graphviz plain output") from exc
+        page = fit_page_to_geometry(
+            geometry,
+            margin=_PAGE_MARGIN,
+            minimum_width=graph_width + 2 * _PAGE_MARGIN,
+            minimum_height=graph_height + 2 * _PAGE_MARGIN,
+        )
+        return apply_geometry(wrapped_graph(graph), geometry, page)
