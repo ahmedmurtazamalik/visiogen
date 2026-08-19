@@ -11,7 +11,7 @@ from vsdx import Shape, VisioFile, namespace
 
 import visiogen.renderer as renderer
 from visiogen.layout import LayoutResult, PageGeometry
-from visiogen.models import DiagramGraph, DiagramNode, NodeType
+from visiogen.models import DiagramEdge, DiagramGraph, DiagramNode, NodeType
 
 
 TEMPLATE_PATH = Path(__file__).parents[1] / "templates" / "template.vsdx"
@@ -241,6 +241,73 @@ def test_render_layout_auto_numbers_only_when_explicitly_enabled(tmp_path: Path)
         page = document.get_page_by_name("Template Palette")
         assert page.find_shape_by_text("1") is not None
         assert page.find_shape_by_text("2") is not None
+
+
+def test_render_layout_creates_styled_labeled_glued_connector(tmp_path: Path) -> None:
+    output_path = tmp_path / "connector.vsdx"
+    layout = LayoutResult(
+        graph=DiagramGraph(
+            title="Connected system",
+            diagram_type="system_block",
+            orientation="left_to_right",
+            nodes=[
+                _node("sensor", "sensor", "Sensor", (2.0, 2.5, 1.5, 1.5)),
+                _node("controller", "controller", "Controller", (6.0, 2.5, 2.5, 1.0)),
+            ],
+            edges=[
+                DiagramEdge(
+                    id="data-link",
+                    source="sensor",
+                    target="controller",
+                    relation="data",
+                    direction="bidirectional",
+                    label="synchronizes",
+                    style="dotted",
+                )
+            ],
+        ),
+        page=PageGeometry(width=9.0, height=5.0),
+    )
+
+    renderer.render_layout(TEMPLATE_PATH, layout, output_path)
+
+    with VisioFile(str(output_path)) as document:
+        page = document.get_page_by_name("Template Palette")
+        sensor = _outer_shape(page.find_shape_by_text("Sensor"))
+        controller = _outer_shape(page.find_shape_by_text("Controller"))
+        connector = _outer_shape(page.find_shape_by_text("synchronizes"))
+        connected_ids = {
+            connection.to_id
+            for connection in page.connects
+            if connection.from_id == connector.ID
+        }
+        assert connected_ids == {sensor.ID, controller.ID}
+        assert f"Sheet.{sensor.ID}!" in connector.cell_formula("BeginX")
+        assert f"Sheet.{controller.ID}!" in connector.cell_formula("EndX")
+        assert connector.cell_value("BeginArrow") == "4"
+        assert connector.cell_value("EndArrow") == "4"
+        assert connector.cell_value("LinePattern") == "3"
+        assert float(connector.cell_value("LineWeight")) == pytest.approx(1.0 / 72.0)
+        assert connector.cell_value("LineColor") == "#000000"
+
+
+def test_render_layout_rejects_edge_with_missing_endpoint(tmp_path: Path) -> None:
+    layout = LayoutResult(
+        graph=DiagramGraph(
+            title="Broken connection",
+            diagram_type="system_block",
+            orientation="left_to_right",
+            nodes=[_node("sensor", "sensor", "Sensor", (2.0, 2.0, 1.5, 1.5))],
+            edges=[DiagramEdge(source="sensor", target="missing", relation="data")],
+        ),
+        page=PageGeometry(width=6.0, height=4.0),
+    )
+
+    with pytest.raises(
+        renderer.RenderingError,
+        match="edge references missing rendered endpoint 'missing'",
+    ):
+        renderer.render_layout(TEMPLATE_PATH, layout, tmp_path / "broken.vsdx")
 
 
 def test_render_layout_requires_complete_node_geometry(tmp_path: Path) -> None:

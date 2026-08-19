@@ -18,7 +18,12 @@ from vsdx import Connect, Page, Shape, VisioFile, namespace, r_namespace, vt_nam
 
 from visiogen.layout import LayoutResult
 from visiogen.models import DiagramNode
-from visiogen.shape_mapper import PRODUCTION_TEMPLATE_MARKERS, map_node_visual
+from visiogen.shape_mapper import (
+    EdgeVisualSpec,
+    PRODUCTION_TEMPLATE_MARKERS,
+    map_edge_visual,
+    map_node_visual,
+)
 
 
 TEMPLATE_PAGE_NAME = "Template Palette"
@@ -44,6 +49,8 @@ GENERATED_POSITIONS = {
     "__template_connector__": (5.0, 5.0),
 }
 _XML_SERIALIZATION_LOCK = threading.Lock()
+_LINE_PATTERNS = {"solid": "1", "dashed": "2", "dotted": "3"}
+_ARROW_STYLE = "4"
 
 
 class TemplateValidationError(ValueError):
@@ -237,6 +244,22 @@ def _copy_connector_connections(
         page.add_connect(Connect(xml=connection_xml, page=page))
 
 
+def _set_local_cell_value(shape: Shape, name: str, value: str) -> None:
+    """Set an explicit ShapeSheet value without inherited template formulas."""
+
+    with redirect_stdout(io.StringIO()):
+        shape.set_cell_value(name, value)
+    shape.cells[name].xml.attrib.pop("F", None)
+
+
+def _style_connector(shape: Shape, visual: EdgeVisualSpec) -> None:
+    _set_local_cell_value(shape, "BeginArrow", _ARROW_STYLE if visual.begin_arrow else "0")
+    _set_local_cell_value(shape, "EndArrow", _ARROW_STYLE if visual.end_arrow else "0")
+    _set_local_cell_value(shape, "LinePattern", _LINE_PATTERNS[visual.line_style])
+    _set_local_cell_value(shape, "LineWeight", f"{visual.line_weight / 72.0:.15g}")
+    _set_local_cell_value(shape, "LineColor", "#000000")
+
+
 def _remove_template_palette(palette: TemplatePalette) -> None:
     """Remove the source palette objects and their connections from the output page."""
 
@@ -366,6 +389,43 @@ def render_layout(
                 {palette.shapes[component_marker].shape.ID: target.ID},
             )
             _attach_callout_leader(callout, target)
+
+        connector_marker = "__template_connector__"
+        process_marker = "__template_process__"
+        for edge in layout.graph.edges:
+            try:
+                source_shape = node_shapes[edge.source]
+                target_shape = node_shapes[edge.target]
+            except KeyError as exc:
+                raise RenderingError(
+                    f"edge references missing rendered endpoint '{exc.args[0]}'"
+                ) from exc
+            visual = map_edge_visual(
+                edge.relation,
+                edge.direction,
+                line_style=edge.style,
+                available_markers=palette.shapes.keys(),
+            )
+            source_connector = palette.shapes[connector_marker].shape
+            connector = _copy_shape_tree(source_connector, palette.page)
+            _find_marker_shape(connector, connector_marker).text = edge.label or ""
+            id_map = {
+                palette.shapes[process_marker].shape.ID: source_shape.ID,
+                palette.shapes[component_marker].shape.ID: target_shape.ID,
+            }
+            _retarget_sheet_references(connector, id_map)
+            _copy_connector_connections(
+                page=palette.page,
+                source_connector=source_connector,
+                copied_connector=connector,
+                id_map=id_map,
+            )
+            with redirect_stdout(io.StringIO()):
+                connector.set_start_and_finish(
+                    source_shape.center_x_y,
+                    target_shape.center_x_y,
+                )
+            _style_connector(connector, visual)
 
         palette.page.width = layout.page.width
         palette.page.height = layout.page.height
