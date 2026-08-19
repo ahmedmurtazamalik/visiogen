@@ -22,6 +22,13 @@ def _parse_bool(value: str) -> bool:
     raise ConfigError("VISIOGEN_DEBUG must be a boolean")
 
 
+def _parse_timeout(value: str) -> float:
+    try:
+        return float(value)
+    except ValueError as error:
+        raise ConfigError("VISIOGEN_TIMEOUT_SECONDS must be numeric") from error
+
+
 @dataclass(frozen=True, slots=True)
 class Settings:
     """Runtime settings constructible directly or explicitly from the environment."""
@@ -64,6 +71,8 @@ class Settings:
             local_model=values.get("VISIOGEN_LOCAL_MODEL", "qwen3.5-9b"),
             gemini_model=values.get("VISIOGEN_GEMINI_MODEL", "gemini-2.5-flash"),
             gemini_api_key=values.get("VISIOGEN_GEMINI_API_KEY"),
-            timeout_seconds=float(values.get("VISIOGEN_TIMEOUT_SECONDS", "60")),
+            timeout_seconds=_parse_timeout(
+                values.get("VISIOGEN_TIMEOUT_SECONDS", "60")
+            ),
             debug=_parse_bool(values.get("VISIOGEN_DEBUG", "false")),
         )

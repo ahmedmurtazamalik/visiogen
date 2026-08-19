@@ -79,3 +79,13 @@ def test_from_env_rejects_invalid_debug_policy() -> None:
                 "VISIOGEN_DEBUG": "sometimes",
             }
         )
+
+
+def test_from_env_translates_invalid_timeout_to_config_error() -> None:
+    with pytest.raises(ConfigError, match="VISIOGEN_TIMEOUT_SECONDS must be numeric"):
+        Settings.from_env(
+            {
+                "VISIOGEN_PROVIDER": "local",
+                "VISIOGEN_TIMEOUT_SECONDS": "eventually",
+            }
+        )
