@@ -12,18 +12,18 @@ No extraction provider is involved in M6. The renderer consumes an existing cano
 
 `render_layout(template_path, layout, output_path, *, automatic_reference_numbers=False)` consumes a `LayoutResult` and:
 
-1. validates that output is not the canonical template or a same-file alias;
+1. validates that output is not the canonical template or a same-file alias, writes to a private sibling, and atomically replaces the destination;
 2. requires finite page dimensions;
-3. requires finite node centers and strictly positive node dimensions;
+3. requires finite node centers, strictly positive node dimensions, and complete node bounds inside the declared page;
 4. loads every production marker exactly once;
 5. copies containers before ordinary nodes;
 6. maps canonical node and edge semantics through the immutable shape mapper;
 7. assigns the exact M5 geometry instead of inventing coordinates;
-8. preserves explicit `reference_number` values and only generates numbers when explicitly enabled;
-9. keeps native reference callouts inside the page or rejects a page too small to contain one;
+8. preserves explicit `reference_number` values and only generates collision-free numbers when explicitly enabled;
+9. places compact reference numeral carriers on a non-obstructing side of their targets, keeps native callouts inside the page, or rejects impossible placement;
 10. copies native connector shapes, labels and styles them, and retargets both page-level `<Connect>` rows and all six endpoint formulas to generated shape IDs;
 11. removes the source palette and obsolete source connection rows before saving; and
-12. saves through the namespace-safe serializer without third-party debug output.
+12. saves through the namespace-safe serializer without third-party debug output, a `vsdx` module monkey patch, or a persistent ElementTree namespace-registry mutation.
 
 Missing geometry, non-finite geometry, non-positive dimensions, missing edge endpoints, impossible callout bounds, duplicate/missing template markers, and canonical-template aliases fail explicitly.
 
@@ -32,12 +32,12 @@ Missing geometry, non-finite geometry, non-positive dimensions, missing edge end
 M6 was implemented in dependency order:
 
 1. production marker inventory, container-first node copying, exact geometry, and missing-geometry rejection;
-2. explicit native reference callouts, opt-in automatic numbering, dynamic target formulas, and page clamping;
+2. explicit native reference callouts, opt-in automatic numbering, dynamic target formulas, and collision-aware numeral placement;
 3. styled and labeled native connectors with generated endpoint IDs, page connection rows, and ShapeSheet endpoint formulas;
 4. three-package fixture acceptance; and
-5. reviewer-driven hardening for hard-link template aliases, invalid geometry, undersized callout pages, and renderer stdout.
+5. reviewer-driven hardening for hard-link aliases and races, atomic writes, invalid/out-of-page geometry, undersized callout pages, non-obstructing reference carriers, collision-free automatic references, omitted style defaults, serializer global-state isolation, and renderer stdout.
 
-The independent review that discovered the three renderer defects was treated as a failed gate. Each defect received a reproducing test before its correction. A fresh independent review of the corrected snapshot is required before push.
+Every independent review that found a reproducible local defect was treated as a failed gate. Each valid defect received a reproducing test before correction. The final fresh independent review of exact renderer snapshot `021d018421034f13919e4ebc0e7f6746d69983ca` passed with no security concerns, logic errors, or locally satisfiable requirements gaps. Microsoft Visio acceptance remains the external gate.
 
 ## Representative fixture acceptance
 
@@ -55,9 +55,13 @@ For every generated package, automated checks require:
 - expected top-level output count;
 - no surviving `__template_*` labels;
 - expected node and reference labels;
+- every rendered node's exact M5 `x`, `y`, `width`, and `height`;
 - exactly two page-level connection rows per connector;
+- each connector bound to its intended semantic source and target;
 - `BeginX`, `BeginY`, and `BegTrigger` formulas targeting the generated source;
 - `EndX`, `EndY`, and `EndTrigger` formulas targeting the generated target;
+- mapped arrowheads, line pattern, line weight, and line color;
+- every callout targeting its intended generated node, staying inside page bounds, and keeping its transformed text carrier clear of the target;
 - exact M5 page dimensions; and
 - unchanged canonical-template checksum.
 
@@ -66,15 +70,15 @@ For every generated package, automated checks require:
 Corrected renderer snapshot:
 
 ```text
-3c55f297506c6c0c842862e9f60fb7addc449994
+021d018421034f13919e4ebc0e7f6746d69983ca
 ```
 
 Full suite and coverage:
 
 ```text
-185 passed in 44.19s
-97% total coverage
-96% renderer coverage
+197 passed in 63.32s
+96% total coverage
+95% renderer coverage
 ```
 
 Build:
@@ -105,23 +109,23 @@ Candidate package:
 
 ```text
 visiogen-m6-windows-acceptance.zip
-9e35cf3b9d5d9d51e9de1609d50b78fc99412194607d3ceade747132338e5d71
+a8c189701baa47eeabbeddd463cffd884de99c9dd212c7a0dd31cedb93230ac0
 ```
 
 Documents:
 
 ```text
 linear_flow.vsdx
-bytes: 410207
-sha256: a804798f58aa96276d17d433a9f61674699a61c010e656af1530c8651b57a819
+bytes: 410195
+sha256: a69db2c5a0b095e6b0d919be6dccc3b037ee519cd5954fc668c7b93a58866cd4
 
 basic_system.vsdx
-bytes: 412027
-sha256: 2966eeb22e6a8682caf5b760d0088e033e976b76f9e4bef47d0bf3a1ba882203
+bytes: 412125
+sha256: 82a554bb038b21a1baf7d15c11097505876ebb206d70e0745183aef38375c2cd
 
 headphone.vsdx
-bytes: 449986
-sha256: e44f370ac460be1706d163ed304d9123875e5eb785d07636f37333a264df6e5c
+bytes: 449742
+sha256: 0b0c56af31ba5b32ee477e159b03eec043ab5116adee106bff24895bbe2cd6a5
 ```
 
 `manifest.json` binds these files to the corrected source commit and canonical-template checksum.
