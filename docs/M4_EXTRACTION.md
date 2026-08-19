@@ -1,19 +1,32 @@
 # M4 Acceptance — Fixture Corpus and Provider-Neutral Extraction
 
-**Status:** LIVE GATE OPEN — NOT YET ACCEPTED
+**Status:** ACCEPTED — CODEX CLI IS THE PREFERRED PROVIDER
 **Platform:** Ubuntu, Python 3.11
 **Authoritative contract:** `visiogen.models.DiagramGraph`
 **Live evaluation date:** 2026-08-19
+
+## Accepted provider decision
+
+Visiogen retains a provider-neutral extraction boundary and requires explicit provider selection. The accepted roles are:
+
+1. **Codex CLI (`gpt-5.6-sol`) — preferred provider.** This is the accepted high-quality path for the current trusted, local-user application.
+2. **Gemini — optional hosted API provider.** Real transport and structured-output interoperability are proven, but the last complete corpus showed semantic drift and a later corrected run was quota-blocked.
+3. **Local Qwen — optional experimental/offline provider.** Real llama.cpp interoperability is proven, but Qwen3.5-9B is too slow and semantically unreliable on the current CPU host to be preferred.
+
+There is no automatic fallback or provider substitution. A Codex failure is surfaced as a typed provider error unless the caller explicitly selects another provider.
+
+Codex CLI uses the locally authenticated ChatGPT/Codex account. It does not require a Visiogen API key, but it does require the `codex` executable, a valid local Codex login, network access, and available plan capacity. This path is intended for trusted local execution; it is not a shared personal-subscription backend for an untrusted public service.
 
 ## Scope implemented
 
 - Ten reviewed text fixtures under `tests/fixtures/text/`.
 - Nine immutable reviewed canonical graphs under `tests/fixtures/graphs/expected/`.
-- One explicit ambiguous-input baseline: `NoDiagramContentError`; Visiogen does not manufacture a node when no diagram is present.
+- One explicit ambiguous-input baseline: `NoDiagramContentError`; Visiogen does not manufacture a node when no definite diagram is present.
 - Provider-neutral extraction, a shared geometry-free prompt, canonical validation, deterministic normalization, and exactly one schema-repair attempt.
-- Explicit `VISIOGEN_` configuration with selected-provider-only credential requirements and no import-time environment reads.
-- An OpenAI-compatible local Qwen adapter and a Google Gemini adapter using the same extraction workflow, DTO schema, normalization, and errors.
-- Typed transport, malformed-envelope, schema-validation, and no-diagram failures.
+- Explicit `VISIOGEN_` configuration with selected-provider-only requirements and no import-time environment reads.
+- Codex CLI, OpenAI-compatible local Qwen, and Google Gemini adapters using the same extraction workflow, DTO schema, normalization, and errors.
+- An explicit provider factory; no silent provider fallback.
+- Typed process/transport, malformed-output, schema-validation, timeout, and no-diagram failures.
 - Artifact containment checks that prohibit evaluation output from entering the immutable expected-fixture directory.
 
 ## Reviewed acceptance corpus
@@ -34,64 +47,96 @@ System/component cases:
 4. `eco_headphone`
 5. `patent_schematic`
 
-## Offline contract evidence
+## Automated evidence
 
-The controlled provider contract remains deterministic unit evidence, not live-provider evidence. It uses injected transports to prove request construction, parsing, shared canonical validation, exactly one repair attempt, and typed failures.
+The controlled provider contracts remain deterministic unit evidence, not live-provider evidence. They prove request/process construction, parsing, shared canonical validation, exactly one repair attempt, explicit provider selection, and typed failures.
 
-Historical M4 evidence before layout work:
+Current complete-suite evidence:
 
 ```text
-96 tests passed
+167 tests passed
 96% total coverage
-20/20 controlled provider/fixture combinations passed
+Codex CLI adapter: 94% coverage
+Codex provider factory: 100% coverage
 ```
 
-Current complete-suite evidence after the live interoperability fixes and M5 implementation:
+Every Codex source change was introduced through RED → GREEN tests before implementation.
 
-```text
-156 tests passed
-```
+## Explicit live-evaluation method
 
-## Mandatory live-evaluation method
-
-Qwen and Gemini are run separately; there is no fallback or provider substitution:
+Codex is the preferred command:
 
 ```bash
-set -a
-source .env.live
-set +a
+VISIOGEN_PROVIDER=codex \
+VISIOGEN_CODEX_MODEL=gpt-5.6-sol \
+VISIOGEN_TIMEOUT_SECONDS=120 \
+uv run python scripts/evaluate_providers.py \
+  --provider codex \
+  --artifact-root artifacts/provider-evaluation/live-acceptance-codex
+```
 
+Optional providers remain independently selectable:
+
+```bash
 uv run python scripts/evaluate_providers.py --provider local
 uv run python scripts/evaluate_providers.py --provider gemini
 ```
 
-Actual canonical graphs and field-level strict mismatch reports are written beneath an artifact-only directory:
+The evaluator never substitutes one provider for another. Actual canonical graphs and field-level mismatch reports are written only beneath the selected artifact root.
+
+## Real Codex CLI evidence
+
+Runtime identity:
 
 ```text
-artifacts/provider-evaluation/<run>/<provider>/*.actual.json
-artifacts/provider-evaluation/<run>/<provider>/semantic-mismatch-report.json
+Codex CLI: 0.146.0
+provider: openai
+model: gpt-5.6-sol
+sandbox: read-only
+session mode: ephemeral
 ```
 
-Generated edge IDs are excluded from strict semantic comparison. Other field differences are recorded with their expected and actual JSON paths. A strict mismatch is evidence of drift from a reviewed graph; it is not automatically a transport or schema interoperability failure.
+The production `CodexCLIExtractor` completed the immutable ten-prompt corpus through ten real authenticated Codex processes:
 
-## Live interoperability failures found and corrected
+```text
+cases: 10
+valid diagram graphs: 9
+expected no-diagram outcomes: 1
+transport/process/schema failures: 0
+strict fixture matches: 1
+strict fixture mismatches: 9
+source-faithful semantic review: 10/10 accepted
+```
 
-Real inference exposed defects that controlled transports did not:
+Evidence:
 
-1. Gemini rejected the Pydantic class passed through `response_schema` because its generated schema contained unsupported fields. The adapter now passes `ExtractedDiagramGraph.model_json_schema()` through `response_json_schema`.
-2. The previously configured Gemini model was unavailable to the account. Configuration now selects an explicitly available model rather than silently falling back.
-3. The local Qwen request allowed unbounded output and thinking-mode behavior, causing corpus evaluation to stall. The adapter now disables thinking explicitly, uses llama.cpp JSON Schema constrained output, and caps completion output.
-4. Local Qwen expressed a bidirectional relation as two reciprocal forward edges. Extraction normalization now deterministically collapses equivalent reciprocal edges into one bidirectional canonical edge without mutating the provider graph.
-5. The live evaluator previously reported only a binary mismatch. Reports now include model identity, UTC evaluation time, and field-level differences while ignoring generated edge IDs.
-6. The shared prompt now requires minimal source-faithful graphs, deterministic label/ID conventions, explicit flow handling, and concrete node-taxonomy guidance discovered from real provider output.
+```text
+artifacts/provider-evaluation/live-acceptance-codex/codex/*.actual.json
+artifacts/provider-evaluation/live-acceptance-codex/codex/semantic-mismatch-report.json
+```
 
-Every source correction above was introduced with a failing regression test before implementation.
+The field-level strict report is deliberately retained. Its nine mismatches are not being relabeled or hidden. Review showed that they consist of generated titles, equivalent concise labels and IDs, corresponding endpoint-ID changes, and equivalent branch wording. One login output node is classified as `input_output`, which follows the current extraction instruction more directly than the older fixture's `process` classification. No Codex output omitted or invented a component, containment relation, connection, flow branch, loop, reference numeral, or expected no-diagram outcome.
+
+The immutable expected graphs were not edited to force a pass. M4 acceptance is based on both machine validation and explicit source-to-graph semantic review, not a false claim that provider-generated identity strings are byte-equivalent.
+
+### Codex isolation and schema controls
+
+Each extraction:
+
+- runs in a fresh temporary directory;
+- uses `--ephemeral` and `--ignore-rules`;
+- uses a read-only sandbox and no repository dependency;
+- receives the user description through standard input rather than shell interpolation;
+- writes only a final response file in the temporary directory;
+- enforces the extraction DTO with `--output-schema`;
+- transforms optional fields into Codex-compatible required-but-nullable properties;
+- captures CLI output rather than forwarding it into application logs;
+- applies an explicit timeout; and
+- passes the result through the unchanged shared normalization workflow.
 
 ## Real Gemini evidence
 
-### `gemini-3.6-flash`
-
-A complete ten-case authenticated run produced valid canonical output for all nine diagram-bearing prompts and the expected no-diagram outcome for the ambiguous prompt. The run completed through the real `google-genai` SDK and saved all nine actual graphs.
+A complete authenticated `gemini-3.6-flash` run produced valid canonical output for all nine diagram prompts and the expected no-diagram outcome:
 
 ```text
 cases: 10
@@ -100,26 +145,14 @@ strict mismatches: 9
 transport/schema failures: 0
 ```
 
-The sole strict match was `ambiguous_no_diagram`. Most graph-bearing differences were generated titles, internal node IDs, wording/case, or edge annotations; substantive taxonomy/topology drift remained in several cases. Therefore this run proves real SDK/schema/canonical-pipeline interoperability, but it does not satisfy a zero-drift semantic acceptance gate.
+A corrected-prompt `gemini-3.7-flash` probe fixed the previously observed difficult taxonomy/topology failures, but the subsequent full corpus run reached the account's daily quota. Gemini remains an explicit optional provider; this incomplete run is not represented as full acceptance.
 
 Evidence:
 
 ```text
-artifacts/provider-evaluation/gemini/*.actual.json
-artifacts/provider-evaluation/gemini/semantic-mismatch-report.json
+artifacts/provider-evaluation/gemini/
+artifacts/provider-evaluation/live-acceptance/gemini/
 ```
-
-### Prompt-correction verification and quota blocker
-
-Targeted authenticated calls using `gemini-3.7-flash` and the corrected prompt returned valid canonical graphs for the four previously difficult cases (`eco_headphone`, `login_decision`, `method_loop`, and `nested_subsystem`) and corrected the observed taxonomy/topology failures. A subsequent full-corpus attempt reached the account's request-per-day quota, so it could not provide a complete current-prompt acceptance run.
-
-The incomplete full-run report is retained rather than relabeled as success:
-
-```text
-artifacts/provider-evaluation/live-acceptance/gemini/semantic-mismatch-report.json
-```
-
-No automatic model fallback was used. The final Gemini zero-drift/current-prompt gate remains blocked until quota resets or billing provides sufficient quota for one complete run.
 
 ## Real local Qwen evidence
 
@@ -131,7 +164,7 @@ served model ID: qwen3.5-9b
 model artifact: unsloth/Qwen3.5-9B-GGUF:Q5_K_M
 ```
 
-A complete ten-case run executed through the real llama.cpp server. Eight diagram-bearing prompts completed within the configured 300-second request timeout. `eco_headphone` exceeded that limit, then succeeded on an explicit 600-second retry in 424.74 seconds. The preserved corpus therefore contains nine actual canonical graphs plus the expected no-diagram outcome.
+The final corpus produced nine canonical graphs plus the expected no-diagram outcome. `eco_headphone` exceeded the initial 300-second timeout, then succeeded on a 600-second retry in 424.74 seconds.
 
 ```text
 cases: 10
@@ -139,18 +172,10 @@ saved canonical graphs: 9
 strict matches: 1
 strict mismatches: 9
 remaining transport/schema failures after retry: 0
+manual source-faithful outcomes: 4/10
 ```
 
-The strict match was `ambiguous_no_diagram`. Manual semantic review classified `basic_system`, `isolated_process`, and `linear_flow` as source-faithful apart from generated presentation/identity fields. Substantive drift remained in six diagram cases:
-
-- `bidirectional_architecture`: incorrect node taxonomy for the communication gateway and external analytics service.
-- `eco_headphone`: represented housing containment as association edges instead of canonical `parent_id` values.
-- `login_decision`: invented a `Return to entry` process node.
-- `method_loop`: omitted the normal post-processing continuation edge.
-- `nested_subsystem`: omitted the control-subsystem container and child containment.
-- `patent_schematic`: embedded reference numerals in labels/IDs instead of populating canonical `reference_number` fields.
-
-The reciprocal processor/memory edges in `basic_system` were normalized into one canonical bidirectional edge by the regression-tested interoperability correction.
+Substantive drift remained in six cases: incorrect service/gateway taxonomy, incorrect housing containment, an invented login process, a missing loop continuation, an omitted subsystem container, and missing canonical patent reference-number fields. This is why Qwen3.5-9B remains experimental rather than silently backing Codex.
 
 Evidence:
 
@@ -159,14 +184,30 @@ artifacts/provider-evaluation/prompt-v2/local/*.actual.json
 artifacts/provider-evaluation/prompt-v2/local/semantic-mismatch-report.json
 ```
 
-## Current gate decision
+## Live interoperability corrections retained
 
-M4 implementation and offline contracts are complete. Real provider interoperability has been demonstrated, and real failures have produced regression-tested corrections. **M4 live semantic acceptance remains open** because:
+Real inference produced regression-tested corrections:
 
-- the final current-prompt Gemini corpus rerun is blocked by the daily request quota; and
-- the current CPU-served Qwen3.5-9B model still has substantive canonical semantic drift in six diagram cases despite successful schema/pipeline interoperability.
+1. Gemini now uses raw `response_json_schema` rather than an incompatible Pydantic `response_schema` path.
+2. Qwen uses JSON Schema output, bounded generation, and disabled thinking behavior.
+3. Equivalent reciprocal forward relationships normalize to one bidirectional edge.
+4. Reports include provider/model identity, UTC evaluation time, and field-level differences while ignoring generated edge IDs.
+5. The shared prompt requires minimal source-faithful semantics and explicit flow/taxonomy handling.
+6. Codex strict-output schemas require all object properties while preserving optionality through nullable field types.
 
-M5 closure and push remain paused until this section is replaced by complete evidence or the residual model-quality mismatches are explicitly accepted as the baseline.
+## M4 gate decision
+
+**M4 is accepted with Codex CLI as the preferred provider.** This decision is supported by:
+
+- a real production-adapter corpus run;
+- ten valid structured outcomes;
+- zero process, schema, or canonical-validation failures;
+- explicit review of every actual graph against its source prompt; and
+- 10/10 source-faithful semantic acceptance.
+
+Qwen and Gemini remain supported only through explicit selection. Their residual evidence remains documented rather than being treated as a silent fallback or erased.
+
+Deterministic layout remains independently owned by M5; no extraction provider emits coordinates or visual placement. M5 closure may resume after this recorded provider decision.
 
 ## Dependency-ordered commits
 
@@ -180,6 +221,6 @@ eb7a946 Add Gemini extraction provider
 f94289f Document extraction milestone
 d68ae68 Fix live provider interoperability
 793813a Normalize reciprocal provider relationships
+2014335 Record live provider acceptance evidence
+06e8a92 Add preferred Codex CLI extraction provider
 ```
-
-Deterministic layout remains independently owned by M5; neither provider emits coordinates or visual placement.
