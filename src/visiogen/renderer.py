@@ -5,17 +5,17 @@ from __future__ import annotations
 import copy
 import io
 import math
+import os
 import re
+import tempfile
 import threading
 from collections.abc import Collection
-from contextlib import redirect_stdout
 from dataclasses import dataclass
 from pathlib import Path
 from types import TracebackType
 from xml.etree import ElementTree as ET
 
-import vsdx.vsdxfile as vsdxfile_module
-from vsdx import Connect, Page, Shape, VisioFile, namespace, r_namespace, vt_namespace
+from vsdx import Cell, Connect, Page, Shape, VisioFile, namespace, r_namespace, vt_namespace
 
 from visiogen.layout import LayoutResult
 from visiogen.models import DiagramNode
@@ -246,11 +246,54 @@ def _copy_connector_connections(
 
 
 def _set_local_cell_value(shape: Shape, name: str, value: str) -> None:
-    """Set an explicit ShapeSheet value without inherited template formulas."""
+    """Set a local ShapeSheet value without mutating stdout or a master shape."""
 
-    with redirect_stdout(io.StringIO()):
-        shape.set_cell_value(name, value)
-    shape.cells[name].xml.attrib.pop("F", None)
+    cell = shape.cells.get(name)
+    if cell is None:
+        master_cell_xml = None
+        if shape.master_page_ID is not None and shape.master_shape is not None:
+            master_cell_xml = shape.master_shape.xml.find(f'{namespace}Cell[@N="{name}"]')
+        cell_xml = (
+            copy.deepcopy(master_cell_xml)
+            if master_cell_xml is not None
+            else ET.Element(f"{namespace}Cell", {"N": name})
+        )
+        cell = Cell(xml=cell_xml, shape=shape)
+        shape.cells[name] = cell
+        local_cells = shape.xml.findall(f"{namespace}Cell")
+        insertion_index = (
+            list(shape.xml).index(local_cells[-1]) + 1 if local_cells else 0
+        )
+        shape.xml.insert(insertion_index, cell_xml)
+    cell.value = value
+    cell.xml.attrib.pop("F", None)
+
+
+def _set_connector_cached_geometry(
+    shape: Shape,
+    start: tuple[float, float],
+    finish: tuple[float, float],
+) -> None:
+    """Update connector caches without invoking noisy inherited geometry setters."""
+
+    begin_x, begin_y = start
+    end_x, end_y = finish
+    values = {
+        "PinX": begin_x,
+        "PinY": begin_y,
+        "BeginX": begin_x,
+        "BeginY": begin_y,
+        "EndX": end_x,
+        "EndY": end_y,
+        "Width": end_x - begin_x,
+        "Height": end_y - begin_y,
+    }
+    for name, value in values.items():
+        cell = shape.cells.get(name)
+        if cell is None:
+            _set_local_cell_value(shape, name, f"{value:.15g}")
+        else:
+            cell.value = f"{value:.15g}"
 
 
 def _style_connector(shape: Shape, visual: EdgeVisualSpec) -> None:
@@ -302,16 +345,68 @@ def _namespace_safe_xml_to_file(
     zip_file_contents[filename] = io.BytesIO(stream.getvalue())
 
 
-def _save_vsdx(document: VisioFile, destination: Path) -> None:
-    """Save while working around vsdx 0.6.1's global namespace registry bug."""
+def _write_document_parts(document: VisioFile) -> None:
+    """Serialize changed package parts without monkey-patching the vsdx module."""
 
-    with _XML_SERIALIZATION_LOCK:
-        original = vsdxfile_module.xml_to_file
-        vsdxfile_module.xml_to_file = _namespace_safe_xml_to_file
-        try:
-            document.save_vsdx(str(destination))
-        finally:
-            vsdxfile_module.xml_to_file = original
+    parts: list[tuple[ET.ElementTree, str]] = [
+        (
+            document.pages_xml_rels,
+            f"{document.directory}/visio/pages/_rels/pages.xml.rels",
+        ),
+        (document.pages_xml, document._pages_filename()),
+    ]
+    parts.extend((page.xml, page.filename) for page in document.master_pages)
+    for page in document.pages:
+        parts.append((page.xml, page.filename))
+        if page.rels_xml_filename:
+            parts.append((page.rels_xml, page.rels_xml_filename))
+    parts.extend(
+        [
+            (
+                document.content_types_xml,
+                f"{document.directory}/[Content_Types].xml",
+            ),
+            (document.document_xml, f"{document.directory}/visio/document.xml"),
+            (
+                document.document_xml_rels,
+                f"{document.directory}/visio/_rels/document.xml.rels",
+            ),
+        ]
+    )
+    if document.app_xml is not None:
+        parts.append((document.app_xml, f"{document.directory}/docProps/app.xml"))
+    for xml, filename in parts:
+        _namespace_safe_xml_to_file(xml, filename, document.zip_file_contents)
+
+
+def _save_vsdx(document: VisioFile, destination: Path) -> None:
+    """Serialize to a private sibling, then atomically replace the destination."""
+
+    temporary_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            dir=destination.parent,
+            prefix=f".{destination.name}.",
+            suffix=".tmp.vsdx",
+            delete=False,
+        ) as temporary:
+            temporary_path = Path(temporary.name)
+
+        with _XML_SERIALIZATION_LOCK:
+            namespace_registry = getattr(ET, "_namespace_map")
+            original_namespaces = dict(namespace_registry)
+            try:
+                _write_document_parts(document)
+                save_zip = getattr(document, "_save_zip_file_contents_to_disk")
+                save_zip(str(temporary_path))
+            finally:
+                namespace_registry.clear()
+                namespace_registry.update(original_namespaces)
+        os.replace(temporary_path, destination)
+        temporary_path = None
+    finally:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
 
 
 def _node_geometry(node: DiagramNode) -> tuple[float, float, float, float]:
@@ -361,6 +456,14 @@ def render_layout(
         node_shapes: dict[str, Shape] = {}
         for _, node in ordered_nodes:
             x, y, width, height = _node_geometry(node)
+            tolerance = 1e-6
+            if (
+                x - width / 2 < -tolerance
+                or x + width / 2 > layout.page.width + tolerance
+                or y - height / 2 < -tolerance
+                or y + height / 2 > layout.page.height + tolerance
+            ):
+                raise RenderingError(f"node '{node.id}' lies outside the layout page")
             visual = map_node_visual(
                 node.type,
                 available_markers=palette.shapes.keys(),
@@ -370,19 +473,28 @@ def render_layout(
                 palette.page,
             )
             _find_marker_shape(copied_shape, visual.marker).text = node.label
-            with redirect_stdout(io.StringIO()):
-                copied_shape.width = width
-                copied_shape.height = height
-                copied_shape.x = x
-                copied_shape.y = y
+            _set_local_cell_value(copied_shape, "Width", f"{width:.15g}")
+            _set_local_cell_value(copied_shape, "Height", f"{height:.15g}")
+            _set_local_cell_value(copied_shape, "PinX", f"{x:.15g}")
+            _set_local_cell_value(copied_shape, "PinY", f"{y:.15g}")
             node_shapes[node.id] = copied_shape
 
         callout_marker = "__template_reference_callout__"
         component_marker = "__template_component_rectangle__"
-        for index, node in enumerate(layout.graph.nodes, start=1):
+        used_reference_numbers = {
+            node.reference_number
+            for node in layout.graph.nodes
+            if node.reference_number is not None
+        }
+        next_automatic_reference = 1
+        for node in layout.graph.nodes:
             reference_number = node.reference_number
             if reference_number is None and automatic_reference_numbers:
-                reference_number = str(index)
+                while str(next_automatic_reference) in used_reference_numbers:
+                    next_automatic_reference += 1
+                reference_number = str(next_automatic_reference)
+                used_reference_numbers.add(reference_number)
+                next_automatic_reference += 1
             if reference_number is None:
                 continue
             target = node_shapes[node.id]
@@ -400,14 +512,16 @@ def render_layout(
             _find_marker_shape(callout, callout_marker).text = reference_number
             desired_x = target.x + target.width / 2 + callout.width / 2 + 0.25
             desired_y = target.y + target.height / 2
-            callout.x = min(
+            callout_x = min(
                 max(desired_x, callout.width / 2),
                 layout.page.width - callout.width / 2,
             )
-            callout.y = min(
+            callout_y = min(
                 max(desired_y, callout.height / 2),
                 layout.page.height - callout.height / 2,
             )
+            _set_local_cell_value(callout, "PinX", repr(callout_x))
+            _set_local_cell_value(callout, "PinY", repr(callout_y))
             _retarget_sheet_references(
                 callout,
                 {palette.shapes[component_marker].shape.ID: target.ID},
@@ -427,7 +541,7 @@ def render_layout(
             visual = map_edge_visual(
                 edge.relation,
                 edge.direction,
-                line_style=edge.style,
+                line_style=edge.style if "style" in edge.model_fields_set else None,
                 available_markers=palette.shapes.keys(),
             )
             source_connector = palette.shapes[connector_marker].shape
@@ -444,11 +558,11 @@ def render_layout(
                 copied_connector=connector,
                 id_map=id_map,
             )
-            with redirect_stdout(io.StringIO()):
-                connector.set_start_and_finish(
-                    source_shape.center_x_y,
-                    target_shape.center_x_y,
-                )
+            _set_connector_cached_geometry(
+                connector,
+                source_shape.center_x_y,
+                target_shape.center_x_y,
+            )
             _style_connector(connector, visual)
 
         palette.page.width = layout.page.width
@@ -505,11 +619,11 @@ def render_feasibility_spike(
             copied_connector=copied_connector,
             id_map=id_map,
         )
-        with redirect_stdout(io.StringIO()):
-            copied_connector.set_start_and_finish(
-                copies[process_marker].center_x_y,
-                copies[component_marker].center_x_y,
-            )
+        _set_connector_cached_geometry(
+            copied_connector,
+            copies[process_marker].center_x_y,
+            copies[component_marker].center_x_y,
+        )
 
         _remove_template_palette(palette)
         _save_vsdx(palette.document, destination)

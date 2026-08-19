@@ -1,9 +1,11 @@
 import hashlib
 import os
 from collections import Counter
+from contextlib import contextmanager
 from pathlib import Path
 import re
 import shutil
+from typing import Any
 from xml.etree import ElementTree as ET
 from zipfile import ZipFile
 
@@ -238,6 +240,41 @@ def test_render_layout_rejects_page_too_small_for_reference_callout(
         renderer.render_layout(TEMPLATE_PATH, layout, tmp_path / "too-small.vsdx")
 
 
+def test_render_layout_auto_numbers_around_explicit_references(tmp_path: Path) -> None:
+    layout = LayoutResult(
+        graph=DiagramGraph(
+            title="Mixed references",
+            diagram_type="component_schematic",
+            orientation="left_to_right",
+            nodes=[
+                _node("automatic", "component", "Automatic", (2.0, 2.0, 2.0, 1.0)),
+                _node(
+                    "explicit",
+                    "component",
+                    "Explicit",
+                    (6.0, 2.0, 2.0, 1.0),
+                    reference_number="1",
+                ),
+            ],
+        ),
+        page=PageGeometry(width=9.0, height=5.0),
+    )
+    output = tmp_path / "mixed-references.vsdx"
+
+    renderer.render_layout(
+        TEMPLATE_PATH,
+        layout,
+        output,
+        automatic_reference_numbers=True,
+    )
+
+    with VisioFile(str(output)) as document:
+        page = document.get_page_by_name("Template Palette")
+        labels = Counter(shape.text.strip() for shape in page.all_shapes)
+        assert labels["1"] == 1
+        assert labels["2"] == 1
+
+
 def test_render_layout_auto_numbers_only_when_explicitly_enabled(tmp_path: Path) -> None:
     layout = LayoutResult(
         graph=DiagramGraph(
@@ -320,6 +357,43 @@ def test_render_layout_creates_styled_labeled_glued_connector(tmp_path: Path) ->
         assert connector.cell_value("LineColor") == "#000000"
 
 
+def test_render_layout_uses_relation_style_when_edge_style_is_omitted(
+    tmp_path: Path,
+) -> None:
+    layout = LayoutResult(
+        graph=DiagramGraph(
+            title="Default association style",
+            diagram_type="system_block",
+            orientation="left_to_right",
+            nodes=[
+                _node("source", "process", "Source", (2.0, 2.0, 2.0, 1.0)),
+                _node("target", "component", "Target", (6.0, 2.0, 2.0, 1.0)),
+            ],
+            edges=[
+                DiagramEdge(
+                    id="association",
+                    source="source",
+                    target="target",
+                    relation="association",
+                    direction="none",
+                )
+            ],
+        ),
+        page=PageGeometry(width=8.0, height=4.0),
+    )
+    output = tmp_path / "default-association.vsdx"
+
+    renderer.render_layout(TEMPLATE_PATH, layout, output)
+
+    with VisioFile(str(output)) as document:
+        page = document.get_page_by_name("Template Palette")
+        connector_id = page.connects[0].from_id
+        connector = next(shape for shape in page.all_shapes if shape.ID == connector_id)
+        assert connector.cell_value("LinePattern") == "3"
+        assert connector.cell_value("BeginArrow") == "0"
+        assert connector.cell_value("EndArrow") == "0"
+
+
 def test_render_layout_rejects_edge_with_missing_endpoint(tmp_path: Path) -> None:
     layout = LayoutResult(
         graph=DiagramGraph(
@@ -369,6 +443,36 @@ def test_render_layout_rejects_nonfinite_or_nonpositive_geometry(
         renderer.render_layout(TEMPLATE_PATH, layout, tmp_path / "invalid-geometry.vsdx")
 
 
+@pytest.mark.parametrize(
+    "geometry",
+    [
+        (-1.0, 2.0, 1.0, 1.0),
+        (4.8, 2.0, 1.0, 1.0),
+        (2.0, 0.2, 1.0, 1.0),
+        (2.0, 3.8, 1.0, 1.0),
+    ],
+)
+def test_render_layout_rejects_node_outside_page(
+    geometry: tuple[float, float, float, float],
+    tmp_path: Path,
+) -> None:
+    layout = LayoutResult(
+        graph=DiagramGraph(
+            title="Out of bounds",
+            diagram_type="flowchart",
+            orientation="top_to_bottom",
+            nodes=[_node("step", "process", "Step", geometry)],
+        ),
+        page=PageGeometry(width=5.0, height=4.0),
+    )
+
+    with pytest.raises(
+        renderer.RenderingError,
+        match="node 'step' lies outside the layout page",
+    ):
+        renderer.render_layout(TEMPLATE_PATH, layout, tmp_path / "outside.vsdx")
+
+
 def test_render_layout_rejects_nonfinite_page_geometry(tmp_path: Path) -> None:
     layout = LayoutResult(
         graph=DiagramGraph(
@@ -384,6 +488,23 @@ def test_render_layout_rejects_nonfinite_page_geometry(tmp_path: Path) -> None:
         renderer.render_layout(TEMPLATE_PATH, layout, tmp_path / "invalid-page.vsdx")
 
 
+def test_render_layout_restores_elementtree_namespace_registry(tmp_path: Path) -> None:
+    layout = LayoutResult(
+        graph=DiagramGraph(
+            title="Namespace isolation",
+            diagram_type="flowchart",
+            orientation="top_to_bottom",
+            nodes=[_node("step", "process", "Step", (2.0, 2.0, 2.625, 0.75))],
+        ),
+        page=PageGeometry(width=5.0, height=4.0),
+    )
+    namespace_map = dict(getattr(ET, "_namespace_map"))
+
+    renderer.render_layout(TEMPLATE_PATH, layout, tmp_path / "namespace-safe.vsdx")
+
+    assert getattr(ET, "_namespace_map") == namespace_map
+
+
 def test_render_layout_does_not_print_library_debug_output(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
@@ -393,7 +514,19 @@ def test_render_layout_does_not_print_library_debug_output(
             title="Quiet rendering",
             diagram_type="flowchart",
             orientation="top_to_bottom",
-            nodes=[_node("step", "process", "Step", (2.0, 2.0, 2.625, 0.75))],
+            nodes=[
+                _node("step", "process", "Step", (2.0, 2.0, 2.625, 0.75)),
+                _node("target", "component", "Target", (4.5, 2.0, 1.0, 1.0)),
+            ],
+            edges=[
+                DiagramEdge(
+                    id="quiet-edge",
+                    source="step",
+                    target="target",
+                    relation="flow",
+                    direction="forward",
+                )
+            ],
         ),
         page=PageGeometry(width=5.0, height=4.0),
     )
@@ -567,6 +700,40 @@ def test_generated_vsdx_uses_declared_namespaces_without_ns_prefixes(
         ]
 
     assert prefixed_parts == []
+
+
+def test_render_layout_atomically_replaces_raced_template_alias(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    template_copy = tmp_path / "template.vsdx"
+    output_alias = tmp_path / "output.vsdx"
+    shutil.copyfile(TEMPLATE_PATH, template_copy)
+    source_hash = hashlib.sha256(template_copy.read_bytes()).hexdigest()
+    original_loader = renderer.load_template_palette
+
+    @contextmanager
+    def racing_loader(*args: Any, **kwargs: Any):
+        with original_loader(*args, **kwargs) as palette:
+            output_alias.unlink(missing_ok=True)
+            os.link(template_copy, output_alias)
+            yield palette
+
+    monkeypatch.setattr(renderer, "load_template_palette", racing_loader)
+    layout = LayoutResult(
+        graph=DiagramGraph(
+            title="Raced destination",
+            diagram_type="flowchart",
+            orientation="top_to_bottom",
+            nodes=[_node("step", "process", "Step", (2.0, 2.0, 2.625, 0.75))],
+        ),
+        page=PageGeometry(width=5.0, height=4.0),
+    )
+
+    renderer.render_layout(template_copy, layout, output_alias)
+
+    assert hashlib.sha256(template_copy.read_bytes()).hexdigest() == source_hash
+    assert not template_copy.samefile(output_alias)
 
 
 def test_render_layout_refuses_hard_link_alias_of_template(tmp_path: Path) -> None:
