@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import io
+import math
 import re
 import threading
 from collections.abc import Collection
@@ -316,7 +317,21 @@ def _save_vsdx(document: VisioFile, destination: Path) -> None:
 def _node_geometry(node: DiagramNode) -> tuple[float, float, float, float]:
     if node.x is None or node.y is None or node.width is None or node.height is None:
         raise RenderingError(f"geometry required for node '{node.id}'")
-    return node.x, node.y, node.width, node.height
+    geometry = (node.x, node.y, node.width, node.height)
+    if not all(math.isfinite(value) for value in geometry) or min(
+        node.width, node.height
+    ) <= 0:
+        raise RenderingError(
+            f"finite coordinates and positive dimensions required for node '{node.id}'"
+        )
+    return geometry
+
+
+def _require_distinct_output(source: Path, destination: Path) -> None:
+    same_path = source.resolve() == destination.resolve()
+    same_file = destination.exists() and source.samefile(destination)
+    if same_path or same_file:
+        raise ValueError("Refusing to overwrite the canonical template")
 
 
 def render_layout(
@@ -330,8 +345,9 @@ def render_layout(
 
     source = Path(template_path)
     destination = Path(output_path)
-    if source.resolve() == destination.resolve():
-        raise ValueError("Refusing to overwrite the canonical template")
+    _require_distinct_output(source, destination)
+    if not all(math.isfinite(value) for value in (layout.page.width, layout.page.height)):
+        raise RenderingError("finite page geometry required")
     destination.parent.mkdir(parents=True, exist_ok=True)
 
     ordered_nodes = sorted(
@@ -374,6 +390,13 @@ def render_layout(
                 palette.shapes[callout_marker].shape,
                 palette.page,
             )
+            if (
+                callout.width > layout.page.width
+                or callout.height > layout.page.height
+            ):
+                raise RenderingError(
+                    f"reference callout for node '{node.id}' cannot fit inside the layout page"
+                )
             _find_marker_shape(callout, callout_marker).text = reference_number
             desired_x = target.x + target.width / 2 + callout.width / 2 + 0.25
             desired_y = target.y + target.height / 2
@@ -444,8 +467,7 @@ def render_feasibility_spike(
 
     source = Path(template_path)
     destination = Path(output_path)
-    if source.resolve() == destination.resolve():
-        raise ValueError("Refusing to overwrite the canonical template")
+    _require_distinct_output(source, destination)
     destination.parent.mkdir(parents=True, exist_ok=True)
 
     with load_template_palette(source) as palette:

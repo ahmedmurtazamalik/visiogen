@@ -1,4 +1,5 @@
 import hashlib
+import os
 from collections import Counter
 from pathlib import Path
 import re
@@ -209,6 +210,34 @@ def test_reference_callout_stays_inside_layout_page(tmp_path: Path) -> None:
         assert callout.y + callout.height / 2 <= page.height
 
 
+def test_render_layout_rejects_page_too_small_for_reference_callout(
+    tmp_path: Path,
+) -> None:
+    layout = LayoutResult(
+        graph=DiagramGraph(
+            title="Impossible callout page",
+            diagram_type="component_schematic",
+            orientation="left_to_right",
+            nodes=[
+                _node(
+                    "component",
+                    "component",
+                    "Part",
+                    (0.1, 0.1, 0.1, 0.1),
+                    reference_number="10",
+                )
+            ],
+        ),
+        page=PageGeometry(width=0.2, height=0.2),
+    )
+
+    with pytest.raises(
+        renderer.RenderingError,
+        match="reference callout for node 'component' cannot fit inside the layout page",
+    ):
+        renderer.render_layout(TEMPLATE_PATH, layout, tmp_path / "too-small.vsdx")
+
+
 def test_render_layout_auto_numbers_only_when_explicitly_enabled(tmp_path: Path) -> None:
     layout = LayoutResult(
         graph=DiagramGraph(
@@ -308,6 +337,51 @@ def test_render_layout_rejects_edge_with_missing_endpoint(tmp_path: Path) -> Non
         match="edge references missing rendered endpoint 'missing'",
     ):
         renderer.render_layout(TEMPLATE_PATH, layout, tmp_path / "broken.vsdx")
+
+
+@pytest.mark.parametrize(
+    "geometry",
+    [
+        (float("nan"), 2.0, 2.625, 0.75),
+        (2.0, float("inf"), 2.625, 0.75),
+        (2.0, 2.0, -1.0, 0.75),
+        (2.0, 2.0, 2.625, 0.0),
+    ],
+)
+def test_render_layout_rejects_nonfinite_or_nonpositive_geometry(
+    geometry: tuple[float, float, float, float],
+    tmp_path: Path,
+) -> None:
+    layout = LayoutResult(
+        graph=DiagramGraph(
+            title="Invalid geometry",
+            diagram_type="flowchart",
+            orientation="top_to_bottom",
+            nodes=[_node("step", "process", "Step", geometry)],
+        ),
+        page=PageGeometry(width=5.0, height=4.0),
+    )
+
+    with pytest.raises(
+        renderer.RenderingError,
+        match="finite coordinates and positive dimensions required for node 'step'",
+    ):
+        renderer.render_layout(TEMPLATE_PATH, layout, tmp_path / "invalid-geometry.vsdx")
+
+
+def test_render_layout_rejects_nonfinite_page_geometry(tmp_path: Path) -> None:
+    layout = LayoutResult(
+        graph=DiagramGraph(
+            title="Invalid page",
+            diagram_type="flowchart",
+            orientation="top_to_bottom",
+            nodes=[_node("step", "process", "Step", (2.0, 2.0, 2.625, 0.75))],
+        ),
+        page=PageGeometry(width=float("inf"), height=4.0),
+    )
+
+    with pytest.raises(renderer.RenderingError, match="finite page geometry required"):
+        renderer.render_layout(TEMPLATE_PATH, layout, tmp_path / "invalid-page.vsdx")
 
 
 def test_render_layout_does_not_print_library_debug_output(
@@ -493,6 +567,28 @@ def test_generated_vsdx_uses_declared_namespaces_without_ns_prefixes(
         ]
 
     assert prefixed_parts == []
+
+
+def test_render_layout_refuses_hard_link_alias_of_template(tmp_path: Path) -> None:
+    template_copy = tmp_path / "template.vsdx"
+    output_alias = tmp_path / "output.vsdx"
+    shutil.copyfile(TEMPLATE_PATH, template_copy)
+    os.link(template_copy, output_alias)
+    source_hash = hashlib.sha256(template_copy.read_bytes()).hexdigest()
+    layout = LayoutResult(
+        graph=DiagramGraph(
+            title="Protected template",
+            diagram_type="flowchart",
+            orientation="top_to_bottom",
+            nodes=[_node("step", "process", "Step", (2.0, 2.0, 2.625, 0.75))],
+        ),
+        page=PageGeometry(width=5.0, height=4.0),
+    )
+
+    with pytest.raises(ValueError, match="overwrite the canonical template"):
+        renderer.render_layout(template_copy, layout, output_alias)
+
+    assert hashlib.sha256(template_copy.read_bytes()).hexdigest() == source_hash
 
 
 def test_render_feasibility_spike_refuses_to_overwrite_template(

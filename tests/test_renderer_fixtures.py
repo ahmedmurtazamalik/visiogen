@@ -74,9 +74,21 @@ def test_renderer_fixture_produces_structurally_valid_editable_package(
         assert len(page.child_shapes) == expected_top_level
         connector_ids = {connect.from_id for connect in page.connects}
         assert len(connector_ids) == len(layout.graph.edges)
-        assert all(
-            sum(connect.from_id == connector_id for connect in page.connects) == 2
-            for connector_id in connector_ids
-        )
+        shapes_by_id = {shape.ID: shape for shape in page.all_shapes}
+        for connector_id in connector_ids:
+            connections = [
+                connect for connect in page.connects if connect.from_id == connector_id
+            ]
+            assert len(connections) == 2
+            endpoint_ids = {
+                connect.xml.attrib["FromCell"]: connect.to_id for connect in connections
+            }
+            connector = shapes_by_id[connector_id]
+            begin_id = endpoint_ids["BeginX"]
+            end_id = endpoint_ids["EndX"]
+            for cell_name in ("BeginX", "BeginY", "BegTrigger"):
+                assert f"Sheet.{begin_id}!" in connector.cell_formula(cell_name)
+            for cell_name in ("EndX", "EndY", "EndTrigger"):
+                assert f"Sheet.{end_id}!" in connector.cell_formula(cell_name)
         assert page.width == pytest.approx(layout.page.width)
         assert page.height == pytest.approx(layout.page.height)
