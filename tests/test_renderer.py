@@ -12,6 +12,46 @@ import visiogen.renderer as renderer
 
 
 TEMPLATE_PATH = Path(__file__).parents[1] / "templates" / "template.vsdx"
+PRODUCTION_TEMPLATE_MARKERS = frozenset(
+    {
+        "__template_terminator__",
+        "__template_process__",
+        "__template_decision__",
+        "__template_input_output__",
+        "__template_database__",
+        "__template_document__",
+        "__template_predefined_process__",
+        "__template_delay__",
+        "__template_note__",
+        "__template_connector_hub__",
+        "__template_component_rectangle__",
+        "__template_subsystem_container__",
+        "__template_controller__",
+        "__template_sensor__",
+        "__template_power_source__",
+        "__template_interface__",
+        "__template_external_system__",
+        "__template_housing_container__",
+        "__template_reference_callout__",
+        "__template_connector__",
+    }
+)
+
+
+def test_canonical_template_contains_complete_production_vocabulary() -> None:
+    with VisioFile(str(TEMPLATE_PATH)) as document:
+        page = document.get_page_by_name("Template Palette")
+        counts = Counter(shape.text.strip() for shape in page.all_shapes)
+        shape_ids = [shape.ID for shape in page.all_shapes]
+
+        assert page.width == pytest.approx(22.0)
+        assert page.height == pytest.approx(17.0)
+        assert len(page.child_shapes) == 20
+        assert len(shape_ids) == len(set(shape_ids))
+
+    assert {
+        marker: counts[marker] for marker in PRODUCTION_TEMPLATE_MARKERS
+    } == dict.fromkeys(PRODUCTION_TEMPLATE_MARKERS, 1)
 
 
 def test_load_template_palette_finds_each_marker_once() -> None:
