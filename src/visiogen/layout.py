@@ -153,7 +153,15 @@ def apply_geometry(
         raise LayoutError(f"geometry references unknown node(s): {', '.join(unknown)}")
     for node_id, box in geometry_by_id.items():
         if any(value <= 0 for value in box):
-            raise LayoutError(f"positive geometry is required for node '{node_id}'")
+            raise LayoutError(f"positive geometry required for node '{node_id}'")
+        x, y, width, height = box
+        if (
+            x - width / 2 < 0
+            or y - height / 2 < 0
+            or x + width / 2 > page.width
+            or y + height / 2 > page.height
+        ):
+            raise LayoutError(f"geometry outside page for node '{node_id}'")
 
     positioned = graph.model_copy(deep=True)
     for node in positioned.nodes:

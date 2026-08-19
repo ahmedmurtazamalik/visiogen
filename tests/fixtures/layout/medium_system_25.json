@@ -1,0 +1,494 @@
+{
+  "title": "Medium layered platform",
+  "diagram_type": "system_block",
+  "orientation": "left_to_right",
+  "nodes": [
+    {
+      "id": "n00",
+      "type": "external_system",
+      "label": "Layer 1 component 1"
+    },
+    {
+      "id": "n01",
+      "type": "external_system",
+      "label": "Layer 1 component 2"
+    },
+    {
+      "id": "n02",
+      "type": "external_system",
+      "label": "Layer 1 component 3"
+    },
+    {
+      "id": "n03",
+      "type": "external_system",
+      "label": "Layer 1 component 4"
+    },
+    {
+      "id": "n04",
+      "type": "external_system",
+      "label": "Layer 1 component 5"
+    },
+    {
+      "id": "n05",
+      "type": "service",
+      "label": "Layer 2 component 1"
+    },
+    {
+      "id": "n06",
+      "type": "processor",
+      "label": "Layer 2 component 2"
+    },
+    {
+      "id": "n07",
+      "type": "service",
+      "label": "Layer 2 component 3"
+    },
+    {
+      "id": "n08",
+      "type": "processor",
+      "label": "Layer 2 component 4"
+    },
+    {
+      "id": "n09",
+      "type": "service",
+      "label": "Layer 2 component 5"
+    },
+    {
+      "id": "n10",
+      "type": "communication_module",
+      "label": "Layer 3 component 1"
+    },
+    {
+      "id": "n11",
+      "type": "communication_module",
+      "label": "Layer 3 component 2"
+    },
+    {
+      "id": "n12",
+      "type": "communication_module",
+      "label": "Layer 3 component 3"
+    },
+    {
+      "id": "n13",
+      "type": "communication_module",
+      "label": "Layer 3 component 4"
+    },
+    {
+      "id": "n14",
+      "type": "communication_module",
+      "label": "Layer 3 component 5"
+    },
+    {
+      "id": "n15",
+      "type": "data_store",
+      "label": "Layer 4 component 1"
+    },
+    {
+      "id": "n16",
+      "type": "data_store",
+      "label": "Layer 4 component 2"
+    },
+    {
+      "id": "n17",
+      "type": "data_store",
+      "label": "Layer 4 component 3"
+    },
+    {
+      "id": "n18",
+      "type": "data_store",
+      "label": "Layer 4 component 4"
+    },
+    {
+      "id": "n19",
+      "type": "data_store",
+      "label": "Layer 4 component 5"
+    },
+    {
+      "id": "n20",
+      "type": "service",
+      "label": "Layer 5 component 1"
+    },
+    {
+      "id": "n21",
+      "type": "service",
+      "label": "Layer 5 component 2"
+    },
+    {
+      "id": "n22",
+      "type": "service",
+      "label": "Layer 5 component 3"
+    },
+    {
+      "id": "n23",
+      "type": "service",
+      "label": "Layer 5 component 4"
+    },
+    {
+      "id": "n24",
+      "type": "service",
+      "label": "Layer 5 component 5"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e01",
+      "source": "n00",
+      "target": "n05",
+      "relation": "data",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e02",
+      "source": "n00",
+      "target": "n06",
+      "relation": "data",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e03",
+      "source": "n01",
+      "target": "n06",
+      "relation": "data",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e04",
+      "source": "n01",
+      "target": "n07",
+      "relation": "data",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e05",
+      "source": "n02",
+      "target": "n07",
+      "relation": "data",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e06",
+      "source": "n02",
+      "target": "n08",
+      "relation": "data",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e07",
+      "source": "n03",
+      "target": "n08",
+      "relation": "data",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e08",
+      "source": "n03",
+      "target": "n09",
+      "relation": "data",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e09",
+      "source": "n04",
+      "target": "n09",
+      "relation": "data",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e10",
+      "source": "n04",
+      "target": "n05",
+      "relation": "data",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e11",
+      "source": "n05",
+      "target": "n10",
+      "relation": "data",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e12",
+      "source": "n05",
+      "target": "n11",
+      "relation": "data",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e13",
+      "source": "n06",
+      "target": "n11",
+      "relation": "data",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e14",
+      "source": "n06",
+      "target": "n12",
+      "relation": "data",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e15",
+      "source": "n07",
+      "target": "n12",
+      "relation": "data",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e16",
+      "source": "n07",
+      "target": "n13",
+      "relation": "data",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e17",
+      "source": "n08",
+      "target": "n13",
+      "relation": "data",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e18",
+      "source": "n08",
+      "target": "n14",
+      "relation": "data",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e19",
+      "source": "n09",
+      "target": "n14",
+      "relation": "data",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e20",
+      "source": "n09",
+      "target": "n10",
+      "relation": "data",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e21",
+      "source": "n10",
+      "target": "n15",
+      "relation": "data",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e22",
+      "source": "n10",
+      "target": "n16",
+      "relation": "data",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e23",
+      "source": "n11",
+      "target": "n16",
+      "relation": "data",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e24",
+      "source": "n11",
+      "target": "n17",
+      "relation": "data",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e25",
+      "source": "n12",
+      "target": "n17",
+      "relation": "data",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e26",
+      "source": "n12",
+      "target": "n18",
+      "relation": "data",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e27",
+      "source": "n13",
+      "target": "n18",
+      "relation": "data",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e28",
+      "source": "n13",
+      "target": "n19",
+      "relation": "data",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e29",
+      "source": "n14",
+      "target": "n19",
+      "relation": "data",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e30",
+      "source": "n14",
+      "target": "n15",
+      "relation": "data",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e31",
+      "source": "n15",
+      "target": "n20",
+      "relation": "data",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e32",
+      "source": "n15",
+      "target": "n21",
+      "relation": "data",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e33",
+      "source": "n16",
+      "target": "n21",
+      "relation": "data",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e34",
+      "source": "n16",
+      "target": "n22",
+      "relation": "data",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e35",
+      "source": "n17",
+      "target": "n22",
+      "relation": "data",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e36",
+      "source": "n17",
+      "target": "n23",
+      "relation": "data",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e37",
+      "source": "n18",
+      "target": "n23",
+      "relation": "data",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e38",
+      "source": "n18",
+      "target": "n24",
+      "relation": "data",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e39",
+      "source": "n19",
+      "target": "n24",
+      "relation": "data",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e40",
+      "source": "n19",
+      "target": "n20",
+      "relation": "data",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e41",
+      "source": "n20",
+      "target": "n21",
+      "relation": "communication",
+      "direction": "forward",
+      "style": "dashed"
+    },
+    {
+      "id": "e42",
+      "source": "n21",
+      "target": "n22",
+      "relation": "communication",
+      "direction": "forward",
+      "style": "dashed"
+    },
+    {
+      "id": "e43",
+      "source": "n22",
+      "target": "n23",
+      "relation": "communication",
+      "direction": "forward",
+      "style": "dashed"
+    },
+    {
+      "id": "e44",
+      "source": "n23",
+      "target": "n24",
+      "relation": "communication",
+      "direction": "forward",
+      "style": "dashed"
+    },
+    {
+      "id": "e45",
+      "source": "n24",
+      "target": "n20",
+      "relation": "communication",
+      "direction": "forward",
+      "style": "dashed"
+    }
+  ]
+}

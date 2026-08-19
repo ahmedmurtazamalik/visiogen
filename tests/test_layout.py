@@ -127,3 +127,12 @@ def test_size_node_reserves_space_for_reference_number() -> None:
     with_reference = size_node(one_node_graph(reference="110").nodes[0])
 
     assert with_reference.height >= without_reference.height + 0.25
+
+
+def test_apply_geometry_rejects_boxes_outside_page() -> None:
+    with pytest.raises(LayoutError, match="outside page.*review"):
+        apply_geometry(
+            one_node_graph(),
+            {"review": (3.5, 1.5, 2.0, 0.75)},
+            PageGeometry(width=4.0, height=3.0),
+        )
