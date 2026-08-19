@@ -300,6 +300,8 @@ def render_layout(
     template_path: str | Path,
     layout: LayoutResult,
     output_path: str | Path,
+    *,
+    automatic_reference_numbers: bool = False,
 ) -> Path:
     """Render positioned canonical nodes into an editable template-derived VSDX."""
 
@@ -317,6 +319,7 @@ def render_layout(
         ),
     )
     with load_template_palette(source, markers=PRODUCTION_TEMPLATE_MARKERS) as palette:
+        node_shapes: dict[str, Shape] = {}
         for _, node in ordered_nodes:
             x, y, width, height = _node_geometry(node)
             visual = map_node_visual(
@@ -332,6 +335,37 @@ def render_layout(
             copied_shape.height = height
             copied_shape.x = x
             copied_shape.y = y
+            node_shapes[node.id] = copied_shape
+
+        callout_marker = "__template_reference_callout__"
+        component_marker = "__template_component_rectangle__"
+        for index, node in enumerate(layout.graph.nodes, start=1):
+            reference_number = node.reference_number
+            if reference_number is None and automatic_reference_numbers:
+                reference_number = str(index)
+            if reference_number is None:
+                continue
+            target = node_shapes[node.id]
+            callout = _copy_shape_tree(
+                palette.shapes[callout_marker].shape,
+                palette.page,
+            )
+            _find_marker_shape(callout, callout_marker).text = reference_number
+            desired_x = target.x + target.width / 2 + callout.width / 2 + 0.25
+            desired_y = target.y + target.height / 2
+            callout.x = min(
+                max(desired_x, callout.width / 2),
+                layout.page.width - callout.width / 2,
+            )
+            callout.y = min(
+                max(desired_y, callout.height / 2),
+                layout.page.height - callout.height / 2,
+            )
+            _retarget_sheet_references(
+                callout,
+                {palette.shapes[component_marker].shape.ID: target.ID},
+            )
+            _attach_callout_leader(callout, target)
 
         palette.page.width = layout.page.width
         palette.page.height = layout.page.height

@@ -139,6 +139,110 @@ def test_render_layout_copies_containers_before_children_with_exact_geometry(
         assert remaining_markers == set()
 
 
+def test_render_layout_preserves_explicit_reference_number_as_targeted_callout(
+    tmp_path: Path,
+) -> None:
+    output_path = tmp_path / "reference.vsdx"
+    layout = LayoutResult(
+        graph=DiagramGraph(
+            title="Referenced component",
+            diagram_type="component_schematic",
+            orientation="left_to_right",
+            nodes=[
+                _node(
+                    "controller",
+                    "controller",
+                    "Controller",
+                    (3.0, 3.0, 2.5, 1.0),
+                    reference_number="007",
+                )
+            ],
+        ),
+        page=PageGeometry(width=7.0, height=6.0),
+    )
+
+    renderer.render_layout(TEMPLATE_PATH, layout, output_path)
+
+    with VisioFile(str(output_path)) as document:
+        page = document.get_page_by_name("Template Palette")
+        controller = _outer_shape(page.find_shape_by_text("Controller"))
+        callouts = [shape for shape in page.all_shapes if shape.text.strip() == "007"]
+        assert len(callouts) == 1
+        callout = _outer_shape(callouts[0])
+        assert f"Sheet.{controller.ID}!" in callout.cell_formula("Relationships")
+        target_row = callout.xml.find(
+            f"{namespace}Section[@N='User']/{namespace}Row[@N='msvSDTargetIntersection']"
+        )
+        target_formula = target_row.find(f"{namespace}Cell[@N='Value']").attrib["F"]
+        assert f"Sheet.{controller.ID}!" in target_formula
+        assert callout.x > controller.x
+
+
+def test_reference_callout_stays_inside_layout_page(tmp_path: Path) -> None:
+    output_path = tmp_path / "bounded-reference.vsdx"
+    layout = LayoutResult(
+        graph=DiagramGraph(
+            title="Bounded reference",
+            diagram_type="component_schematic",
+            orientation="left_to_right",
+            nodes=[
+                _node(
+                    "sensor",
+                    "sensor",
+                    "Edge sensor",
+                    (6.0, 2.0, 1.5, 1.5),
+                    reference_number="120",
+                )
+            ],
+        ),
+        page=PageGeometry(width=7.0, height=4.0),
+    )
+
+    renderer.render_layout(TEMPLATE_PATH, layout, output_path)
+
+    with VisioFile(str(output_path)) as document:
+        page = document.get_page_by_name("Template Palette")
+        callout = _outer_shape(page.find_shape_by_text("120"))
+        assert callout.x - callout.width / 2 >= 0
+        assert callout.x + callout.width / 2 <= page.width
+        assert callout.y - callout.height / 2 >= 0
+        assert callout.y + callout.height / 2 <= page.height
+
+
+def test_render_layout_auto_numbers_only_when_explicitly_enabled(tmp_path: Path) -> None:
+    layout = LayoutResult(
+        graph=DiagramGraph(
+            title="Optional references",
+            diagram_type="system_block",
+            orientation="left_to_right",
+            nodes=[
+                _node("sensor", "sensor", "Sensor", (2.0, 2.0, 1.5, 1.5)),
+                _node("controller", "controller", "Controller", (5.0, 2.0, 2.5, 1.0)),
+            ],
+        ),
+        page=PageGeometry(width=8.0, height=5.0),
+    )
+    default_output = tmp_path / "references-off.vsdx"
+    enabled_output = tmp_path / "references-on.vsdx"
+
+    renderer.render_layout(TEMPLATE_PATH, layout, default_output)
+    renderer.render_layout(
+        TEMPLATE_PATH,
+        layout,
+        enabled_output,
+        automatic_reference_numbers=True,
+    )
+
+    with VisioFile(str(default_output)) as document:
+        page = document.get_page_by_name("Template Palette")
+        assert page.find_shape_by_text("1") is None
+        assert page.find_shape_by_text("2") is None
+    with VisioFile(str(enabled_output)) as document:
+        page = document.get_page_by_name("Template Palette")
+        assert page.find_shape_by_text("1") is not None
+        assert page.find_shape_by_text("2") is not None
+
+
 def test_render_layout_requires_complete_node_geometry(tmp_path: Path) -> None:
     layout = LayoutResult(
         graph=DiagramGraph(
