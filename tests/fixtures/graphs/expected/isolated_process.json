@@ -1,0 +1,13 @@
+{
+  "title": "Archive records",
+  "diagram_type": "flowchart",
+  "orientation": "top_to_bottom",
+  "nodes": [
+    {
+      "id": "archive",
+      "type": "process",
+      "label": "Archive records"
+    }
+  ],
+  "edges": []
+}

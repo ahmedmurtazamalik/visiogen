@@ -1,0 +1,1 @@
+Create a control subsystem containing a processor and memory. An external sensor sends data to the processor, and the processor communicates bidirectionally with memory.

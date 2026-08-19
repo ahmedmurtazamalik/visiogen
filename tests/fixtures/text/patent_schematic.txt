@@ -1,0 +1,1 @@
+Create a patent-style component schematic for device housing 100 containing controller 110, sensor 120, interface 130, and power source 140. The sensor sends data to the controller, the interface communicates bidirectionally with the controller, and the power source supplies power to the controller.

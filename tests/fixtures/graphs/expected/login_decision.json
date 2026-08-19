@@ -1,0 +1,77 @@
+{
+  "title": "Login decision flow",
+  "diagram_type": "flowchart",
+  "orientation": "top_to_bottom",
+  "nodes": [
+    {
+      "id": "start",
+      "type": "terminator",
+      "label": "Start"
+    },
+    {
+      "id": "credentials",
+      "type": "input_output",
+      "label": "Enter credentials"
+    },
+    {
+      "id": "valid",
+      "type": "decision",
+      "label": "Credentials valid?"
+    },
+    {
+      "id": "dashboard",
+      "type": "process",
+      "label": "Open dashboard"
+    },
+    {
+      "id": "error",
+      "type": "process",
+      "label": "Show login error"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "start",
+      "target": "credentials",
+      "relation": "flow",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e2",
+      "source": "credentials",
+      "target": "valid",
+      "relation": "flow",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e3",
+      "source": "valid",
+      "target": "dashboard",
+      "relation": "flow",
+      "direction": "forward",
+      "style": "solid",
+      "label": "Yes"
+    },
+    {
+      "id": "e4",
+      "source": "valid",
+      "target": "error",
+      "relation": "flow",
+      "direction": "forward",
+      "style": "solid",
+      "label": "No"
+    },
+    {
+      "id": "e5",
+      "source": "error",
+      "target": "credentials",
+      "relation": "flow",
+      "direction": "forward",
+      "style": "solid",
+      "label": "Retry"
+    }
+  ]
+}

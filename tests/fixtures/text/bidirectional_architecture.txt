@@ -1,0 +1,1 @@
+Draw a left-to-right architecture where a user interface communicates bidirectionally with a communication gateway, and the gateway communicates bidirectionally with an external analytics service.

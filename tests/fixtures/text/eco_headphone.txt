@@ -1,0 +1,1 @@
+Draw an eco-friendly headphone component schematic. A housing contains a battery, controller, motion sensor, audio driver, charging interface, and energy-harvesting module. The harvester and battery supply power to the controller. The sensor sends data to the controller. The controller drives the audio driver and communicates bidirectionally with the charging interface.

@@ -1,0 +1,1 @@
+Create a left-to-right system diagram where a sensor sends data to a processor and the processor reads from and writes to memory.

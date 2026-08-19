@@ -1,0 +1,40 @@
+{
+  "title": "Bidirectional analytics architecture",
+  "diagram_type": "system_block",
+  "orientation": "left_to_right",
+  "nodes": [
+    {
+      "id": "ui",
+      "type": "interface",
+      "label": "User interface"
+    },
+    {
+      "id": "gateway",
+      "type": "communication_module",
+      "label": "Communication gateway"
+    },
+    {
+      "id": "analytics",
+      "type": "service",
+      "label": "External analytics service"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "ui",
+      "target": "gateway",
+      "relation": "communication",
+      "direction": "bidirectional",
+      "style": "solid"
+    },
+    {
+      "id": "e2",
+      "source": "gateway",
+      "target": "analytics",
+      "relation": "communication",
+      "direction": "bidirectional",
+      "style": "solid"
+    }
+  ]
+}

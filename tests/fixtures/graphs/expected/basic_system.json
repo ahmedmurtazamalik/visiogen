@@ -1,0 +1,40 @@
+{
+  "title": "Sensor processing system",
+  "diagram_type": "system_block",
+  "orientation": "left_to_right",
+  "nodes": [
+    {
+      "id": "sensor",
+      "type": "sensor",
+      "label": "Sensor"
+    },
+    {
+      "id": "processor",
+      "type": "processor",
+      "label": "Processor"
+    },
+    {
+      "id": "memory",
+      "type": "memory",
+      "label": "Memory"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "sensor",
+      "target": "processor",
+      "relation": "data",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e2",
+      "source": "processor",
+      "target": "memory",
+      "relation": "data",
+      "direction": "bidirectional",
+      "style": "solid"
+    }
+  ]
+}

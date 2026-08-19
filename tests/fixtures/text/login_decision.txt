@@ -1,0 +1,1 @@
+Draw a top-to-bottom login flow. Start, enter credentials, then decide whether the credentials are valid. Yes goes to the dashboard. No shows an error and returns to credential entry.

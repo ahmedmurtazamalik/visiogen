@@ -1,0 +1,4 @@
+{
+  "expected_error": "NoDiagramContentError",
+  "reason": "No explicit or strongly implied diagram nodes or relationships are present."
+}

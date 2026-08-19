@@ -1,0 +1,90 @@
+{
+  "title": "Eco-friendly headphones",
+  "diagram_type": "component_schematic",
+  "orientation": "left_to_right",
+  "nodes": [
+    {
+      "id": "housing",
+      "type": "housing",
+      "label": "Headphone housing"
+    },
+    {
+      "id": "battery",
+      "type": "power_source",
+      "label": "Battery",
+      "parent_id": "housing"
+    },
+    {
+      "id": "controller",
+      "type": "controller",
+      "label": "Controller",
+      "parent_id": "housing"
+    },
+    {
+      "id": "sensor",
+      "type": "sensor",
+      "label": "Motion sensor",
+      "parent_id": "housing"
+    },
+    {
+      "id": "driver",
+      "type": "actuator",
+      "label": "Audio driver",
+      "parent_id": "housing"
+    },
+    {
+      "id": "charging",
+      "type": "interface",
+      "label": "Charging interface",
+      "parent_id": "housing"
+    },
+    {
+      "id": "harvester",
+      "type": "transducer",
+      "label": "Energy-harvesting module",
+      "parent_id": "housing"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "harvester",
+      "target": "controller",
+      "relation": "power",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e2",
+      "source": "battery",
+      "target": "controller",
+      "relation": "power",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e3",
+      "source": "sensor",
+      "target": "controller",
+      "relation": "data",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e4",
+      "source": "controller",
+      "target": "driver",
+      "relation": "control",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e5",
+      "source": "controller",
+      "target": "charging",
+      "relation": "communication",
+      "direction": "bidirectional",
+      "style": "solid"
+    }
+  ]
+}

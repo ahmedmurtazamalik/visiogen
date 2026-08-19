@@ -1,0 +1,1 @@
+Show a method flow that starts by initializing an item, checks whether another item remains, processes it, records a failure when processing fails, loops for the next item, and completes when no items remain.

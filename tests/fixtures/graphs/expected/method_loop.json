@@ -1,0 +1,100 @@
+{
+  "title": "Item processing method",
+  "diagram_type": "flowchart",
+  "orientation": "top_to_bottom",
+  "nodes": [
+    {
+      "id": "start",
+      "type": "terminator",
+      "label": "Start"
+    },
+    {
+      "id": "initialize",
+      "type": "process",
+      "label": "Initialize items"
+    },
+    {
+      "id": "remaining",
+      "type": "decision",
+      "label": "Another item?"
+    },
+    {
+      "id": "process",
+      "type": "process",
+      "label": "Process item"
+    },
+    {
+      "id": "failure",
+      "type": "process",
+      "label": "Record failure"
+    },
+    {
+      "id": "complete",
+      "type": "terminator",
+      "label": "Complete"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "start",
+      "target": "initialize",
+      "relation": "flow",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e2",
+      "source": "initialize",
+      "target": "remaining",
+      "relation": "flow",
+      "direction": "forward",
+      "style": "solid"
+    },
+    {
+      "id": "e3",
+      "source": "remaining",
+      "target": "process",
+      "relation": "flow",
+      "direction": "forward",
+      "style": "solid",
+      "label": "Yes"
+    },
+    {
+      "id": "e4",
+      "source": "process",
+      "target": "remaining",
+      "relation": "flow",
+      "direction": "forward",
+      "style": "solid",
+      "label": "Next"
+    },
+    {
+      "id": "e5",
+      "source": "process",
+      "target": "failure",
+      "relation": "flow",
+      "direction": "forward",
+      "style": "solid",
+      "label": "Failed"
+    },
+    {
+      "id": "e6",
+      "source": "failure",
+      "target": "remaining",
+      "relation": "flow",
+      "direction": "forward",
+      "style": "solid",
+      "label": "Continue"
+    },
+    {
+      "id": "e7",
+      "source": "remaining",
+      "target": "complete",
+      "relation": "flow",
+      "direction": "forward",
+      "style": "solid",
+      "label": "No"
+    }
+  ]
+}
