@@ -354,10 +354,11 @@ def render_layout(
                 palette.page,
             )
             _find_marker_shape(copied_shape, visual.marker).text = node.label
-            copied_shape.width = width
-            copied_shape.height = height
-            copied_shape.x = x
-            copied_shape.y = y
+            with redirect_stdout(io.StringIO()):
+                copied_shape.width = width
+                copied_shape.height = height
+                copied_shape.x = x
+                copied_shape.y = y
             node_shapes[node.id] = copied_shape
 
         callout_marker = "__template_reference_callout__"

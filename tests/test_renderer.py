@@ -310,6 +310,25 @@ def test_render_layout_rejects_edge_with_missing_endpoint(tmp_path: Path) -> Non
         renderer.render_layout(TEMPLATE_PATH, layout, tmp_path / "broken.vsdx")
 
 
+def test_render_layout_does_not_print_library_debug_output(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    layout = LayoutResult(
+        graph=DiagramGraph(
+            title="Quiet rendering",
+            diagram_type="flowchart",
+            orientation="top_to_bottom",
+            nodes=[_node("step", "process", "Step", (2.0, 2.0, 2.625, 0.75))],
+        ),
+        page=PageGeometry(width=5.0, height=4.0),
+    )
+
+    renderer.render_layout(TEMPLATE_PATH, layout, tmp_path / "quiet.vsdx")
+
+    assert capsys.readouterr().out == ""
+
+
 def test_render_layout_requires_complete_node_geometry(tmp_path: Path) -> None:
     layout = LayoutResult(
         graph=DiagramGraph(
