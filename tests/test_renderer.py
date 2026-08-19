@@ -1,10 +1,12 @@
 import hashlib
+import io
 import os
 from collections import Counter
 from contextlib import contextmanager
 from pathlib import Path
 import re
 import shutil
+import threading
 from typing import Any
 from xml.etree import ElementTree as ET
 from zipfile import ZipFile
@@ -488,6 +490,32 @@ def test_render_layout_rejects_nonfinite_page_geometry(tmp_path: Path) -> None:
         renderer.render_layout(TEMPLATE_PATH, layout, tmp_path / "invalid-page.vsdx")
 
 
+def test_namespace_serializer_remaps_unknown_prefix_without_global_state() -> None:
+    root_namespace = "urn:visiogen:root"
+    foreign_namespace = "urn:visiogen:foreign"
+    root = ET.Element(f"{{{root_namespace}}}root")
+    ET.SubElement(root, f"{{{foreign_namespace}}}child")
+    contents: dict[str, io.BytesIO] = {}
+
+    renderer._namespace_safe_xml_to_file(
+        ET.ElementTree(root),
+        "part.xml",
+        contents,
+    )
+
+    serialized = contents["part.xml"].getvalue()
+    assert b"ns0:" not in serialized
+    assert b"ns1:" not in serialized
+    parsed = ET.fromstring(serialized)
+    assert parsed.tag == f"{{{root_namespace}}}root"
+    assert list(parsed)[0].tag == f"{{{foreign_namespace}}}child"
+
+
+def test_namespace_serializer_rejects_empty_tree() -> None:
+    with pytest.raises(renderer.RenderingError, match="empty XML tree"):
+        renderer._namespace_safe_xml_to_file(ET.ElementTree(), "empty.xml", {})
+
+
 def test_render_layout_restores_elementtree_namespace_registry(tmp_path: Path) -> None:
     layout = LayoutResult(
         graph=DiagramGraph(
@@ -503,6 +531,64 @@ def test_render_layout_restores_elementtree_namespace_registry(tmp_path: Path) -
     renderer.render_layout(TEMPLATE_PATH, layout, tmp_path / "namespace-safe.vsdx")
 
     assert getattr(ET, "_namespace_map") == namespace_map
+
+
+def test_render_layout_does_not_disturb_concurrent_elementtree_serialization(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    layout = LayoutResult(
+        graph=DiagramGraph(
+            title="Concurrent namespace isolation",
+            diagram_type="flowchart",
+            orientation="top_to_bottom",
+            nodes=[_node("step", "process", "Step", (2.0, 2.0, 2.625, 0.75))],
+        ),
+        page=PageGeometry(width=5.0, height=4.0),
+    )
+    unrelated_namespace = "urn:visiogen:unrelated"
+    namespace_registry = getattr(ET, "_namespace_map")
+    original_namespaces = dict(namespace_registry)
+    ET.register_namespace("", unrelated_namespace)
+    serializer_entered = threading.Event()
+    release_serializer = threading.Event()
+    render_errors: list[BaseException] = []
+    original_serializer = renderer._namespace_safe_xml_to_file
+
+    def blocking_serializer(*args: Any, **kwargs: Any) -> None:
+        original_serializer(*args, **kwargs)
+        serializer_entered.set()
+        assert release_serializer.wait(timeout=10)
+
+    monkeypatch.setattr(renderer, "_namespace_safe_xml_to_file", blocking_serializer)
+
+    def run_renderer() -> None:
+        try:
+            renderer.render_layout(
+                TEMPLATE_PATH,
+                layout,
+                tmp_path / "concurrent-namespace.vsdx",
+            )
+        except BaseException as error:  # pragma: no cover - assertion reports detail
+            render_errors.append(error)
+
+    worker = threading.Thread(target=run_renderer)
+    worker.start()
+    try:
+        assert serializer_entered.wait(timeout=10)
+        unrelated_xml = ET.tostring(
+            ET.Element(f"{{{unrelated_namespace}}}root"),
+            encoding="unicode",
+        )
+    finally:
+        release_serializer.set()
+        worker.join(timeout=10)
+        namespace_registry.clear()
+        namespace_registry.update(original_namespaces)
+
+    assert not worker.is_alive()
+    assert not render_errors
+    assert unrelated_xml.startswith(f'<root xmlns="{unrelated_namespace}"')
 
 
 def test_render_layout_does_not_print_library_debug_output(
@@ -700,6 +786,34 @@ def test_generated_vsdx_uses_declared_namespaces_without_ns_prefixes(
         ]
 
     assert prefixed_parts == []
+
+
+def test_render_layout_preserves_destination_after_serialization_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    destination = tmp_path / "existing.vsdx"
+    destination.write_bytes(b"ORIGINAL")
+    layout = LayoutResult(
+        graph=DiagramGraph(
+            title="Atomic failure",
+            diagram_type="flowchart",
+            orientation="top_to_bottom",
+            nodes=[_node("step", "process", "Step", (2.0, 2.0, 2.625, 0.75))],
+        ),
+        page=PageGeometry(width=5.0, height=4.0),
+    )
+
+    def fail_serialization(document: VisioFile) -> None:
+        raise RuntimeError("injected serialization failure")
+
+    monkeypatch.setattr(renderer, "_write_document_parts", fail_serialization)
+
+    with pytest.raises(RuntimeError, match="injected serialization failure"):
+        renderer.render_layout(TEMPLATE_PATH, layout, destination)
+
+    assert destination.read_bytes() == b"ORIGINAL"
+    assert not list(tmp_path.glob(f".{destination.name}.*.vsdx"))
 
 
 def test_render_layout_atomically_replaces_raced_template_alias(

@@ -331,18 +331,66 @@ def _namespace_safe_xml_to_file(
     filename: str,
     zip_file_contents: dict[str, io.BytesIO],
 ) -> None:
-    """Serialize each package part with its root namespace as the default."""
+    """Serialize a package part without mutating ElementTree's global registry."""
 
     root = xml.getroot()
-    if root is not None and root.tag.startswith("{"):
+    if root is None:
+        raise RenderingError(f"cannot serialize empty XML tree for {filename}")
+    root_namespace = ""
+    if root.tag.startswith("{"):
         root_namespace = root.tag[1:].split("}", 1)[0]
-        ET.register_namespace("", root_namespace)
-    ET.register_namespace("r", r_namespace[1:-1])
-    ET.register_namespace("vt", vt_namespace[1:-1])
 
-    stream = io.BytesIO()
-    xml.write(stream, xml_declaration=True, method="xml", encoding="UTF-8")
-    zip_file_contents[filename] = io.BytesIO(stream.getvalue())
+    serialized = ET.tostring(
+        root,
+        encoding="UTF-8",
+        xml_declaration=True,
+        short_empty_elements=True,
+    ).decode("UTF-8")
+    declarations = re.findall(
+        r'xmlns(?::([A-Za-z_][\w.-]*))?="([^"]+)"',
+        serialized,
+    )
+    preferred = {
+        root_namespace: "",
+        r_namespace[1:-1]: "r",
+        vt_namespace[1:-1]: "vt",
+    }
+    used_prefixes = {prefix for prefix in preferred.values() if prefix}
+    generated_index = 1
+    for old_prefix, uri in declarations:
+        desired_prefix = preferred.get(uri)
+        if desired_prefix is None:
+            if old_prefix and not re.fullmatch(r"ns\d+", old_prefix):
+                desired_prefix = old_prefix
+            else:
+                while f"p{generated_index}" in used_prefixes:
+                    generated_index += 1
+                desired_prefix = f"p{generated_index}"
+                generated_index += 1
+            used_prefixes.add(desired_prefix)
+
+        if old_prefix == desired_prefix:
+            continue
+        if not old_prefix:
+            raise RenderingError(
+                f"cannot safely remap non-root default namespace {uri!r}"
+            )
+
+        old_declaration = f'xmlns:{old_prefix}="{uri}"'
+        new_declaration = (
+            f'xmlns="{uri}"'
+            if not desired_prefix
+            else f'xmlns:{desired_prefix}="{uri}"'
+        )
+        serialized = serialized.replace(old_declaration, new_declaration)
+        replacement = f"{desired_prefix}:" if desired_prefix else ""
+        serialized = serialized.replace(f"<{old_prefix}:", f"<{replacement}")
+        serialized = serialized.replace(f"</{old_prefix}:", f"</{replacement}")
+        serialized = serialized.replace(f" {old_prefix}:", f" {replacement}")
+
+    if re.search(r"(?:<|</|\s)ns\d+:", serialized):
+        raise RenderingError(f"unsafe generated namespace prefix in {filename}")
+    zip_file_contents[filename] = io.BytesIO(serialized.encode("UTF-8"))
 
 
 def _write_document_parts(document: VisioFile) -> None:
@@ -393,15 +441,9 @@ def _save_vsdx(document: VisioFile, destination: Path) -> None:
             temporary_path = Path(temporary.name)
 
         with _XML_SERIALIZATION_LOCK:
-            namespace_registry = getattr(ET, "_namespace_map")
-            original_namespaces = dict(namespace_registry)
-            try:
-                _write_document_parts(document)
-                save_zip = getattr(document, "_save_zip_file_contents_to_disk")
-                save_zip(str(temporary_path))
-            finally:
-                namespace_registry.clear()
-                namespace_registry.update(original_namespaces)
+            _write_document_parts(document)
+            save_zip = getattr(document, "_save_zip_file_contents_to_disk")
+            save_zip(str(temporary_path))
         os.replace(temporary_path, destination)
         temporary_path = None
     finally:
