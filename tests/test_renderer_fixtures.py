@@ -162,5 +162,40 @@ def test_renderer_fixture_produces_structurally_valid_editable_package(
             assert callout.y - callout.height / 2 >= -1e-9
             assert callout.x + callout.width / 2 <= page.width + 1e-9
             assert callout.y + callout.height / 2 <= page.height + 1e-9
+            text_center_x = (
+                callout.x
+                - float(callout.cell_value("LocPinX"))
+                + float(callout.cell_value("TxtPinX"))
+            )
+            text_center_y = (
+                callout.y
+                - float(callout.cell_value("LocPinY"))
+                + float(callout.cell_value("TxtPinY"))
+            )
+            text_width = float(callout.cell_value("TxtWidth"))
+            text_height = float(callout.cell_value("TxtHeight"))
+            overlap_width = max(
+                0.0,
+                min(
+                    text_center_x + text_width / 2,
+                    target.x + target.width / 2,
+                )
+                - max(
+                    text_center_x - text_width / 2,
+                    target.x - target.width / 2,
+                ),
+            )
+            overlap_height = max(
+                0.0,
+                min(
+                    text_center_y + text_height / 2,
+                    target.y + target.height / 2,
+                )
+                - max(
+                    text_center_y - text_height / 2,
+                    target.y - target.height / 2,
+                ),
+            )
+            assert overlap_width * overlap_height == pytest.approx(0.0, abs=1e-9)
         assert page.width == pytest.approx(layout.page.width)
         assert page.height == pytest.approx(layout.page.height)

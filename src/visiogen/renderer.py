@@ -52,6 +52,9 @@ GENERATED_POSITIONS = {
 _XML_SERIALIZATION_LOCK = threading.Lock()
 _LINE_PATTERNS = {"solid": "1", "dashed": "2", "dotted": "3"}
 _ARROW_STYLE = "4"
+_REFERENCE_TEXT_WIDTH = 0.4
+_REFERENCE_TEXT_HEIGHT = 0.25
+_REFERENCE_GAP = 0.05
 
 
 class TemplateValidationError(ValueError):
@@ -267,6 +270,89 @@ def _set_local_cell_value(shape: Shape, name: str, value: str) -> None:
         shape.xml.insert(insertion_index, cell_xml)
     cell.value = value
     cell.xml.attrib.pop("F", None)
+
+
+def _place_reference_callout(
+    callout: Shape,
+    target: Shape,
+    page_width: float,
+    page_height: float,
+) -> None:
+    """Place a compact numeral carrier beside its target without obscuring it."""
+
+    text_width = min(_REFERENCE_TEXT_WIDTH, callout.width)
+    text_height = min(
+        _REFERENCE_TEXT_HEIGHT,
+        float(callout.cell_value("TxtHeight")),
+        callout.height,
+    )
+    target_left = target.x - target.width / 2
+    target_right = target.x + target.width / 2
+    target_bottom = target.y - target.height / 2
+    target_top = target.y + target.height / 2
+    candidates = (
+        (target_right + _REFERENCE_GAP + text_width / 2, target.y),
+        (target_left - _REFERENCE_GAP - text_width / 2, target.y),
+        (target.x, target_top + _REFERENCE_GAP + text_height / 2),
+        (target.x, target_bottom - _REFERENCE_GAP - text_height / 2),
+    )
+
+    root_x_min = callout.width / 2
+    root_x_max = page_width - callout.width / 2
+    root_y_min = callout.height / 2
+    root_y_max = page_height - callout.height / 2
+    loc_pin_x = float(callout.cell_value("LocPinX"))
+    loc_pin_y = float(callout.cell_value("LocPinY"))
+
+    for text_x, text_y in candidates:
+        if (
+            text_x - text_width / 2 < 0
+            or text_x + text_width / 2 > page_width
+            or text_y - text_height / 2 < 0
+            or text_y + text_height / 2 > page_height
+        ):
+            continue
+
+        root_x_low = max(
+            root_x_min,
+            text_x + text_width / 2 - callout.width / 2,
+        )
+        root_x_high = min(
+            root_x_max,
+            text_x - text_width / 2 + callout.width / 2,
+        )
+        root_y_low = max(
+            root_y_min,
+            text_y + text_height / 2 - callout.height / 2,
+        )
+        root_y_high = min(
+            root_y_max,
+            text_y - text_height / 2 + callout.height / 2,
+        )
+        if root_x_low > root_x_high or root_y_low > root_y_high:
+            continue
+
+        root_x = min(max(text_x, root_x_low), root_x_high)
+        root_y = min(max(text_y, root_y_low), root_y_high)
+        _set_local_cell_value(callout, "PinX", repr(root_x))
+        _set_local_cell_value(callout, "PinY", repr(root_y))
+        _set_local_cell_value(callout, "TxtWidth", repr(text_width))
+        _set_local_cell_value(callout, "TxtHeight", repr(text_height))
+        _set_local_cell_value(
+            callout,
+            "TxtPinX",
+            repr(text_x - root_x + loc_pin_x),
+        )
+        _set_local_cell_value(
+            callout,
+            "TxtPinY",
+            repr(text_y - root_y + loc_pin_y),
+        )
+        return
+
+    raise RenderingError(
+        f"reference callout cannot avoid target {target.ID} inside page bounds"
+    )
 
 
 def _set_connector_cached_geometry(
@@ -552,18 +638,12 @@ def render_layout(
                     f"reference callout for node '{node.id}' cannot fit inside the layout page"
                 )
             _find_marker_shape(callout, callout_marker).text = reference_number
-            desired_x = target.x + target.width / 2 + callout.width / 2 + 0.25
-            desired_y = target.y + target.height / 2
-            callout_x = min(
-                max(desired_x, callout.width / 2),
-                layout.page.width - callout.width / 2,
+            _place_reference_callout(
+                callout,
+                target,
+                layout.page.width,
+                layout.page.height,
             )
-            callout_y = min(
-                max(desired_y, callout.height / 2),
-                layout.page.height - callout.height / 2,
-            )
-            _set_local_cell_value(callout, "PinX", repr(callout_x))
-            _set_local_cell_value(callout, "PinY", repr(callout_y))
             _retarget_sheet_references(
                 callout,
                 {palette.shapes[component_marker].shape.ID: target.ID},
