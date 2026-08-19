@@ -2,7 +2,7 @@
 
 Visiogen converts supported text descriptions into structured, editable Microsoft Visio diagrams.
 
-The baseline targets flowcharts, system block diagrams, and abstract patent-oriented component schematics. Development is currently in the foundation phase.
+The baseline targets flowcharts, system block diagrams, and abstract patent-oriented component schematics. The canonical graph contract, deterministic semantic-to-template mapping, Windows-accepted Visio palette, reviewed extraction fixtures, and local Qwen/Gemini extraction adapters are implemented.
 
 ## Development
 
@@ -14,4 +14,4 @@ uv run pytest -q
 uv run visiogen --help
 ```
 
-The renderer will use a known-good Visio template. Real `.vsdx` compatibility and connector glue must be accepted in Microsoft Visio on Windows before renderer development proceeds.
+The known-good Visio template and its connector, callout, container, save/reopen behavior have passed Microsoft Visio acceptance. See [`docs/M4_EXTRACTION.md`](docs/M4_EXTRACTION.md) for provider-contract evidence and the optional live-model evaluation workflow.
