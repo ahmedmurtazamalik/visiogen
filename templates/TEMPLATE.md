@@ -13,30 +13,30 @@
 
 ## Production palette inventory
 
-Status key: **U✓** = Ubuntu ZIP/XML and `vsdx` structural validation passed; **W?** = expanded-template Windows close/reopen smoke confirmation pending.
+Status key: **U✓** = Ubuntu ZIP/XML and `vsdx` structural validation passed; **W✓** = Microsoft Visio close/reopen and movement smoke validation passed.
 
 | Marker | Semantic users | Default size (in) | Container-capable | Status |
 |---|---|---:|:---:|:---:|
-| `__template_terminator__` | `terminator` | 2.6 × 0.9 | No | U✓ / W? |
-| `__template_process__` | `process` | 2.625 × 0.75 | No | U✓ / W? |
-| `__template_decision__` | `decision` | 2.3 × 1.5 | No | U✓ / W? |
-| `__template_input_output__` | `input_output` | 3.0 × 1.1 | No | U✓ / W? |
-| `__template_database__` | `data_store`, `memory`, `database` | 2.5 × 1.35 | No | U✓ / W? |
-| `__template_document__` | `document` | 2.7 × 1.15 | No | U✓ / W? |
-| `__template_predefined_process__` | `predefined_process` | 3.0 × 1.0 | No | U✓ / W? |
-| `__template_delay__` | `delay` | 2.5 × 1.1 | No | U✓ / W? |
-| `__template_note__` | `note` | 2.7 × 1.2 | No | U✓ / W? |
-| `__template_connector_hub__` | `connector_hub` | 1.35 × 1.35 | No | U✓ / W? |
-| `__template_component_rectangle__` | `component`, `actuator`, `communication_module` | 3.75 × 1.0 | No | U✓ / W? |
-| `__template_subsystem_container__` | `subsystem` | 5.5 × 2.8 | Yes | U✓ / W? |
-| `__template_controller__` | `controller`, `processor` | 3.0 × 1.1 | No | U✓ / W? |
-| `__template_sensor__` | `sensor`, `transducer` | 1.8 × 1.8 | No | U✓ / W? |
-| `__template_power_source__` | `power_source` | 2.9 × 1.4 | No | U✓ / W? |
-| `__template_interface__` | `interface` | 3.0 × 0.5625 | No | U✓ / W? |
-| `__template_external_system__` | `external_system`, `service` | 3.2 × 1.25 | No | U✓ / W? |
-| `__template_housing_container__` | `housing` | 6.5 × 3.0 | Yes | U✓ / W? |
-| `__template_reference_callout__` | Node reference numerals | 2.625 × 0.3125 | No | U✓ / W? |
-| `__template_connector__` | All `RelationType` values | Dynamic | No | U✓ / W? |
+| `__template_terminator__` | `terminator` | 2.6 × 0.9 | No | U✓ / W✓ |
+| `__template_process__` | `process` | 2.625 × 0.75 | No | U✓ / W✓ |
+| `__template_decision__` | `decision` | 2.3 × 1.5 | No | U✓ / W✓ |
+| `__template_input_output__` | `input_output` | 3.0 × 1.1 | No | U✓ / W✓ |
+| `__template_database__` | `data_store`, `memory`, `database` | 2.5 × 1.35 | No | U✓ / W✓ |
+| `__template_document__` | `document` | 2.7 × 1.15 | No | U✓ / W✓ |
+| `__template_predefined_process__` | `predefined_process` | 3.0 × 1.0 | No | U✓ / W✓ |
+| `__template_delay__` | `delay` | 2.5 × 1.1 | No | U✓ / W✓ |
+| `__template_note__` | `note` | 2.7 × 1.2 | No | U✓ / W✓ |
+| `__template_connector_hub__` | `connector_hub` | 1.35 × 1.35 | No | U✓ / W✓ |
+| `__template_component_rectangle__` | `component`, `actuator`, `communication_module` | 3.75 × 1.0 | No | U✓ / W✓ |
+| `__template_subsystem_container__` | `subsystem` | 5.5 × 2.8 | Yes | U✓ / W✓ |
+| `__template_controller__` | `controller`, `processor` | 3.0 × 1.1 | No | U✓ / W✓ |
+| `__template_sensor__` | `sensor`, `transducer` | 1.8 × 1.8 | No | U✓ / W✓ |
+| `__template_power_source__` | `power_source` | 2.9 × 1.4 | No | U✓ / W✓ |
+| `__template_interface__` | `interface` | 3.0 × 0.5625 | No | U✓ / W✓ |
+| `__template_external_system__` | `external_system`, `service` | 3.2 × 1.25 | No | U✓ / W✓ |
+| `__template_housing_container__` | `housing` | 6.5 × 3.0 | Yes | U✓ / W✓ |
+| `__template_reference_callout__` | Node reference numerals | 2.625 × 0.3125 | No | U✓ / W✓ |
+| `__template_connector__` | All `RelationType` values | Dynamic | No | U✓ / W✓ |
 
 Each marker occurs exactly once in the canonical package. The page contains exactly 20 top-level palette objects. Semantic aliases deliberately reuse the listed visual templates rather than multiplying visually redundant masters.
 
@@ -119,7 +119,14 @@ Ubuntu validation confirms:
 - ZIP/package integrity passes and LibreOffice converts the template to a one-page PDF.
 - The complete automated suite passes with 36 tests.
 
-The expanded template's Windows close/reopen, connector-movement, callout-movement, and native-container smoke confirmation remains required before M3.2 mapper implementation begins.
+Microsoft Visio LTSC MSO Version 2409, Build 16.0.18014.20000, 64-bit validation confirms:
+
+- Closing and reopening the expanded template produces no repair or unreadable-content prompt.
+- Moving either endpoint shape keeps the Dynamic Connector attached.
+- Moving the component keeps the reference callout attached.
+- Both subsystem and housing containers remain native, selectable, resizable, and editable.
+
+M3.1 is accepted. M3.2 semantic mapping may proceed against this exact canonical template.
 
 ## Editing rules
 
