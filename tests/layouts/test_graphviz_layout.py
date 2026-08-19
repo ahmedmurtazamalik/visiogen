@@ -8,6 +8,7 @@ from visiogen.layouts.graphviz_layout import GraphvizLayout, build_dot
 from visiogen.models import DiagramEdge, DiagramGraph, DiagramNode
 
 FIXTURES = Path(__file__).parents[1] / "fixtures" / "graphs" / "expected"
+DOT_FIXTURES = Path(__file__).parents[1] / "fixtures" / "dot"
 
 
 def load_graph(name: str) -> DiagramGraph:
@@ -26,6 +27,47 @@ def test_build_dot_is_deterministic_and_respects_requested_orientation() -> None
     assert 'ranksep="1.0000"' in first
     assert first.index('"finish" [') < first.index('"start" [')
     assert first.index('"review" -> "finish"') < first.index('"start" -> "review"')
+
+
+@pytest.mark.parametrize("graph_name", ["linear_flow", "basic_system", "nested_subsystem"])
+def test_build_dot_matches_reviewed_snapshot(graph_name: str) -> None:
+    assert build_dot(load_graph(graph_name)) == (
+        DOT_FIXTURES / f"{graph_name}.dot"
+    ).read_text()
+
+
+def test_build_dot_escapes_quoted_ids_and_labels_for_real_graphviz() -> None:
+    graph = DiagramGraph(
+        title="Quoted identifiers",
+        diagram_type="system_block",
+        orientation="left_to_right",
+        nodes=[
+            DiagramNode(
+                id='source "A"',
+                type="service",
+                label='Say "go"\\then',
+            ),
+            DiagramNode(id="target\\B", type="database", label="Store result"),
+        ],
+        edges=[
+            DiagramEdge(
+                id="edge",
+                source='source "A"',
+                target="target\\B",
+                relation="data",
+                direction="forward",
+                style="solid",
+            )
+        ],
+    )
+
+    dot = build_dot(graph)
+    result = GraphvizLayout().layout(graph)
+
+    assert '"source \\"A\\""' in dot
+    assert '"target\\\\B"' in dot
+    assert 'label="Say \\"go\\"\\\\then"' in dot
+    assert {node.id for node in result.graph.nodes} == {'source "A"', "target\\B"}
 
 
 def test_build_dot_represents_one_level_containment_as_cluster() -> None:

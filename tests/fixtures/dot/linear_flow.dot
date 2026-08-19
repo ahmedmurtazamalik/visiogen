@@ -1,0 +1,9 @@
+digraph visiogen {
+  graph [rankdir="TB", nodesep="0.7500", ranksep="1.0000"];
+  node [fixedsize="true", shape="box"];
+  "finish" [width="2.6000", height="0.9000", label="Finish"];
+  "review" [width="2.6250", height="0.7500", label="Review request"];
+  "start" [width="2.6000", height="0.9000", label="Start"];
+  "review" -> "finish" [weight="4"];
+  "start" -> "review" [weight="4"];
+}

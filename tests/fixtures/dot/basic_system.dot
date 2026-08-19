@@ -1,0 +1,9 @@
+digraph visiogen {
+  graph [rankdir="LR", nodesep="0.7500", ranksep="1.0000"];
+  node [fixedsize="true", shape="box"];
+  "memory" [width="2.5000", height="1.3500", label="Memory"];
+  "processor" [width="3.0000", height="1.1000", label="Processor"];
+  "sensor" [width="1.8000", height="1.8000", label="Sensor"];
+  "processor" -> "memory" [weight="3"];
+  "sensor" -> "processor" [weight="3"];
+}
