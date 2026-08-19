@@ -138,6 +138,24 @@ def test_extraction_boundary_rejects_geometry():
         normalize_extracted_graph(source)
 
 
+def test_extraction_collapses_equivalent_reciprocal_edges_to_bidirectional():
+    source = graph(
+        nodes=[node("processor"), node("memory")],
+        edges=[
+            DiagramEdge(source="processor", target="memory", relation="data"),
+            DiagramEdge(source="memory", target="processor", relation="data"),
+        ],
+    )
+
+    normalized = normalize_extracted_graph(source)
+
+    assert len(normalized.edges) == 1
+    assert normalized.edges[0].source == "processor"
+    assert normalized.edges[0].target == "memory"
+    assert normalized.edges[0].direction == "bidirectional"
+    assert len(source.edges) == 2
+
+
 @pytest.mark.parametrize(
     "fixture_name",
     ["linear_flow.json", "basic_system.json", "nested_subsystem.json"],

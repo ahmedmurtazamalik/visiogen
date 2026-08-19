@@ -73,6 +73,35 @@ def _assign_edge_ids(graph: DiagramGraph) -> None:
         next_number += 1
 
 
+def _collapse_reciprocal_extracted_edges(graph: DiagramGraph) -> None:
+    collapsed = []
+    consumed: set[int] = set()
+    for index, item in enumerate(graph.edges):
+        if index in consumed:
+            continue
+        reverse_index = next(
+            (
+                candidate_index
+                for candidate_index, candidate in enumerate(graph.edges[index + 1 :], index + 1)
+                if candidate_index not in consumed
+                and item.direction == "forward"
+                and candidate.direction == "forward"
+                and item.source == candidate.target
+                and item.target == candidate.source
+                and item.relation == candidate.relation
+                and item.label == candidate.label
+                and item.style == candidate.style
+            ),
+            None,
+        )
+        if reverse_index is None:
+            collapsed.append(item)
+            continue
+        consumed.add(reverse_index)
+        collapsed.append(item.model_copy(update={"direction": "bidirectional"}))
+    graph.edges = collapsed
+
+
 def normalize_graph(graph: DiagramGraph) -> DiagramGraph:
     """Return a validated, normalized deep copy without inventing semantics."""
     normalized = graph.model_copy(deep=True)
@@ -122,4 +151,6 @@ def normalize_extracted_graph(graph: DiagramGraph) -> DiagramGraph:
         raise GraphNormalizationError(
             "extracted graph must not contain layout geometry"
         )
-    return normalize_graph(graph)
+    extracted = graph.model_copy(deep=True)
+    _collapse_reciprocal_extracted_edges(extracted)
+    return normalize_graph(extracted)
