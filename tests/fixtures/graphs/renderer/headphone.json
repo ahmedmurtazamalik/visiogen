@@ -1,0 +1,86 @@
+{
+  "title": "Referenced headphone system",
+  "diagram_type": "component_schematic",
+  "orientation": "left_to_right",
+  "nodes": [
+    {
+      "id": "housing",
+      "type": "housing",
+      "label": "Headphone housing",
+      "reference_number": "100"
+    },
+    {
+      "id": "battery",
+      "type": "power_source",
+      "label": "Battery",
+      "parent_id": "housing",
+      "reference_number": "110"
+    },
+    {
+      "id": "controller",
+      "type": "controller",
+      "label": "Controller",
+      "parent_id": "housing",
+      "reference_number": "120"
+    },
+    {
+      "id": "sensor",
+      "type": "sensor",
+      "label": "Motion sensor",
+      "parent_id": "housing",
+      "reference_number": "130"
+    },
+    {
+      "id": "driver",
+      "type": "actuator",
+      "label": "Audio driver",
+      "parent_id": "housing",
+      "reference_number": "140"
+    },
+    {
+      "id": "interface",
+      "type": "interface",
+      "label": "Charging interface",
+      "parent_id": "housing",
+      "reference_number": "150"
+    }
+  ],
+  "edges": [
+    {
+      "id": "power-link",
+      "source": "battery",
+      "target": "controller",
+      "relation": "power",
+      "direction": "forward",
+      "label": "powers",
+      "style": "solid"
+    },
+    {
+      "id": "sensor-link",
+      "source": "sensor",
+      "target": "controller",
+      "relation": "data",
+      "direction": "forward",
+      "label": "reports",
+      "style": "solid"
+    },
+    {
+      "id": "driver-link",
+      "source": "controller",
+      "target": "driver",
+      "relation": "control",
+      "direction": "forward",
+      "label": "drives",
+      "style": "solid"
+    },
+    {
+      "id": "interface-link",
+      "source": "controller",
+      "target": "interface",
+      "relation": "communication",
+      "direction": "bidirectional",
+      "label": "synchronizes",
+      "style": "solid"
+    }
+  ]
+}
