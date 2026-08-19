@@ -6,7 +6,7 @@ from dataclasses import dataclass
 import os
 from typing import Literal, Mapping, cast
 
-ProviderName = Literal["local", "gemini"]
+ProviderName = Literal["codex", "local", "gemini"]
 
 
 class ConfigError(ValueError):
@@ -38,14 +38,20 @@ class Settings:
     local_model: str = "qwen3.5-9b"
     gemini_model: str = "gemini-3.6-flash"
     gemini_api_key: str | None = None
+    codex_model: str = "gpt-5.6-sol"
+    codex_command: str = "codex"
     timeout_seconds: float = 60.0
     debug: bool = False
 
     def __post_init__(self) -> None:
-        if self.provider not in {"local", "gemini"}:
+        if self.provider not in {"codex", "local", "gemini"}:
             raise ConfigError(f"Unsupported provider '{self.provider}'")
         if self.timeout_seconds <= 0:
             raise ConfigError("Timeout must be positive")
+        if self.provider == "codex" and not self.codex_model.strip():
+            raise ConfigError("Codex model is required for provider 'codex'")
+        if self.provider == "codex" and not self.codex_command.strip():
+            raise ConfigError("Codex command is required for provider 'codex'")
         if self.provider == "local" and not self.local_base_url.strip():
             raise ConfigError("Local base URL is required for provider 'local'")
         if self.provider == "local" and not self.local_model.strip():
@@ -71,6 +77,8 @@ class Settings:
             local_model=values.get("VISIOGEN_LOCAL_MODEL", "qwen3.5-9b"),
             gemini_model=values.get("VISIOGEN_GEMINI_MODEL", "gemini-3.6-flash"),
             gemini_api_key=values.get("VISIOGEN_GEMINI_API_KEY"),
+            codex_model=values.get("VISIOGEN_CODEX_MODEL", "gpt-5.6-sol"),
+            codex_command=values.get("VISIOGEN_CODEX_COMMAND", "codex"),
             timeout_seconds=_parse_timeout(
                 values.get("VISIOGEN_TIMEOUT_SECONDS", "60")
             ),

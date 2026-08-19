@@ -58,6 +58,28 @@ def test_from_env_uses_current_gemini_model_default() -> None:
     assert settings.gemini_model == "gemini-3.6-flash"
 
 
+def test_codex_configuration_is_explicit_and_needs_no_api_key() -> None:
+    settings = Settings.from_env(
+        {
+            "VISIOGEN_PROVIDER": "codex",
+            "VISIOGEN_CODEX_MODEL": "gpt-5.6-sol",
+            "VISIOGEN_CODEX_COMMAND": "/opt/codex",
+        }
+    )
+
+    assert settings.provider == "codex"
+    assert settings.codex_model == "gpt-5.6-sol"
+    assert settings.codex_command == "/opt/codex"
+    assert settings.gemini_api_key is None
+
+
+def test_codex_requires_nonblank_model_and_command() -> None:
+    with pytest.raises(ConfigError, match="Codex model is required"):
+        Settings(provider="codex", codex_model="")
+    with pytest.raises(ConfigError, match="Codex command is required"):
+        Settings(provider="codex", codex_command="")
+
+
 def test_settings_rejects_unknown_provider() -> None:
     with pytest.raises(ConfigError, match="Unsupported provider 'other'"):
         Settings(provider="other")  # type: ignore[arg-type]

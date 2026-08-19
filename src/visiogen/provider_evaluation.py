@@ -15,7 +15,7 @@ from visiogen.providers.base import (
     ProviderError,
 )
 
-ProviderName = Literal["local", "gemini"]
+ProviderName = Literal["codex", "local", "gemini"]
 
 
 def _semantic_value(graph: DiagramGraph) -> dict[str, Any]:

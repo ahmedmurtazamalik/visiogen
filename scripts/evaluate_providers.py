@@ -9,8 +9,7 @@ from pathlib import Path
 
 from visiogen.config import Settings
 from visiogen.provider_evaluation import evaluate_fixture_corpus
-from visiogen.providers.gemini import GeminiExtractor
-from visiogen.providers.local_qwen import LocalQwenExtractor
+from visiogen.provider_factory import create_extractor, selected_model
 
 
 def parse_args() -> argparse.Namespace:
@@ -18,7 +17,9 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Evaluate one live extraction provider against reviewed fixtures."
     )
-    parser.add_argument("--provider", required=True, choices=("local", "gemini"))
+    parser.add_argument(
+        "--provider", required=True, choices=("codex", "local", "gemini")
+    )
     parser.add_argument(
         "--fixtures-root",
         type=Path,
@@ -37,17 +38,11 @@ def main() -> int:
     environ = dict(os.environ)
     environ["VISIOGEN_PROVIDER"] = args.provider
     settings = Settings.from_env(environ)
-    extractor = (
-        LocalQwenExtractor(settings)
-        if args.provider == "local"
-        else GeminiExtractor(settings)
-    )
+    extractor = create_extractor(settings)
     report = evaluate_fixture_corpus(
         extractor,
         provider=args.provider,
-        model=(
-            settings.local_model if args.provider == "local" else settings.gemini_model
-        ),
+        model=selected_model(settings),
         fixtures_root=args.fixtures_root,
         artifact_root=args.artifact_root,
     )
