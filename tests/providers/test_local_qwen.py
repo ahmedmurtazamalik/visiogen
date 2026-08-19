@@ -6,6 +6,7 @@ import httpx
 import pytest
 
 from visiogen.config import Settings
+from visiogen.extractor import ExtractedDiagramGraph
 from visiogen.providers.base import ExtractionValidationError, ProviderError
 from visiogen.providers.local_qwen import LocalQwenExtractor
 
@@ -60,7 +61,16 @@ def test_local_qwen_builds_json_only_request_and_returns_canonical_graph() -> No
     assert request["timeout"] == 25.0
     assert request["json"]["model"] == "qwen-test"
     assert request["json"]["temperature"] == 0
-    assert request["json"]["response_format"] == {"type": "json_object"}
+    assert request["json"]["max_tokens"] == 2048
+    assert request["json"]["chat_template_kwargs"] == {"enable_thinking": False}
+    assert request["json"]["response_format"] == {
+        "type": "json_schema",
+        "json_schema": {
+            "name": "visiogen_extracted_diagram",
+            "strict": True,
+            "schema": ExtractedDiagramGraph.model_json_schema(),
+        },
+    }
     assert [message["role"] for message in request["json"]["messages"]] == [
         "system",
         "user",

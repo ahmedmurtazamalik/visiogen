@@ -98,9 +98,27 @@ def build_system_prompt() -> str:
 
     schema = json.dumps(ExtractedDiagramGraph.model_json_schema(), sort_keys=True)
     return (
-        "Extract only explicit or strongly implied diagram semantics as JSON. "
-        "Never emit x, y, width, height, positions, or any layout geometry. "
-        "Do not invent components, relationships, or reference numerals. "
+        "Extract the smallest source-faithful diagram as JSON. Include only explicit "
+        "or strongly implied semantics; do not invent components, relationships, "
+        "reference numerals, or intermediate steps. Preserve concise source wording "
+        "for user-visible labels instead of paraphrasing or adding detail. Generate "
+        "stable lowercase snake_case node IDs from those concise labels; do not add "
+        "numeric suffixes unless two nodes would otherwise share an ID. Do not add an "
+        "edge label for a relation word such as data, power, or communication; add one "
+        "only when the source names a branch or outcome such as Yes, No, Retry, Failed, "
+        "or Next. Represent a described success or failure outcome directly as an edge "
+        "to its consequence; do not invent a decision node solely to express it. Include "
+        "a start terminator when a flow explicitly starts and an end terminator when it "
+        "explicitly finishes or completes. Classify user input or displayed output actions "
+        "as input_output. Classify a named software service as service even when it is "
+        "external; use external_system for a broader external system. Use actuator for a "
+        "component such as an audio driver that converts a control signal into physical "
+        "output. Use transducer for sensing or energy conversion, including an "
+        "energy-harvesting module. Use power_source only for a component that stores or "
+        "directly supplies power. A processor and memory exchange data, not generic "
+        "communication. Never emit x, y, width, height, positions, or any layout geometry. "
+        "If the text contains no definite diagram, return an empty nodes list and empty "
+        "edges list. "
         f"The response must satisfy this JSON Schema: {schema}"
     )
 

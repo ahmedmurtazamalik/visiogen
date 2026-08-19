@@ -6,6 +6,7 @@ from pydantic import ValidationError
 from visiogen.extractor import (
     ExtractedDiagramGraph,
     StructuredExtractionWorkflow,
+    build_system_prompt,
 )
 from visiogen.models import DiagramGraph
 from visiogen.providers.base import (
@@ -156,3 +157,20 @@ def test_semantically_empty_provider_output_raises_no_diagram_content() -> None:
 
     with pytest.raises(NoDiagramContentError, match="no diagram nodes"):
         StructuredExtractionWorkflow(call_model).extract("Nothing definite was described")
+
+
+def test_system_prompt_requires_minimal_source_faithful_semantics() -> None:
+    prompt = build_system_prompt().lower()
+
+    assert "source wording" in prompt
+    assert "snake_case" in prompt
+    assert "do not add an edge label" in prompt
+    assert "do not invent a decision node" in prompt
+    assert "software service" in prompt
+    assert "transducer" in prompt
+    assert "audio driver" in prompt
+    assert "energy-harvesting" in prompt
+    assert "user input" in prompt
+    assert "processor and memory" in prompt
+    assert "relation word" in prompt
+    assert "start terminator" in prompt

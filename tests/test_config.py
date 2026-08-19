@@ -50,6 +50,14 @@ def test_gemini_requires_only_its_selected_credentials() -> None:
     assert settings.gemini_api_key == "test-key"
 
 
+def test_from_env_uses_current_gemini_model_default() -> None:
+    settings = Settings.from_env(
+        {"VISIOGEN_PROVIDER": "gemini", "VISIOGEN_GEMINI_API_KEY": "test-key"}
+    )
+
+    assert settings.gemini_model == "gemini-3.6-flash"
+
+
 def test_settings_rejects_unknown_provider() -> None:
     with pytest.raises(ConfigError, match="Unsupported provider 'other'"):
         Settings(provider="other")  # type: ignore[arg-type]

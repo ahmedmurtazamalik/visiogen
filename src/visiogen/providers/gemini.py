@@ -52,7 +52,7 @@ class GeminiExtractor:
                     system_instruction=system_prompt,
                     temperature=0,
                     response_mime_type="application/json",
-                    response_schema=ExtractedDiagramGraph,
+                    response_json_schema=ExtractedDiagramGraph.model_json_schema(),
                 ),
             )
         except Exception as error:

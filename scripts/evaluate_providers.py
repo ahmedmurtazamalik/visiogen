@@ -45,6 +45,9 @@ def main() -> int:
     report = evaluate_fixture_corpus(
         extractor,
         provider=args.provider,
+        model=(
+            settings.local_model if args.provider == "local" else settings.gemini_model
+        ),
         fixtures_root=args.fixtures_root,
         artifact_root=args.artifact_root,
     )

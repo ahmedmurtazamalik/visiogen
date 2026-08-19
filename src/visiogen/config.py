@@ -36,7 +36,7 @@ class Settings:
     provider: ProviderName
     local_base_url: str = "http://127.0.0.1:8080/v1"
     local_model: str = "qwen3.5-9b"
-    gemini_model: str = "gemini-2.5-flash"
+    gemini_model: str = "gemini-3.6-flash"
     gemini_api_key: str | None = None
     timeout_seconds: float = 60.0
     debug: bool = False
@@ -69,7 +69,7 @@ class Settings:
                 "VISIOGEN_LOCAL_BASE_URL", "http://127.0.0.1:8080/v1"
             ).rstrip("/"),
             local_model=values.get("VISIOGEN_LOCAL_MODEL", "qwen3.5-9b"),
-            gemini_model=values.get("VISIOGEN_GEMINI_MODEL", "gemini-2.5-flash"),
+            gemini_model=values.get("VISIOGEN_GEMINI_MODEL", "gemini-3.6-flash"),
             gemini_api_key=values.get("VISIOGEN_GEMINI_API_KEY"),
             timeout_seconds=_parse_timeout(
                 values.get("VISIOGEN_TIMEOUT_SECONDS", "60")

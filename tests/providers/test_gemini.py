@@ -61,7 +61,8 @@ def test_gemini_uses_structured_output_and_returns_canonical_graph() -> None:
     assert isinstance(config, types.GenerateContentConfig)
     assert config.temperature == 0
     assert config.response_mime_type == "application/json"
-    assert config.response_schema is ExtractedDiagramGraph
+    assert config.response_schema is None
+    assert config.response_json_schema == ExtractedDiagramGraph.model_json_schema()
     assert "geometry" in config.system_instruction.lower()
     assert "never emit" in config.system_instruction.lower()
     assert "secret-test-key" not in repr(client.models.calls)

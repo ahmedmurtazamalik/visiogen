@@ -8,7 +8,7 @@ from typing import Any, Protocol
 import httpx
 
 from visiogen.config import Settings
-from visiogen.extractor import StructuredExtractionWorkflow
+from visiogen.extractor import ExtractedDiagramGraph, StructuredExtractionWorkflow
 from visiogen.models import DiagramGraph
 from visiogen.providers.base import ProviderError, ProviderResponse
 
@@ -41,7 +41,16 @@ class LocalQwenExtractor:
                     ],
                     "temperature": 0,
                     "top_p": 0.1,
-                    "response_format": {"type": "json_object"},
+                    "max_tokens": 2048,
+                    "chat_template_kwargs": {"enable_thinking": False},
+                    "response_format": {
+                        "type": "json_schema",
+                        "json_schema": {
+                            "name": "visiogen_extracted_diagram",
+                            "strict": True,
+                            "schema": ExtractedDiagramGraph.model_json_schema(),
+                        },
+                    },
                 },
                 timeout=self._settings.timeout_seconds,
             )
