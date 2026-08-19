@@ -1,3 +1,4 @@
+import hashlib
 from collections import Counter
 from pathlib import Path
 import re
@@ -6,9 +7,11 @@ from xml.etree import ElementTree as ET
 from zipfile import ZipFile
 
 import pytest
-from vsdx import VisioFile, namespace
+from vsdx import Shape, VisioFile, namespace
 
 import visiogen.renderer as renderer
+from visiogen.layout import LayoutResult, PageGeometry
+from visiogen.models import DiagramGraph, DiagramNode, NodeType
 
 
 TEMPLATE_PATH = Path(__file__).parents[1] / "templates" / "template.vsdx"
@@ -38,6 +41,36 @@ PRODUCTION_TEMPLATE_MARKERS = frozenset(
 )
 
 
+def _outer_shape(shape: Shape) -> Shape:
+    current = shape
+    while isinstance(current.parent, Shape) and current.parent.ID is not None:
+        current = current.parent
+    return current
+
+
+def _node(
+    node_id: str,
+    node_type: NodeType,
+    label: str,
+    geometry: tuple[float, float, float, float],
+    *,
+    parent_id: str | None = None,
+    reference_number: str | None = None,
+) -> DiagramNode:
+    x, y, width, height = geometry
+    return DiagramNode(
+        id=node_id,
+        type=node_type,
+        label=label,
+        parent_id=parent_id,
+        reference_number=reference_number,
+        x=x,
+        y=y,
+        width=width,
+        height=height,
+    )
+
+
 def test_canonical_template_contains_complete_production_vocabulary() -> None:
     with VisioFile(str(TEMPLATE_PATH)) as document:
         page = document.get_page_by_name("Template Palette")
@@ -61,6 +94,64 @@ def test_load_template_palette_finds_each_marker_once() -> None:
         assert all(
             palette.shapes[marker].text == marker for marker in renderer.TEMPLATE_MARKERS
         )
+
+
+def test_render_layout_copies_containers_before_children_with_exact_geometry(
+    tmp_path: Path,
+) -> None:
+    output_path = tmp_path / "nodes.vsdx"
+    source_hash = hashlib.sha256(TEMPLATE_PATH.read_bytes()).hexdigest()
+    layout = LayoutResult(
+        graph=DiagramGraph(
+            title="Contained system",
+            diagram_type="system_block",
+            orientation="left_to_right",
+            nodes=[
+                _node("child", "controller", "Controller", (3.0, 3.0, 2.5, 1.0), parent_id="box"),
+                _node("box", "subsystem", "Control subsystem", (4.0, 3.0, 7.0, 4.5)),
+            ],
+        ),
+        page=PageGeometry(width=9.0, height=6.0),
+    )
+
+    renderer.render_layout(TEMPLATE_PATH, layout, output_path)
+
+    assert hashlib.sha256(TEMPLATE_PATH.read_bytes()).hexdigest() == source_hash
+    with VisioFile(str(output_path)) as document:
+        page = document.get_page_by_name("Template Palette")
+        container = _outer_shape(page.find_shape_by_text("Control subsystem"))
+        child = _outer_shape(page.find_shape_by_text("Controller"))
+        top_level_ids = [shape.ID for shape in page.child_shapes]
+        assert top_level_ids.index(container.ID) < top_level_ids.index(child.ID)
+        assert (container.x, container.y, container.width, container.height) == pytest.approx(
+            (4.0, 3.0, 7.0, 4.5)
+        )
+        assert (child.x, child.y, child.width, child.height) == pytest.approx(
+            (3.0, 3.0, 2.5, 1.0)
+        )
+        assert page.width == pytest.approx(9.0)
+        assert page.height == pytest.approx(6.0)
+        remaining_markers = {
+            shape.text.strip()
+            for shape in page.all_shapes
+            if shape.text.strip() in PRODUCTION_TEMPLATE_MARKERS
+        }
+        assert remaining_markers == set()
+
+
+def test_render_layout_requires_complete_node_geometry(tmp_path: Path) -> None:
+    layout = LayoutResult(
+        graph=DiagramGraph(
+            title="Missing geometry",
+            diagram_type="flowchart",
+            orientation="top_to_bottom",
+            nodes=[DiagramNode(id="start", type="terminator", label="Start")],
+        ),
+        page=PageGeometry(width=8.0, height=6.0),
+    )
+
+    with pytest.raises(renderer.RenderingError, match="geometry required for node 'start'"):
+        renderer.render_layout(TEMPLATE_PATH, layout, tmp_path / "invalid.vsdx")
 
 
 def test_render_feasibility_spike_copies_relabels_and_repositions_parts(

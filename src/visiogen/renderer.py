@@ -6,6 +6,7 @@ import copy
 import io
 import re
 import threading
+from collections.abc import Collection
 from contextlib import redirect_stdout
 from dataclasses import dataclass
 from pathlib import Path
@@ -14,6 +15,10 @@ from xml.etree import ElementTree as ET
 
 import vsdx.vsdxfile as vsdxfile_module
 from vsdx import Connect, Page, Shape, VisioFile, namespace, r_namespace, vt_namespace
+
+from visiogen.layout import LayoutResult
+from visiogen.models import DiagramNode
+from visiogen.shape_mapper import PRODUCTION_TEMPLATE_MARKERS, map_node_visual
 
 
 TEMPLATE_PAGE_NAME = "Template Palette"
@@ -43,6 +48,10 @@ _XML_SERIALIZATION_LOCK = threading.Lock()
 
 class TemplateValidationError(ValueError):
     """Raised when the canonical Visio template violates its contract."""
+
+
+class RenderingError(ValueError):
+    """Raised when a positioned graph cannot be rendered safely."""
 
 
 @dataclass(frozen=True)
@@ -85,8 +94,12 @@ def _top_level_shape(shape: Shape) -> Shape:
     return current
 
 
-def load_template_palette(path: str | Path) -> TemplatePalette:
-    """Open and validate the five-object canonical Visio template palette."""
+def load_template_palette(
+    path: str | Path,
+    *,
+    markers: Collection[str] = TEMPLATE_MARKERS,
+) -> TemplatePalette:
+    """Open and validate requested objects from the canonical Visio template."""
 
     document = VisioFile(str(path))
     page = document.get_page_by_name(TEMPLATE_PAGE_NAME)
@@ -97,7 +110,7 @@ def load_template_palette(path: str | Path) -> TemplatePalette:
         )
 
     parts: dict[str, TemplatePart] = {}
-    for marker in TEMPLATE_MARKERS:
+    for marker in sorted(markers):
         matches = [shape for shape in page.all_shapes if shape.text.strip() == marker]
         if len(matches) != 1:
             document.close_vsdx()
@@ -275,6 +288,57 @@ def _save_vsdx(document: VisioFile, destination: Path) -> None:
             document.save_vsdx(str(destination))
         finally:
             vsdxfile_module.xml_to_file = original
+
+
+def _node_geometry(node: DiagramNode) -> tuple[float, float, float, float]:
+    if node.x is None or node.y is None or node.width is None or node.height is None:
+        raise RenderingError(f"geometry required for node '{node.id}'")
+    return node.x, node.y, node.width, node.height
+
+
+def render_layout(
+    template_path: str | Path,
+    layout: LayoutResult,
+    output_path: str | Path,
+) -> Path:
+    """Render positioned canonical nodes into an editable template-derived VSDX."""
+
+    source = Path(template_path)
+    destination = Path(output_path)
+    if source.resolve() == destination.resolve():
+        raise ValueError("Refusing to overwrite the canonical template")
+    destination.parent.mkdir(parents=True, exist_ok=True)
+
+    ordered_nodes = sorted(
+        enumerate(layout.graph.nodes),
+        key=lambda item: (
+            not map_node_visual(item[1].type).container_capable,
+            item[0],
+        ),
+    )
+    with load_template_palette(source, markers=PRODUCTION_TEMPLATE_MARKERS) as palette:
+        for _, node in ordered_nodes:
+            x, y, width, height = _node_geometry(node)
+            visual = map_node_visual(
+                node.type,
+                available_markers=palette.shapes.keys(),
+            )
+            copied_shape = _copy_shape_tree(
+                palette.shapes[visual.marker].shape,
+                palette.page,
+            )
+            _find_marker_shape(copied_shape, visual.marker).text = node.label
+            copied_shape.width = width
+            copied_shape.height = height
+            copied_shape.x = x
+            copied_shape.y = y
+
+        palette.page.width = layout.page.width
+        palette.page.height = layout.page.height
+        _remove_template_palette(palette)
+        _save_vsdx(palette.document, destination)
+
+    return destination
 
 
 def render_feasibility_spike(
