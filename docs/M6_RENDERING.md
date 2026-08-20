@@ -4,7 +4,7 @@
 
 **Ubuntu implementation and structural acceptance: passed.**
 
-**Microsoft Visio acceptance: pending.** M6 must not be called complete until the exact checksum-bound candidates below open without repair in Microsoft Visio, retain native connector and callout behavior after shapes move, and survive save/close/reopen.
+**Microsoft Visio acceptance: failed for the original candidate; corrective R2 acceptance is pending.** The original files opened and their ordinary connectors were mostly correct, but the headphone callout leaders did not follow moved targets and the generated geometry was too large and cramped. M6 must not be called complete until the corrective R2 candidates pass move/save/close/reopen testing in Microsoft Visio.
 
 No extraction provider is involved in M6. The renderer consumes an existing canonical `DiagramGraph` after deterministic M5 layout. Codex, local Qwen, and Gemini are not invoked.
 
@@ -65,7 +65,34 @@ For every generated package, automated checks require:
 - exact M5 page dimensions; and
 - unchanged canonical-template checksum.
 
-## Ubuntu evidence
+## Corrective R2 after real Visio feedback
+
+The first authoritative Windows check superseded the original candidate after finding two user-visible defects:
+
+1. headphone callout numerals and leaders stayed fixed when their target components moved; and
+2. nodes were oversized relative to the page, spacing was cramped, connectors looked unnecessarily tangled, and the half-inch page margin left too little whitespace.
+
+The corrective implementation is split into two commits:
+
+```text
+e9f47b8 Keep reference callout leaders dynamically attached
+0b28b85 Improve generated diagram spacing and scale
+```
+
+The callout correction writes explicit local formulas through the complete visible dependency chain: `User.msvSDTargetIntersection` dynamically references the generated target, `User.LeaderEnd` explicitly references that target-intersection cell, and both visible leader endpoint cells explicitly reference `User.LeaderEnd`. The geometry correction reduces ordinary node defaults, increases node spacing from `0.75 in` to `1.25 in`, increases rank spacing from `1.00 in` to `1.50 in`, and increases the page margin from `0.50 in` to `1.00 in` on every side.
+
+Compared with the original layout implementation, representative page area changed by +50.9% for the linear flow, +29.5% for the basic system, and +10.0% for the headphone fixture, while mean ordinary-node area decreased by 28.4%, 32.9%, and 28.9% respectively. The full suite passes with `197 passed`.
+
+Corrective bundle:
+
+```text
+artifacts/m6-windows-acceptance-r2/visiogen-m6-windows-acceptance-r2.zip
+sha256: b143367a39285334a35a1b374c1d6fd928786c91905c929fdbe4475821c857ba
+```
+
+Its structural audit confirms ZIP/XML integrity, unique shape IDs, one-inch node margins, zero reference-carrier overlap, dynamic target formulas for all six headphone callouts, explicit local `User.LeaderEnd` formulas, and explicit visible leader endpoint formulas. LibreOffice imported all three candidates and generated PNG previews. These checks do not replace the pending real-Visio movement test.
+
+## Original Ubuntu evidence
 
 Corrected renderer snapshot:
 
@@ -97,7 +124,7 @@ path: templates/template.vsdx
 sha256: db5637b9ac65e5733c4b54d83b0f08bc3d06649bebea5a4856eb3089e459dd10
 ```
 
-## Checksum-bound Windows candidates
+## Superseded original Windows candidates
 
 Directory:
 
@@ -143,4 +170,4 @@ On Windows with Microsoft Visio:
 7. save each document under a new filename, close Visio, reopen the saved copy, and repeat the attachment checks; and
 8. report the exact candidate checksum, Visio version, and pass/fail result for each document.
 
-Until that procedure passes, the honest milestone state is **M6 implemented and Ubuntu-verified, Windows acceptance pending**.
+Until the corrective R2 procedure passes, the honest milestone state is **M6 corrected and Ubuntu-verified, corrective Windows acceptance pending**.
