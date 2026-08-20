@@ -55,7 +55,7 @@ This is package bloat, not 19 page dependencies. Pruning is deferred until the i
 
 Current corrected-tree results:
 
-- Full automated suite: **243 tests passed**.
+- Full automated suite: **248 tests passed**.
 - Focused Ruff checks passed for the migration modules and tests.
 - Focused mypy checks passed for the seven hybrid source modules.
 - Source distribution and wheel built successfully.
@@ -66,13 +66,15 @@ Repository-wide Ruff/mypy have pre-existing issues outside the focused migration
 
 ## Remaining acceptance sequence
 
-1. Run the exact candidate on Windows with desktop Microsoft Visio installed.
-2. Generate the three-case stochastic corpus through the production CLI.
+The Windows runner and native lifecycle harness are implemented in `scripts/run_windows_hybrid_corpus.ps1` and `scripts/validate_in_visio.ps1`. Their execution contract is documented in `docs/WINDOWS_HYBRID_ACCEPTANCE.md`.
+
+1. Pull the exact candidate into a clean Windows checkout with desktop Microsoft Visio installed.
+2. Run the three-case stochastic corpus through `scripts/run_windows_hybrid_corpus.ps1` without disabling critique.
 3. Preserve each Visio-exported preview and real-provider critique.
 4. Apply at most one validated revision per case.
-5. Open the checksum-matched final files in Visio.
-6. Move endpoint shapes and verify connector attachment and direction.
-7. Save, close, reopen, and confirm native editability and stability.
-8. Archive exact source revision, template hash, prompts, responses, previews, VSDX hashes, and Visio acceptance report.
+5. Let the native harness open and move named endpoint shapes in each checksum-matched final file.
+6. Save, close, reopen, and verify shape/connection stability through Visio COM.
+7. Perform the documented human visual review of hierarchy, labels, crossings, callouts, and visible glue.
+8. Archive exact source revision, template hash, prompts, responses, previews, original/resaved VSDX hashes, and Visio acceptance reports.
 
 Until those steps pass, the architecture and local design/render implementation are available, but product-level visual/native acceptance is not complete.

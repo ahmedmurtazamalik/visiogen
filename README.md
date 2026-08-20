@@ -67,6 +67,19 @@ Fake provider runners are used only for low-level schema, process, retry, and or
 
 Linux ZIP/XML validation is structural evidence only. Microsoft Visio is the sole preview/export and native-behavior authority for visual critique, repair prompts, editability, connector movement, and save/close/reopen behavior.
 
+## Windows hybrid acceptance
+
+The final three-case corpus and native Visio lifecycle gate are automated by:
+
+```powershell
+.\scripts\run_windows_hybrid_corpus.ps1 `
+  -OutputDirectory "C:\VisiogenAcceptance\hybrid-$(git rev-parse --short HEAD)" `
+  -Model "gpt-5.6-sol" `
+  -Visible
+```
+
+The output path must not already exist and must be outside the source checkout. The runner requires clean immutable source, performs real Visio-exported visual critique, then opens, moves, saves, closes, and reopens each final VSDX through desktop Microsoft Visio. Its report remains pending until the documented human visual review is completed. See [`docs/WINDOWS_HYBRID_ACCEPTANCE.md`](docs/WINDOWS_HYBRID_ACCEPTANCE.md) for prerequisites, exact evidence, manual visual checks, and failure handling.
+
 ## Template masters
 
 The renderer currently retains the canonical template's complete master catalog. The template contains 19 master definitions plus `masters.xml`; a representative basic-system drawing references only Dynamic connector, Database, Rounded Rectangle, and Circle. The other 15 definitions are package bloat, not page dependencies. Pruning is deferred until coordinated catalog, relationship, content-type, and part cleanup has dedicated tests and the pruned result passes Microsoft Visio open/edit/save/reopen acceptance.
