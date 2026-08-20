@@ -158,6 +158,28 @@ def test_renderer_fixture_produces_structurally_valid_editable_package(
             target = node_shapes[node.id]
             relationships = callout.cells["Relationships"].formula
             assert f"Sheet.{target.ID}!" in relationships
+            user_section = callout.xml.find(f"{namespace}Section[@N='User']")
+            target_formula = user_section.find(
+                f"{namespace}Row[@N='msvSDTargetIntersection']/"
+                f"{namespace}Cell[@N='Value']"
+            ).attrib["F"]
+            leader_formula = user_section.find(
+                f"{namespace}Row[@N='LeaderEnd']/{namespace}Cell[@N='Value']"
+            ).attrib["F"]
+            leader_geometry = callout.xml.find(
+                f"{namespace}Section[@N='Geometry'][@IX='0']/"
+                f"{namespace}Row[@T='LineTo'][@IX='2']"
+            )
+            assert f"Sheet.{target.ID}!" in target_formula
+            assert leader_formula == "User.msvSDTargetIntersection"
+            assert (
+                leader_geometry.find(f"{namespace}Cell[@N='X']").attrib["F"]
+                == "User.LeaderEnd"
+            )
+            assert (
+                leader_geometry.find(f"{namespace}Cell[@N='Y']").attrib["F"]
+                == "User.LeaderEnd"
+            )
             assert callout.x - callout.width / 2 >= -1e-9
             assert callout.y - callout.height / 2 >= -1e-9
             assert callout.x + callout.width / 2 <= page.width + 1e-9
