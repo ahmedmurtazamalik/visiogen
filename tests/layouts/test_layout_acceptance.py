@@ -60,6 +60,15 @@ def assert_common_geometry(result: LayoutResult) -> None:
         assert right <= result.page.width + 1e-6, node.id
         assert top <= result.page.height + 1e-6, node.id
 
+    visible_left = min(box(node)[0] for node in result.graph.nodes)
+    visible_bottom = min(box(node)[1] for node in result.graph.nodes)
+    visible_right = max(box(node)[2] for node in result.graph.nodes)
+    visible_top = max(box(node)[3] for node in result.graph.nodes)
+    assert visible_left >= 1.0 - 1e-4
+    assert visible_bottom >= 1.0 - 1e-4
+    assert result.page.width - visible_right >= 1.0 - 1e-4
+    assert result.page.height - visible_top >= 1.0 - 1e-4
+
     ordinary_nodes = [
         node for node in result.graph.nodes if node.id not in container_ids
     ]

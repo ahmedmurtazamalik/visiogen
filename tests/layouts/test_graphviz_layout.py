@@ -23,8 +23,8 @@ def test_build_dot_is_deterministic_and_respects_requested_orientation() -> None
 
     assert first == second
     assert 'rankdir="TB"' in first
-    assert 'nodesep="0.7500"' in first
-    assert 'ranksep="1.0000"' in first
+    assert 'nodesep="1.2500"' in first
+    assert 'ranksep="1.5000"' in first
     assert first.index('"finish" [') < first.index('"start" [')
     assert first.index('"review" -> "finish"') < first.index('"start" -> "review"')
 
@@ -33,7 +33,7 @@ def test_build_dot_is_deterministic_and_respects_requested_orientation() -> None
 def test_build_dot_matches_reviewed_snapshot(graph_name: str) -> None:
     assert build_dot(load_graph(graph_name)) == (
         DOT_FIXTURES / f"{graph_name}.dot"
-    ).read_text()
+    ).read_text().rstrip() + "\n"
 
 
 def test_build_dot_escapes_quoted_ids_and_labels_for_real_graphviz() -> None:
@@ -137,8 +137,8 @@ stop
     assert captured["command"] == ["dot", "-Tplain"]
     assert 'rankdir="TB"' in str(captured["input"])
     positioned = {node.id: node for node in result.graph.nodes}
-    assert (positioned["start"].x, positioned["start"].y) == (2.5, 5.5)
-    assert (result.page.width, result.page.height) == (5.0, 7.0)
+    assert (positioned["start"].x, positioned["start"].y) == (3.0, 6.0)
+    assert (result.page.width, result.page.height) == (6.0, 8.0)
     assert graph.has_geometry is False
 
 

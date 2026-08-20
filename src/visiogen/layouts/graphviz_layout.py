@@ -17,9 +17,9 @@ from visiogen.layout import (
 )
 from visiogen.models import DiagramGraph, DiagramNode, RelationType
 
-_NODE_SPACING = 0.75
-_RANK_SPACING = 1.0
-_PAGE_MARGIN = 0.5
+_NODE_SPACING = 1.25
+_RANK_SPACING = 1.5
+_PAGE_MARGIN = 1.0
 _RELATION_WEIGHTS: dict[RelationType, int] = {
     "flow": 4,
     "data": 3,

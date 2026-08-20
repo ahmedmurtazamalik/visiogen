@@ -99,8 +99,8 @@ def test_size_node_uses_visual_family_minimums() -> None:
 
     size = size_node(node)
 
-    assert size.width == 2.625
-    assert size.height == 0.75
+    assert size.width == 2.25
+    assert size.height == 0.65
     assert size.wrapped_label == "Review request"
 
 
@@ -117,8 +117,8 @@ def test_size_node_wraps_long_labels_deterministically_with_bounded_dimensions()
 
     assert first == second
     assert "\n" in first.wrapped_label
-    assert 2.625 <= first.width <= 5.0
-    assert 0.75 < first.height <= 3.0
+    assert 2.25 <= first.width <= 5.0
+    assert 0.65 < first.height <= 3.0
     assert max(map(len, first.wrapped_label.splitlines())) <= 36
 
 

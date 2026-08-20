@@ -16,9 +16,9 @@ from visiogen.layout import (
 )
 from visiogen.models import DiagramGraph, DiagramNode
 
-_NODE_SPACING = 0.75
-_RANK_SPACING = 1.0
-_PAGE_MARGIN = 0.5
+_NODE_SPACING = 1.25
+_RANK_SPACING = 1.5
+_PAGE_MARGIN = 1.0
 
 
 def _directed_pairs(graph: DiagramGraph, node_ids: set[str]) -> list[tuple[str, str]]:

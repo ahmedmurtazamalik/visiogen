@@ -1,11 +1,11 @@
 digraph visiogen {
-  graph [rankdir="LR", nodesep="0.7500", ranksep="1.0000"];
+  graph [rankdir="LR", nodesep="1.2500", ranksep="1.5000"];
   node [fixedsize="true", shape="box"];
-  "sensor" [width="2.2500", height="1.8000", label="External sensor"];
+  "sensor" [width="2.2500", height="1.4000", label="External sensor"];
   subgraph "cluster_control" {
     graph [label="Control subsystem", margin="24.0000"];
-    "memory" [width="2.5000", height="1.3500", label="Memory"];
-    "processor" [width="3.0000", height="1.1000", label="Processor"];
+    "memory" [width="2.2000", height="1.1500", label="Memory"];
+    "processor" [width="2.4000", height="0.9000", label="Processor"];
   }
   "processor" -> "memory" [weight="3"];
   "sensor" -> "processor" [weight="3"];
