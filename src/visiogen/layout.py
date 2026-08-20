@@ -134,6 +134,7 @@ class LayoutResult(BaseModel):
 
     graph: DiagramGraph
     page: PageGeometry
+    connector_hints: dict[str, tuple[str, str]] = Field(default_factory=dict)
 
 
 def apply_geometry(

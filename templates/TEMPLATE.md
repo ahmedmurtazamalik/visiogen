@@ -82,7 +82,7 @@ The Ubuntu feasibility renderer:
 - Serializes XML package parts with their declared default namespaces instead of ElementTree `ns0` prefixes.
 - Refuses to overwrite the canonical template path.
 
-Automated Ubuntu checks prove ZIP/package readability, unique shape IDs, exact generated labels, expected geometry, connector records, glue formulas, callout targeting, clean namespace serialization, and successful LibreOffice headless conversion. Microsoft Visio remains the authority for the M2.3 no-repair and movement tests.
+Automated Ubuntu checks prove ZIP/package readability, unique shape IDs, exact generated labels, expected geometry, connector records, glue formulas, callout targeting, and clean namespace serialization. Microsoft Visio remains the authority for preview export and the M2.3 no-repair and movement tests.
 
 ## M2.3 Windows acceptance
 
@@ -116,7 +116,7 @@ Ubuntu validation confirms:
 - Both native container groups remain complete and empty of ordinary palette nodes.
 - The accepted process-to-component Dynamic Connector retains both page-level connection records and endpoint ShapeSheet formulas.
 - The reference callout relationship still targets the component.
-- ZIP/package integrity passes and LibreOffice converts the template to a one-page PDF.
+- ZIP/package integrity passes.
 - The complete automated suite passes with 36 tests.
 
 Microsoft Visio LTSC MSO Version 2409, Build 16.0.18014.20000, 64-bit validation confirms:

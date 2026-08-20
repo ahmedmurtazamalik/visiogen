@@ -1,29 +1,52 @@
-"""Schema-constrained extraction through the authenticated Codex CLI."""
+"""Schema-constrained structured model calls through authenticated Codex CLI."""
 
 from __future__ import annotations
 
-from copy import deepcopy
 import json
-from pathlib import Path
+import os
+import shutil
 import subprocess
+from collections.abc import Callable, Sequence
+from copy import deepcopy
+from pathlib import Path
 from tempfile import TemporaryDirectory
 from time import monotonic
-from typing import Any, Callable
+from typing import Any
+
+from pydantic import BaseModel
 
 from visiogen.config import Settings
 from visiogen.extractor import ExtractedDiagramGraph, StructuredExtractionWorkflow
 from visiogen.models import DiagramGraph
 from visiogen.providers.base import ProviderError, ProviderResponse
 
-
 ProcessRunner = Callable[..., subprocess.CompletedProcess[str]]
 _SCHEMA_PROMPT_MARKER = " The response must satisfy this JSON Schema:"
+_ALLOWED_ENVIRONMENT_KEYS = (
+    "CODEX_HOME",
+    "HOME",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "SSL_CERT_DIR",
+    "SSL_CERT_FILE",
+)
 
 
-def _strict_output_schema() -> dict[str, Any]:
-    """Adapt Pydantic JSON Schema to Codex's strict-output requirements."""
+def _subprocess_environment() -> dict[str, str]:
+    """Pass only runtime/auth essentials, never the caller's arbitrary secrets."""
 
-    schema = deepcopy(ExtractedDiagramGraph.model_json_schema())
+    return {
+        key: os.environ[key]
+        for key in _ALLOWED_ENVIRONMENT_KEYS
+        if key in os.environ
+    }
+
+
+def _strict_output_schema(output_model: type[BaseModel]) -> dict[str, Any]:
+    """Adapt any Pydantic JSON Schema to Codex strict-output requirements."""
+
+    schema = deepcopy(output_model.model_json_schema())
 
     def require_all_properties(value: Any) -> None:
         if isinstance(value, dict):
@@ -44,42 +67,69 @@ def _strict_output_schema() -> dict[str, Any]:
 def _prompt_without_embedded_schema(system_prompt: str, user_prompt: str) -> str:
     instructions = system_prompt.split(_SCHEMA_PROMPT_MARKER, 1)[0]
     return (
-        "Act only as a structured diagram extraction engine. Do not inspect files, "
-        "run commands, edit anything, or explain the answer. "
-        f"{instructions}\n\nInput description:\n{user_prompt}\n"
+        "Act only as the requested structured-response engine. Do not inspect unrelated files, "
+        "run commands, edit anything, or explain outside the final structured response. "
+        f"{instructions}\n\nRequest:\n{user_prompt}\n"
         "Return only the schema-conforming final response."
     )
 
 
-class CodexCLIExtractor:
-    """Extract canonical semantics through an isolated local Codex CLI process."""
+class CodexStructuredCaller:
+    """Reusable isolated Codex structured-output boundary with optional images."""
 
     def __init__(
         self,
         settings: Settings,
+        output_model: type[BaseModel],
         *,
         runner: ProcessRunner | None = None,
     ) -> None:
         self._settings = settings
+        self._output_model = output_model
         self._runner = runner or subprocess.run
-        self._workflow = StructuredExtractionWorkflow(self._call_model)
 
-    def extract(self, text: str) -> DiagramGraph:
-        return self._workflow.extract(text)
+    def __call__(self, system_prompt: str, user_prompt: str) -> ProviderResponse:
+        return self.call_with_images(system_prompt, user_prompt, ())
 
-    def _call_model(self, system_prompt: str, user_prompt: str) -> ProviderResponse:
+    def call_with_images(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        images: Sequence[str | Path],
+    ) -> ProviderResponse:
+        """Run one strict response request, copying image inputs into isolation."""
+
+        source_images = [Path(image) for image in images]
+        for image in source_images:
+            if not image.is_file():
+                raise ProviderError(f"Codex image input was not found: {image}")
+
         started = monotonic()
         prompt = _prompt_without_embedded_schema(system_prompt, user_prompt)
         with TemporaryDirectory(prefix="visiogen-codex-") as directory:
             workdir = Path(directory)
             schema_path = workdir / "output-schema.json"
             output_path = workdir / "response.json"
-            schema_path.write_text(json.dumps(_strict_output_schema(), indent=2) + "\n")
+            schema_path.write_text(
+                json.dumps(_strict_output_schema(self._output_model), indent=2) + "\n"
+            )
+
+            copied_images: list[Path] = []
+            for index, image in enumerate(source_images):
+                destination = workdir / image.name
+                if destination.exists():
+                    destination = workdir / f"{index}-{image.name}"
+                shutil.copy2(image, destination)
+                copied_images.append(destination)
+
             command = [
                 self._settings.codex_command,
                 "exec",
                 "--ephemeral",
+                "--ignore-user-config",
                 "--ignore-rules",
+                "--config",
+                'shell_environment_policy.inherit="none"',
                 "--sandbox",
                 "read-only",
                 "--skip-git-repo-check",
@@ -91,8 +141,11 @@ class CodexCLIExtractor:
                 str(schema_path),
                 "--output-last-message",
                 str(output_path),
-                "-",
             ]
+            if copied_images:
+                command.extend(["--image", *(str(image) for image in copied_images)])
+            command.append("-")
+
             try:
                 completed = self._runner(
                     command,
@@ -101,11 +154,12 @@ class CodexCLIExtractor:
                     capture_output=True,
                     timeout=self._settings.timeout_seconds,
                     cwd=workdir,
+                    env=_subprocess_environment(),
                 )
             except FileNotFoundError as error:
                 raise ProviderError("Codex CLI executable was not found") from error
             except subprocess.TimeoutExpired as error:
-                raise ProviderError("Codex CLI extraction timed out") from error
+                raise ProviderError("Codex CLI request timed out") from error
             except OSError as error:
                 raise ProviderError("Codex CLI process could not be started") from error
 
@@ -123,4 +177,25 @@ class CodexCLIExtractor:
         return ProviderResponse(
             content=content,
             elapsed_ms=(monotonic() - started) * 1000,
+            transport_prompt=prompt,
         )
+
+
+class CodexCLIExtractor:
+    """Extract canonical semantics through an isolated local Codex CLI process."""
+
+    def __init__(
+        self,
+        settings: Settings,
+        *,
+        runner: ProcessRunner | None = None,
+    ) -> None:
+        self._caller = CodexStructuredCaller(
+            settings,
+            ExtractedDiagramGraph,
+            runner=runner,
+        )
+        self._workflow = StructuredExtractionWorkflow(self._caller)
+
+    def extract(self, text: str) -> DiagramGraph:
+        return self._workflow.extract(text)

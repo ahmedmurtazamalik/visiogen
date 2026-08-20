@@ -1,5 +1,7 @@
 # Text-to-Visio Patent Diagram Assistant — Implementation Plan
 
+> **Historical baseline plan.** The geometry-free, deterministic-output architecture in this document was superseded on 2026-08-20 by `docs/HYBRID_AI_ARCHITECTURE.md` and `hybrid_ai_implementation_plan.md`. Keep this file for milestone history; do not use its former AI/layout restrictions for new work.
+
 > **For the implementing agent:** Work milestone by milestone and do not advance until the current acceptance criteria pass. This is a single-developer project targeting a useful baseline in roughly one focused week. Prefer the smallest reliable implementation over speculative generality.
 
 ## 1. Goal
@@ -99,7 +101,7 @@ raw text
    │
    ▼
 [6] validation
-    ZIP/XML smoke tests + optional LibreOffice + Windows Visio
+    ZIP/XML structural checks + Windows Microsoft Visio
 ```
 
 Keep these stages separate. Provider code must not import renderer code, and renderer code must not contain extraction prompts.
@@ -172,8 +174,7 @@ System dependencies:
 
 - Graphviz `dot` on Ubuntu and Windows where automated layout tests run.
 - `llama.cpp` server on Ubuntu for local Qwen inference.
-- LibreOffice is optional for headless smoke testing.
-- Microsoft Visio is required only for final acceptance on Windows.
+- Microsoft Visio on Windows is required for preview export and final acceptance.
 
 Do not require Ollama in the baseline. The local provider should target an OpenAI-compatible endpoint so `llama.cpp`, Ollama, or another compatible server can be substituted later.
 
@@ -638,7 +639,7 @@ For every generated `.vsdx`:
 - Parse all XML files.
 - Confirm at least one page exists.
 - Compare expected node/edge labels and counts where practical.
-- Optionally round-trip through LibreOffice headless.
+- Do not substitute a third-party VSDX renderer for Microsoft Visio.
 
 Clearly document that package validation does not guarantee Visio acceptance.
 

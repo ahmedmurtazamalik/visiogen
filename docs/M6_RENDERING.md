@@ -90,7 +90,7 @@ artifacts/m6-windows-acceptance-r2/visiogen-m6-windows-acceptance-r2.zip
 sha256: b143367a39285334a35a1b374c1d6fd928786c91905c929fdbe4475821c857ba
 ```
 
-Its structural audit confirms ZIP/XML integrity, unique shape IDs, one-inch node margins, zero reference-carrier overlap, dynamic target formulas for all six headphone callouts, explicit local `User.LeaderEnd` formulas, and explicit visible leader endpoint formulas. LibreOffice imported all three candidates and generated PNG previews. The subsequent Microsoft Visio screenshots rejected R2 because all 16 ordinary-connector cached endpoints opened inside their target shapes and family-specific fixed glue produced malformed routing after movement. R2 is superseded and must not be used for acceptance.
+Its structural audit confirms ZIP/XML integrity, unique shape IDs, one-inch node margins, zero reference-carrier overlap, dynamic target formulas for all six headphone callouts, explicit local `User.LeaderEnd` formulas, and explicit visible leader endpoint formulas. Microsoft Visio screenshots rejected R2 because all 16 ordinary-connector cached endpoints opened inside their target shapes and family-specific fixed glue produced malformed routing after movement. R2 is superseded and must not be used for acceptance.
 
 ## R3 ordinary-connector correction
 
@@ -129,7 +129,7 @@ Successfully built dist/visiogen-0.1.0.tar.gz
 Successfully built dist/visiogen-0.1.0-py3-none-any.whl
 ```
 
-All three exact Windows candidates passed the structural package audit. LibreOffice Draw also imported and exported all three to PDF; that is only a secondary compatibility smoke test and is not Microsoft Visio acceptance.
+All three exact Windows candidates passed the structural package audit. Microsoft Visio acceptance remains a separate required gate.
 
 Canonical template:
 

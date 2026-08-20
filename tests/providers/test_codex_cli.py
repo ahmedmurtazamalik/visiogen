@@ -1,15 +1,15 @@
 import json
-from pathlib import Path
 import subprocess
+from pathlib import Path
 from typing import Any
 
 import pytest
+from pydantic import BaseModel
 
 from visiogen.config import Settings
 from visiogen.extractor import ExtractedDiagramGraph
 from visiogen.providers.base import ExtractionValidationError, ProviderError
-from visiogen.providers.codex_cli import CodexCLIExtractor
-
+from visiogen.providers.codex_cli import CodexCLIExtractor, CodexStructuredCaller
 
 EXPECTED = Path(__file__).parents[1] / "fixtures" / "graphs" / "expected"
 
@@ -71,7 +71,9 @@ def test_codex_cli_runs_isolated_schema_constrained_extraction() -> None:
     args = call["args"]
     assert args[0:2] == ["/opt/codex", "exec"]
     assert "--ephemeral" in args
+    assert "--ignore-user-config" in args
     assert "--ignore-rules" in args
+    assert 'shell_environment_policy.inherit="none"' in args
     assert args[args.index("--sandbox") + 1] == "read-only"
     assert "--skip-git-repo-check" in args
     assert args[args.index("--model") + 1] == "gpt-5.6-sol-test"
@@ -79,6 +81,15 @@ def test_codex_cli_runs_isolated_schema_constrained_extraction() -> None:
     assert call["timeout"] == 25.0
     assert call["text"] is True
     assert call["capture_output"] is True
+    assert set(call["env"]) <= {
+        "CODEX_HOME",
+        "HOME",
+        "LANG",
+        "LC_ALL",
+        "PATH",
+        "SSL_CERT_DIR",
+        "SSL_CERT_FILE",
+    }
     assert "A sensor sends data to a processor." in call["input"]
     assert "The response must satisfy this JSON Schema" not in call["input"]
     assert not Path(call["cwd"]).exists()
@@ -129,3 +140,29 @@ def test_codex_cli_invalid_output_fails_after_one_repair() -> None:
 
     assert len(runner.calls) == 2
     assert ExtractedDiagramGraph.model_json_schema() != runner.schemas[0]
+
+
+class SmallOutput(BaseModel):
+    answer: str
+
+
+def test_generic_structured_caller_supports_image_input(tmp_path: Path) -> None:
+    runner = FakeRunner(['{"answer":"move the processor"}'])
+    image = tmp_path / "preview.png"
+    image.write_bytes(b"not-a-real-image-needed-by-fake-runner")
+    caller = CodexStructuredCaller(codex_settings(), SmallOutput, runner=runner)
+
+    response = caller.call_with_images(
+        "Critique the drawing. The response must satisfy this JSON Schema: {}",
+        "Find visible layout problems",
+        [image],
+    )
+
+    assert json.loads(response.content) == {"answer": "move the processor"}
+    assert response.transport_prompt == runner.calls[0]["input"]
+    args = runner.calls[0]["args"]
+    assert "--image" in args
+    image_arg = Path(args[args.index("--image") + 1])
+    assert image_arg.name == "preview.png"
+    assert not image_arg.exists()
+    assert runner.schemas[0]["required"] == ["answer"]

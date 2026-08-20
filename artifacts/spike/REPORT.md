@@ -50,7 +50,7 @@ ZIP timestamps mean a fresh run may produce different package bytes even when th
 - No serialized XML or relationship part contains generated `ns0`, `ns1`, or similar namespace prefixes.
 - `python3 -m zipfile -t` completed successfully.
 - Linux `file` identified the result as `Microsoft Visio 2013+`.
-- LibreOffice headless converted the exact artifact to a one-page PDF successfully.
+
 - Full automated suite: `35 passed`.
 - Total test coverage: `96%`; renderer coverage: `94%`.
 

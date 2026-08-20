@@ -27,6 +27,7 @@ class ProviderResponse:
     content: str
     request_id: str | None = None
     elapsed_ms: float | None = None
+    transport_prompt: str | None = None
 
 
 @runtime_checkable

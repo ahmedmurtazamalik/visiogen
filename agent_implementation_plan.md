@@ -1,5 +1,7 @@
 # Visiogen Text-to-Visio Baseline Implementation Plan
 
+> **Historical execution plan.** The geometry-free, deterministic-output architecture in this document was superseded on 2026-08-20 by `docs/HYBRID_AI_ARCHITECTURE.md` and `hybrid_ai_implementation_plan.md`. Preserve completed milestone evidence, but follow the hybrid plan for all new implementation.
+
 > **For Hermes:** Execute this plan task-by-task with strict test-driven development. Do not advance past a milestone gate until its acceptance criteria pass. Use fresh implementation/review context for each milestone, and preserve all evidence under `artifacts/` or the milestone commit.
 
 **Goal:** Build a Python CLI and library that convert supported natural-language descriptions into validated, editable Microsoft Visio `.vsdx` first drafts for flowcharts, system block diagrams, and abstract patent-oriented component schematics.
@@ -526,8 +528,6 @@ Validate without relying solely on `vsdx`:
 4. relationship targets referenced by required parts exist;
 5. package contains expected labels/count ranges when supplied;
 6. return a structured `ValidationReport` with errors, warnings, and checked facts.
-
-Optional LibreOffice validation is a separate opt-in check and may not redefine package validity.
 
 **Suggested commit:** `Add structural VSDX validation`
 
