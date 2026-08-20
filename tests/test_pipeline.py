@@ -3,10 +3,74 @@ from pathlib import Path
 
 import pytest
 
+from visiogen import pipeline as pipeline_module
 from visiogen.critic import CritiqueResult, VisualCritique, VisualIssue
 from visiogen.design import DiagramDesign
 from visiogen.designer import DesignMetadata, DesignResult
 from visiogen.pipeline import HybridGenerationPipeline, PipelineError
+
+
+def test_source_state_does_not_claim_an_ancestor_consumer_repository(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    consumer = tmp_path / "consumer"
+    installed_module = (
+        consumer
+        / ".venv"
+        / "lib"
+        / "python3.11"
+        / "site-packages"
+        / "visiogen"
+        / "pipeline.py"
+    )
+    installed_module.parent.mkdir(parents=True)
+    installed_module.write_text("# installed wheel\n")
+    (consumer / ".git").mkdir()
+
+    monkeypatch.setattr(pipeline_module, "__file__", str(installed_module))
+
+    def unrelated_repository(*args, **kwargs):
+        return type(
+            "Completed",
+            (),
+            {"stdout": "deadbeef\n", "returncode": 0},
+        )()
+
+    monkeypatch.setattr(pipeline_module.subprocess, "run", unrelated_repository)
+
+    assert pipeline_module._source_state() == {
+        "source_revision": None,
+        "source_worktree_clean": None,
+    }
+
+
+def test_source_state_records_the_owning_source_checkout(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    repository = tmp_path / "visiogen"
+    source_module = repository / "src" / "visiogen" / "pipeline.py"
+    source_module.parent.mkdir(parents=True)
+    source_module.write_text("# source checkout\n")
+    (repository / ".git").mkdir()
+    calls = []
+
+    monkeypatch.setattr(pipeline_module, "__file__", str(source_module))
+
+    def own_repository(args, **kwargs):
+        calls.append((args, kwargs))
+        stdout = "abc123\n" if args[1:3] == ["rev-parse", "HEAD"] else ""
+        return type("Completed", (), {"stdout": stdout, "returncode": 0})()
+
+    monkeypatch.setattr(pipeline_module.subprocess, "run", own_repository)
+
+    assert pipeline_module._source_state() == {
+        "source_revision": "abc123",
+        "source_worktree_clean": True,
+    }
+    assert len(calls) == 2
+    assert all(call[1]["cwd"] == repository for call in calls)
 
 
 def design_result() -> DesignResult:

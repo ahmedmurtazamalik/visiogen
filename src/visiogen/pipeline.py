@@ -110,9 +110,13 @@ def _schema_sha256(model_type: type[object]) -> str:
 
 
 def _source_state() -> dict[str, object]:
-    """Record repository identity when running from a Git checkout."""
+    """Record identity only when this module belongs to a Git source checkout."""
 
-    repository = Path(__file__).resolve().parents[2]
+    source_file = Path(__file__).resolve()
+    repository = source_file.parents[2]
+    checkout_module = repository / "src" / "visiogen" / "pipeline.py"
+    if not (repository / ".git").exists() or checkout_module.resolve() != source_file:
+        return {"source_revision": None, "source_worktree_clean": None}
     try:
         revision = subprocess.run(
             ["git", "rev-parse", "HEAD"],
