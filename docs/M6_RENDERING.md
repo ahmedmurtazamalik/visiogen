@@ -4,7 +4,7 @@
 
 **Ubuntu implementation and structural acceptance: passed.**
 
-**Microsoft Visio acceptance: failed for the original candidate; corrective R2 acceptance is pending.** The original files opened and their ordinary connectors were mostly correct, but the headphone callout leaders did not follow moved targets and the generated geometry was too large and cramped. M6 must not be called complete until the corrective R2 candidates pass move/save/close/reopen testing in Microsoft Visio.
+**Microsoft Visio acceptance: failed for the original candidate and R2; corrective R3 acceptance is pending.** R2 repaired the headphone callout dependency chain and spacing, but real-Visio screenshots exposed a separate ordinary-connector defect: cached endpoints opened at shape centers, while post-move recalculation reused process/component-specific connection rows on unrelated shape families and produced malformed loops. R3 replaces those fixed rows with whole-shape dynamic glue, stores boundary endpoint caches with coherent 1-D transforms, and awaits a fresh Windows/Visio open + move + save + reopen pass.
 
 No extraction provider is involved in M6. The renderer consumes an existing canonical `DiagramGraph` after deterministic M5 layout. Codex, local Qwen, and Gemini are not invoked.
 
@@ -90,7 +90,21 @@ artifacts/m6-windows-acceptance-r2/visiogen-m6-windows-acceptance-r2.zip
 sha256: b143367a39285334a35a1b374c1d6fd928786c91905c929fdbe4475821c857ba
 ```
 
-Its structural audit confirms ZIP/XML integrity, unique shape IDs, one-inch node margins, zero reference-carrier overlap, dynamic target formulas for all six headphone callouts, explicit local `User.LeaderEnd` formulas, and explicit visible leader endpoint formulas. LibreOffice imported all three candidates and generated PNG previews. These checks do not replace the pending real-Visio movement test.
+Its structural audit confirms ZIP/XML integrity, unique shape IDs, one-inch node margins, zero reference-carrier overlap, dynamic target formulas for all six headphone callouts, explicit local `User.LeaderEnd` formulas, and explicit visible leader endpoint formulas. LibreOffice imported all three candidates and generated PNG previews. The subsequent Microsoft Visio screenshots rejected R2 because all 16 ordinary-connector cached endpoints opened inside their target shapes and family-specific fixed glue produced malformed routing after movement. R2 is superseded and must not be used for acceptance.
+
+## R3 ordinary-connector correction
+
+R3 uses whole-shape dynamic glue (`ToCell="PinX"`, `ToPart="3"`) for both endpoint rows, `_WALKGLUE(...)` endpoint formulas, target-specific transform triggers, and `ConFixedCode=6`. The generated cache places every endpoint on its source or target bounding boundary and writes coherent `PinX`, `PinY`, `LocPinX`, `LocPinY`, `Width`, and `Height` values/formulas. The same policy is applied in the production renderer and feasibility-spike renderer.
+
+Regression coverage verifies all ordinary connectors across the linear, basic-system, and headphone fixtures, including horizontal, vertical, diagonal, bidirectional, and self-loop cases. R2 versus R3 structural comparison:
+
+```text
+R2: 8 connectors; 0 whole-shape dynamic; 16/16 cached endpoints inside shapes
+R3: 8 connectors; 8 whole-shape dynamic; 0/16 cached endpoints inside shapes; 16/16 on boundaries
+198 passed
+```
+
+R3 remains pending until desktop Microsoft Visio confirms clean open, move, save, close, and reopen behavior.
 
 ## Original Ubuntu evidence
 
@@ -170,4 +184,4 @@ On Windows with Microsoft Visio:
 7. save each document under a new filename, close Visio, reopen the saved copy, and repeat the attachment checks; and
 8. report the exact candidate checksum, Visio version, and pass/fail result for each document.
 
-Until the corrective R2 procedure passes, the honest milestone state is **M6 corrected and Ubuntu-verified, corrective Windows acceptance pending**.
+Until the corrective R3 procedure passes, the honest milestone state is **M6 corrected and Ubuntu-verified, corrective Windows acceptance pending**.

@@ -251,6 +251,8 @@ def _copy_connector_connections(
         connection_xml = copy.deepcopy(connection.xml)
         connection_xml.attrib["FromSheet"] = copied_connector.ID
         connection_xml.attrib["ToSheet"] = id_map[connection.to_id]
+        connection_xml.attrib["ToCell"] = "PinX"
+        connection_xml.attrib["ToPart"] = "3"
         page.add_connect(Connect(xml=connection_xml, page=page))
 
 
@@ -276,6 +278,18 @@ def _set_local_cell_value(shape: Shape, name: str, value: str) -> None:
         shape.xml.insert(insertion_index, cell_xml)
     cell.value = value
     cell.xml.attrib.pop("F", None)
+
+
+def _set_local_cell_formula(
+    shape: Shape,
+    name: str,
+    value: str,
+    formula: str,
+) -> None:
+    """Materialize a local ShapeSheet result and its recalculating formula."""
+
+    _set_local_cell_value(shape, name, value)
+    shape.cells[name].xml.attrib["F"] = formula
 
 
 def _place_reference_callout(
@@ -366,19 +380,17 @@ def _set_connector_cached_geometry(
     start: tuple[float, float],
     finish: tuple[float, float],
 ) -> None:
-    """Update connector caches without invoking noisy inherited geometry setters."""
+    """Write coherent one-dimensional connector endpoint and transform caches."""
 
     begin_x, begin_y = start
     end_x, end_y = finish
+    delta_x = end_x - begin_x
+    delta_y = end_y - begin_y
     values = {
-        "PinX": begin_x,
-        "PinY": begin_y,
         "BeginX": begin_x,
         "BeginY": begin_y,
         "EndX": end_x,
         "EndY": end_y,
-        "Width": end_x - begin_x,
-        "Height": end_y - begin_y,
     }
     for name, value in values.items():
         cell = shape.cells.get(name)
@@ -386,6 +398,159 @@ def _set_connector_cached_geometry(
             _set_local_cell_value(shape, name, f"{value:.15g}")
         else:
             cell.value = f"{value:.15g}"
+
+    axis_specs = (
+        ("X", begin_x, end_x, delta_x),
+        ("Y", begin_y, end_y, delta_y),
+    )
+    for axis, begin, end, delta in axis_specs:
+        if abs(delta) <= 1e-12:
+            dimension = 0.25
+            pin = begin
+            pin_formula = f"GUARD(Begin{axis})"
+            dimension_formula = "GUARD(0.25DL)"
+        else:
+            dimension = delta
+            pin = (begin + end) / 2
+            pin_formula = f"GUARD((Begin{axis}+End{axis})/2)"
+            dimension_formula = f"GUARD(End{axis}-Begin{axis})"
+        _set_local_cell_formula(
+            shape,
+            f"Pin{axis}",
+            f"{pin:.15g}",
+            pin_formula,
+        )
+        _set_local_cell_formula(
+            shape,
+            "Width" if axis == "X" else "Height",
+            f"{dimension:.15g}",
+            dimension_formula,
+        )
+        _set_local_cell_formula(
+            shape,
+            f"LocPin{axis}",
+            f"{dimension / 2:.15g}",
+            f"GUARD({'Width' if axis == 'X' else 'Height'}/2)",
+        )
+
+
+def _boundary_points(
+    source: DiagramNode | Shape,
+    target: DiagramNode | Shape,
+) -> tuple[tuple[float, float], tuple[float, float]]:
+    """Intersect the center line with both node bounding boxes."""
+
+    source_geometry = (
+        _node_geometry(source)
+        if isinstance(source, DiagramNode)
+        else (source.x, source.y, source.width, source.height)
+    )
+    target_geometry = (
+        _node_geometry(target)
+        if isinstance(target, DiagramNode)
+        else (target.x, target.y, target.width, target.height)
+    )
+    source_x, source_y, source_width, source_height = source_geometry
+    target_x, target_y, target_width, target_height = target_geometry
+    source_id = source.id if isinstance(source, DiagramNode) else source.ID
+    target_id = target.id if isinstance(target, DiagramNode) else target.ID
+    delta_x = target_x - source_x
+    delta_y = target_y - source_y
+    if delta_x == 0 and delta_y == 0:
+        if source_id == target_id:
+            right = source_x + source_width / 2
+            return (
+                (right, source_y - source_height / 4),
+                (right, source_y + source_height / 4),
+            )
+        raise RenderingError(
+            f"edge endpoints '{source_id}' and '{target_id}' share one center"
+        )
+
+    def intersect(
+        center_x: float,
+        center_y: float,
+        half_width: float,
+        half_height: float,
+        direction_x: float,
+        direction_y: float,
+    ) -> tuple[float, float]:
+        scale = 1.0 / max(
+            abs(direction_x) / half_width,
+            abs(direction_y) / half_height,
+        )
+        return (
+            center_x + direction_x * scale,
+            center_y + direction_y * scale,
+        )
+
+    start = intersect(
+        source_x,
+        source_y,
+        source_width / 2,
+        source_height / 2,
+        delta_x,
+        delta_y,
+    )
+    finish = intersect(
+        target_x,
+        target_y,
+        target_width / 2,
+        target_height / 2,
+        -delta_x,
+        -delta_y,
+    )
+    return start, finish
+
+
+def _configure_dynamic_connector_glue(
+    connector: Shape,
+    source: Shape,
+    target: Shape,
+    start: tuple[float, float],
+    finish: tuple[float, float],
+) -> None:
+    """Glue to whole shapes so Visio chooses sane perimeter attachment points."""
+
+    begin_x, begin_y = start
+    end_x, end_y = finish
+    _set_local_cell_formula(
+        connector,
+        "BeginX",
+        f"{begin_x:.15g}",
+        "_WALKGLUE(BegTrigger,EndTrigger,WalkPreference)",
+    )
+    _set_local_cell_formula(
+        connector,
+        "BeginY",
+        f"{begin_y:.15g}",
+        "_WALKGLUE(BegTrigger,EndTrigger,WalkPreference)",
+    )
+    _set_local_cell_formula(
+        connector,
+        "EndX",
+        f"{end_x:.15g}",
+        "_WALKGLUE(EndTrigger,BegTrigger,WalkPreference)",
+    )
+    _set_local_cell_formula(
+        connector,
+        "EndY",
+        f"{end_y:.15g}",
+        "_WALKGLUE(EndTrigger,BegTrigger,WalkPreference)",
+    )
+    _set_local_cell_formula(
+        connector,
+        "BegTrigger",
+        "2",
+        f"_XFTRIGGER(Sheet.{source.ID}!EventXFMod)",
+    )
+    _set_local_cell_formula(
+        connector,
+        "EndTrigger",
+        "2",
+        f"_XFTRIGGER(Sheet.{target.ID}!EventXFMod)",
+    )
+    _set_local_cell_value(connector, "ConFixedCode", "6")
 
 
 def _style_connector(shape: Shape, visual: EdgeVisualSpec) -> None:
@@ -658,6 +823,7 @@ def render_layout(
 
         connector_marker = "__template_connector__"
         process_marker = "__template_process__"
+        nodes_by_id = {node.id: node for node in layout.graph.nodes}
         for edge in layout.graph.edges:
             try:
                 source_shape = node_shapes[edge.source]
@@ -686,10 +852,17 @@ def render_layout(
                 copied_connector=connector,
                 id_map=id_map,
             )
-            _set_connector_cached_geometry(
+            start, finish = _boundary_points(
+                nodes_by_id[edge.source],
+                nodes_by_id[edge.target],
+            )
+            _set_connector_cached_geometry(connector, start, finish)
+            _configure_dynamic_connector_glue(
                 connector,
-                source_shape.center_x_y,
-                target_shape.center_x_y,
+                source_shape,
+                target_shape,
+                start,
+                finish,
             )
             _style_connector(connector, visual)
 
@@ -747,10 +920,17 @@ def render_feasibility_spike(
             copied_connector=copied_connector,
             id_map=id_map,
         )
-        _set_connector_cached_geometry(
+        start, finish = _boundary_points(
+            copies[process_marker],
+            copies[component_marker],
+        )
+        _set_connector_cached_geometry(copied_connector, start, finish)
+        _configure_dynamic_connector_glue(
             copied_connector,
-            copies[process_marker].center_x_y,
-            copies[component_marker].center_x_y,
+            copies[process_marker],
+            copies[component_marker],
+            start,
+            finish,
         )
 
         _remove_template_palette(palette)

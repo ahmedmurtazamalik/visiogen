@@ -359,13 +359,90 @@ def test_render_layout_creates_styled_labeled_glued_connector(tmp_path: Path) ->
             if connection.from_id == connector.ID
         }
         assert connected_ids == {sensor.ID, controller.ID}
-        assert f"Sheet.{sensor.ID}!" in connector.cell_formula("BeginX")
-        assert f"Sheet.{controller.ID}!" in connector.cell_formula("EndX")
+        connector_rows = {
+            connection.xml.attrib["FromCell"]: connection.xml.attrib
+            for connection in page.connects
+            if connection.from_id == connector.ID
+        }
+        assert connector_rows["BeginX"]["ToSheet"] == sensor.ID
+        assert connector_rows["BeginX"]["ToCell"] == "PinX"
+        assert connector_rows["BeginX"]["ToPart"] == "3"
+        assert connector_rows["EndX"]["ToSheet"] == controller.ID
+        assert connector_rows["EndX"]["ToCell"] == "PinX"
+        assert connector_rows["EndX"]["ToPart"] == "3"
+        assert connector.cell_formula("BeginX") == (
+            "_WALKGLUE(BegTrigger,EndTrigger,WalkPreference)"
+        )
+        assert connector.cell_formula("BeginY") == (
+            "_WALKGLUE(BegTrigger,EndTrigger,WalkPreference)"
+        )
+        assert connector.cell_formula("EndX") == (
+            "_WALKGLUE(EndTrigger,BegTrigger,WalkPreference)"
+        )
+        assert connector.cell_formula("EndY") == (
+            "_WALKGLUE(EndTrigger,BegTrigger,WalkPreference)"
+        )
+        assert connector.cell_formula("BegTrigger") == (
+            f"_XFTRIGGER(Sheet.{sensor.ID}!EventXFMod)"
+        )
+        assert connector.cell_formula("EndTrigger") == (
+            f"_XFTRIGGER(Sheet.{controller.ID}!EventXFMod)"
+        )
+        assert connector.cell_value("ConFixedCode") == "6"
+        assert float(connector.cell_value("BeginX")) == pytest.approx(2.75)
+        assert float(connector.cell_value("BeginY")) == pytest.approx(2.5)
+        assert float(connector.cell_value("EndX")) == pytest.approx(4.75)
+        assert float(connector.cell_value("EndY")) == pytest.approx(2.5)
+        assert float(connector.cell_value("PinX")) == pytest.approx(3.75)
+        assert float(connector.cell_value("PinY")) == pytest.approx(2.5)
+        assert float(connector.cell_value("Width")) == pytest.approx(2.0)
+        assert float(connector.cell_value("Height")) == pytest.approx(0.25)
+        assert float(connector.cell_value("LocPinX")) == pytest.approx(1.0)
+        assert float(connector.cell_value("LocPinY")) == pytest.approx(0.125)
+        assert connector.cell_formula("PinX") == "GUARD((BeginX+EndX)/2)"
+        assert connector.cell_formula("PinY") == "GUARD(BeginY)"
+        assert connector.cell_formula("Width") == "GUARD(EndX-BeginX)"
+        assert connector.cell_formula("Height") == "GUARD(0.25DL)"
+        assert connector.cell_formula("LocPinX") == "GUARD(Width/2)"
+        assert connector.cell_formula("LocPinY") == "GUARD(Height/2)"
         assert connector.cell_value("BeginArrow") == "4"
         assert connector.cell_value("EndArrow") == "4"
         assert connector.cell_value("LinePattern") == "3"
         assert float(connector.cell_value("LineWeight")) == pytest.approx(1.0 / 72.0)
         assert connector.cell_value("LineColor") == "#000000"
+
+
+def test_render_layout_keeps_self_connector_cache_outside_node(tmp_path: Path) -> None:
+    layout = LayoutResult(
+        graph=DiagramGraph(
+            title="Self transition",
+            diagram_type="flowchart",
+            orientation="top_to_bottom",
+            nodes=[_node("step", "process", "Step", (3.0, 2.0, 2.0, 1.0))],
+            edges=[DiagramEdge(source="step", target="step", relation="flow")],
+        ),
+        page=PageGeometry(width=6.0, height=4.0),
+    )
+    output = tmp_path / "self-connector.vsdx"
+
+    renderer.render_layout(TEMPLATE_PATH, layout, output)
+
+    with VisioFile(str(output)) as document:
+        page = document.get_page_by_name("Template Palette")
+        connector_id = page.connects[0].from_id
+        connector = next(shape for shape in page.all_shapes if shape.ID == connector_id)
+        assert float(connector.cell_value("BeginX")) == pytest.approx(4.0)
+        assert float(connector.cell_value("BeginY")) == pytest.approx(1.75)
+        assert float(connector.cell_value("EndX")) == pytest.approx(4.0)
+        assert float(connector.cell_value("EndY")) == pytest.approx(2.25)
+        assert {row.to_id for row in page.connects} == {
+            _outer_shape(page.find_shape_by_text("Step")).ID
+        }
+        assert all(
+            row.xml.attrib["ToCell"] == "PinX"
+            and row.xml.attrib["ToPart"] == "3"
+            for row in page.connects
+        )
 
 
 def test_render_layout_uses_relation_style_when_edge_style_is_omitted(
@@ -697,14 +774,34 @@ def test_generated_connector_is_glued_to_generated_endpoints(tmp_path: Path) -> 
         component = page.find_shape_by_text("Generated Component")
         connector = page.find_shape_by_text("feeds")
 
-        connected_ids = {
-            connection.to_id
+        connected_rows = {
+            connection.xml.attrib["FromCell"]: connection
             for connection in page.connects
             if connection.from_id == connector.ID
         }
-        assert connected_ids == {process.ID, component.ID}
-        assert f"Sheet.{process.ID}!" in connector.cell_formula("BeginX")
-        assert f"Sheet.{component.ID}!" in connector.cell_formula("EndX")
+        assert {row.to_id for row in connected_rows.values()} == {
+            process.ID,
+            component.ID,
+        }
+        assert all(
+            row.xml.attrib["ToCell"] == "PinX"
+            and row.xml.attrib["ToPart"] == "3"
+            for row in connected_rows.values()
+        )
+        assert connector.cell_formula("BeginX") == (
+            "_WALKGLUE(BegTrigger,EndTrigger,WalkPreference)"
+        )
+        assert connector.cell_formula("EndX") == (
+            "_WALKGLUE(EndTrigger,BegTrigger,WalkPreference)"
+        )
+        assert f"Sheet.{process.ID}!" in connector.cell_formula("BegTrigger")
+        assert f"Sheet.{component.ID}!" in connector.cell_formula("EndTrigger")
+        assert float(connector.cell_value("BeginX")) == pytest.approx(
+            process.x + process.width / 2
+        )
+        assert float(connector.cell_value("EndX")) == pytest.approx(
+            component.x - component.width / 2
+        )
 
 
 def test_generated_callout_targets_generated_component(tmp_path: Path) -> None:

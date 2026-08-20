@@ -100,16 +100,77 @@ def test_renderer_fixture_produces_structurally_valid_editable_package(
                 connect for connect in page.connects if connect.from_id == connector_id
             ]
             assert len(connections) == 2
+            rows_by_cell = {
+                connect.xml.attrib["FromCell"]: connect for connect in connections
+            }
             endpoint_ids = {
-                connect.xml.attrib["FromCell"]: connect.to_id for connect in connections
+                from_cell: connect.to_id
+                for from_cell, connect in rows_by_cell.items()
             }
             connector = shapes_by_id[connector_id]
             begin_id = endpoint_ids["BeginX"]
             end_id = endpoint_ids["EndX"]
-            for cell_name in ("BeginX", "BeginY", "BegTrigger"):
-                assert f"Sheet.{begin_id}!" in connector.cell_formula(cell_name)
-            for cell_name in ("EndX", "EndY", "EndTrigger"):
-                assert f"Sheet.{end_id}!" in connector.cell_formula(cell_name)
+            for row in rows_by_cell.values():
+                assert row.xml.attrib["ToCell"] == "PinX"
+                assert row.xml.attrib["ToPart"] == "3"
+            for cell_name in ("BeginX", "BeginY"):
+                assert connector.cell_formula(cell_name) == (
+                    "_WALKGLUE(BegTrigger,EndTrigger,WalkPreference)"
+                )
+            for cell_name in ("EndX", "EndY"):
+                assert connector.cell_formula(cell_name) == (
+                    "_WALKGLUE(EndTrigger,BegTrigger,WalkPreference)"
+                )
+            assert f"Sheet.{begin_id}!" in connector.cell_formula("BegTrigger")
+            assert f"Sheet.{end_id}!" in connector.cell_formula("EndTrigger")
+            assert connector.cell_value("ConFixedCode") == "6"
+
+            for prefix, endpoint_id in (("Begin", begin_id), ("End", end_id)):
+                endpoint_shape = shapes_by_id[endpoint_id]
+                endpoint_x = float(connector.cell_value(f"{prefix}X"))
+                endpoint_y = float(connector.cell_value(f"{prefix}Y"))
+                boundary_ratio = max(
+                    abs(endpoint_x - endpoint_shape.x) / (endpoint_shape.width / 2),
+                    abs(endpoint_y - endpoint_shape.y) / (endpoint_shape.height / 2),
+                )
+                assert boundary_ratio == pytest.approx(1.0)
+
+            begin_x = float(connector.cell_value("BeginX"))
+            begin_y = float(connector.cell_value("BeginY"))
+            end_x = float(connector.cell_value("EndX"))
+            end_y = float(connector.cell_value("EndY"))
+            for axis, begin, end, dimension_name in (
+                ("X", begin_x, end_x, "Width"),
+                ("Y", begin_y, end_y, "Height"),
+            ):
+                delta = end - begin
+                if abs(delta) <= 1e-12:
+                    expected_dimension = 0.25
+                    expected_pin = begin
+                    expected_pin_formula = f"GUARD(Begin{axis})"
+                    expected_dimension_formula = "GUARD(0.25DL)"
+                else:
+                    expected_dimension = delta
+                    expected_pin = (begin + end) / 2
+                    expected_pin_formula = f"GUARD((Begin{axis}+End{axis})/2)"
+                    expected_dimension_formula = f"GUARD(End{axis}-Begin{axis})"
+                assert float(connector.cell_value(f"Pin{axis}")) == pytest.approx(
+                    expected_pin
+                )
+                assert float(connector.cell_value(dimension_name)) == pytest.approx(
+                    expected_dimension
+                )
+                assert float(connector.cell_value(f"LocPin{axis}")) == pytest.approx(
+                    expected_dimension / 2
+                )
+                assert connector.cell_formula(f"Pin{axis}") == expected_pin_formula
+                assert (
+                    connector.cell_formula(dimension_name)
+                    == expected_dimension_formula
+                )
+                assert connector.cell_formula(f"LocPin{axis}") == (
+                    f"GUARD({dimension_name}/2)"
+                )
 
         line_patterns = {"solid": "1", "dashed": "2", "dotted": "3"}
         for edge in layout.graph.edges:
