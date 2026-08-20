@@ -10,6 +10,27 @@ from visiogen.designer import DesignMetadata, DesignResult
 from visiogen.pipeline import HybridGenerationPipeline, PipelineError
 
 
+def test_atomic_text_evidence_disables_newline_translation(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    destination = tmp_path / "raw-response.json"
+    raw_response = '{"answer":"ok"}\r\n \t'
+    real_fdopen = pipeline_module.os.fdopen
+    seen_newline = []
+
+    def recording_fdopen(descriptor, *args, **kwargs):
+        seen_newline.append(kwargs.get("newline"))
+        return real_fdopen(descriptor, *args, **kwargs)
+
+    monkeypatch.setattr(pipeline_module.os, "fdopen", recording_fdopen)
+
+    pipeline_module._write_text(destination, raw_response)
+
+    assert seen_newline == [""]
+    assert destination.read_bytes() == raw_response.encode("utf-8")
+
+
 def test_source_state_does_not_claim_an_ancestor_consumer_repository(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

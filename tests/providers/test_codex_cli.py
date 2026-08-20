@@ -24,7 +24,11 @@ def codex_settings() -> Settings:
 
 
 class FakeRunner:
-    def __init__(self, responses: list[str | None | BaseException], returncodes: list[int] | None = None) -> None:
+    def __init__(
+        self,
+        responses: list[str | bytes | None | BaseException],
+        returncodes: list[int] | None = None,
+    ) -> None:
         self.responses = iter(responses)
         self.returncodes = iter(returncodes or [0] * len(responses))
         self.calls: list[dict[str, Any]] = []
@@ -40,7 +44,10 @@ class FakeRunner:
         returncode = next(self.returncodes)
         if response is not None:
             output_path = Path(args[args.index("--output-last-message") + 1])
-            output_path.write_text(response)
+            if isinstance(response, bytes):
+                output_path.write_bytes(response)
+            else:
+                output_path.write_text(response)
         return subprocess.CompletedProcess(args, returncode, stdout="", stderr="")
 
 
@@ -144,6 +151,16 @@ def test_codex_cli_invalid_output_fails_after_one_repair() -> None:
 
 class SmallOutput(BaseModel):
     answer: str
+
+
+def test_generic_structured_caller_preserves_response_line_endings() -> None:
+    raw_response = b'{"answer":"ok"}\r\n \t'
+    runner = FakeRunner([raw_response])
+    caller = CodexStructuredCaller(codex_settings(), SmallOutput, runner=runner)
+
+    response = caller("system", "user")
+
+    assert response.content.encode("utf-8") == raw_response
 
 
 def test_generic_structured_caller_supports_image_input(tmp_path: Path) -> None:

@@ -170,8 +170,9 @@ class CodexStructuredCaller:
             if not output_path.is_file():
                 raise ProviderError("Codex CLI did not write a response")
             try:
-                content = output_path.read_text()
-            except OSError as error:
+                with output_path.open(encoding="utf-8", newline="") as response_file:
+                    content = response_file.read()
+            except (OSError, UnicodeError) as error:
                 raise ProviderError("Codex CLI response could not be read") from error
 
         return ProviderResponse(
