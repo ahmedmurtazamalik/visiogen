@@ -226,9 +226,15 @@ def _attach_callout_leader(callout: Shape, target: Shape) -> None:
         f"Sheet.{target.ID}!PinY-Sheet.{target.ID}!Height/2-PinY+LocPinY)"
     )
     target_cell.attrib.update({"V": point, "F": target_formula})
-    leader_cell.attrib["V"] = point
-    leader_x.attrib["V"] = f"{local_x:.15g}"
-    leader_y.attrib["V"] = f"{local_y:.15g}"
+    leader_cell.attrib.update(
+        {"V": point, "F": "User.msvSDTargetIntersection"}
+    )
+    leader_x.attrib.update(
+        {"V": f"{local_x:.15g}", "F": "User.LeaderEnd"}
+    )
+    leader_y.attrib.update(
+        {"V": f"{local_y:.15g}", "F": "User.LeaderEnd"}
+    )
 
 
 def _copy_connector_connections(

@@ -180,6 +180,15 @@ def test_render_layout_preserves_explicit_reference_number_as_targeted_callout(
         )
         target_formula = target_row.find(f"{namespace}Cell[@N='Value']").attrib["F"]
         assert f"Sheet.{controller.ID}!" in target_formula
+        leader_row = callout.xml.find(
+            f"{namespace}Section[@N='User']/{namespace}Row[@N='LeaderEnd']"
+        )
+        leader_formula = leader_row.find(f"{namespace}Cell[@N='Value']").attrib["F"]
+        assert leader_formula == "User.msvSDTargetIntersection"
+        geometry = callout.xml.find(f"{namespace}Section[@N='Geometry'][@IX='0']")
+        leader_endpoint = geometry.find(f"{namespace}Row[@T='LineTo'][@IX='2']")
+        assert leader_endpoint.find(f"{namespace}Cell[@N='X']").attrib["F"] == "User.LeaderEnd"
+        assert leader_endpoint.find(f"{namespace}Cell[@N='Y']").attrib["F"] == "User.LeaderEnd"
         assert callout.x > controller.x
 
 
