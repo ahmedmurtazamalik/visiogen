@@ -20,7 +20,11 @@ text request
 
 Output is intentionally allowed to vary between runs. Code remains authoritative for hard invariants and VSDX package safety; AI contributes semantic judgment, hierarchy, composition, geometry, and image-grounded improvement. The model never authors VSDX XML or ShapeSheet formulas directly.
 
-The detailed contract is [`docs/HYBRID_AI_ARCHITECTURE.md`](docs/HYBRID_AI_ARCHITECTURE.md). The bounded migration plan is [`hybrid_ai_implementation_plan.md`](hybrid_ai_implementation_plan.md). The older implementation plans are retained as historical milestone records.
+The generation contract is
+[`docs/architecture/HYBRID_AI.md`](docs/architecture/HYBRID_AI.md). The independent
+document-analysis roadmap is
+[`docs/plans/active/DOCUMENT_ANALYSIS.md`](docs/plans/active/DOCUMENT_ANALYSIS.md).
+Superseded implementation plans are retained under `docs/plans/archive/`.
 
 ## Generate a diagram
 
@@ -61,9 +65,12 @@ Fake provider runners are used only for low-level schema, process, retry, and or
 
 ## Existing milestone evidence
 
-- [`docs/M4_EXTRACTION.md`](docs/M4_EXTRACTION.md) records actual Codex, Gemini, and local-Qwen extraction runs as well as unit/contract evidence.
-- [`docs/M5_LAYOUT.md`](docs/M5_LAYOUT.md) records the former deterministic Graphviz/fallback baseline, which is now a fallback rather than the product-wide visual authority.
-- [`docs/M6_RENDERING.md`](docs/M6_RENDERING.md) records native template rendering and the current Microsoft Visio acceptance status.
+- [`docs/acceptance/archive/M4_EXTRACTION.md`](docs/acceptance/archive/M4_EXTRACTION.md)
+  records actual Codex, Gemini, and local-Qwen extraction runs.
+- [`docs/acceptance/archive/M5_LAYOUT.md`](docs/acceptance/archive/M5_LAYOUT.md)
+  records the former deterministic Graphviz/fallback baseline.
+- [`docs/acceptance/archive/M6_RENDERING.md`](docs/acceptance/archive/M6_RENDERING.md)
+  records native template rendering and its Microsoft Visio acceptance status.
 
 Linux ZIP/XML validation is structural evidence only. Microsoft Visio is the sole preview/export and native-behavior authority for visual critique, repair prompts, editability, connector movement, and save/close/reopen behavior.
 
@@ -78,7 +85,13 @@ The final three-case corpus and native Visio lifecycle gate are automated by:
   -Visible
 ```
 
-The output path must not already exist and must be outside the source checkout. The runner requires clean immutable source, performs real Visio-exported visual critique, then opens, moves, saves, closes, and reopens each final VSDX through desktop Microsoft Visio. Its report remains pending until the documented human visual review is completed. See [`docs/WINDOWS_HYBRID_ACCEPTANCE.md`](docs/WINDOWS_HYBRID_ACCEPTANCE.md) for prerequisites, exact evidence, manual visual checks, and failure handling.
+The output path must not already exist and must be outside the source checkout. The
+runner requires clean immutable source, performs real Visio-exported visual
+critique, then opens, moves, saves, closes, and reopens each final VSDX through
+desktop Microsoft Visio. Its report remains pending until the documented human
+visual review is completed. See
+[`docs/acceptance/WINDOWS_VISIO.md`](docs/acceptance/WINDOWS_VISIO.md) for
+prerequisites, exact evidence, manual visual checks, and failure handling.
 
 ## Template masters
 

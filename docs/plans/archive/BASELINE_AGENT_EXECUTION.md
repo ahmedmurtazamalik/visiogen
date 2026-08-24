@@ -1,6 +1,8 @@
 # Visiogen Text-to-Visio Baseline Implementation Plan
 
-> **Historical execution plan.** The geometry-free, deterministic-output architecture in this document was superseded on 2026-08-20 by `docs/HYBRID_AI_ARCHITECTURE.md` and `hybrid_ai_implementation_plan.md`. Preserve completed milestone evidence, but follow the hybrid plan for all new implementation.
+> **Archived execution plan.** Its geometry-free, deterministic-output architecture
+> was superseded on 2026-08-20. Current generation architecture lives in
+> [`../../architecture/HYBRID_AI.md`](../../architecture/HYBRID_AI.md).
 
 > **For Hermes:** Execute this plan task-by-task with strict test-driven development. Do not advance past a milestone gate until its acceptance criteria pass. Use fresh implementation/review context for each milestone, and preserve all evidence under `artifacts/` or the milestone commit.
 

@@ -12,7 +12,9 @@ Visiogen uses a hybrid architecture. AI is not limited to identifying shapes and
 
 Application code remains responsible for hard correctness. It verifies IDs and references, checks containment and page geometry, prevents structurally invalid data from reaching the renderer, creates the native Visio package, and validates that package. This gives the model room to design without asking it to manage fragile VSDX XML or ShapeSheet formulas.
 
-The authoritative detailed contract is `docs/HYBRID_AI_ARCHITECTURE.md`. The bounded migration sequence is `hybrid_ai_implementation_plan.md`.
+The authoritative detailed generation contract is
+[`HYBRID_AI.md`](HYBRID_AI.md). Historical implementation plans are archived
+under [`../plans/archive/`](../plans/archive/).
 
 ## Runtime pipeline
 

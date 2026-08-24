@@ -1,6 +1,8 @@
 # Text-to-Visio Patent Diagram Assistant — Implementation Plan
 
-> **Historical baseline plan.** The geometry-free, deterministic-output architecture in this document was superseded on 2026-08-20 by `docs/HYBRID_AI_ARCHITECTURE.md` and `hybrid_ai_implementation_plan.md`. Keep this file for milestone history; do not use its former AI/layout restrictions for new work.
+> **Archived baseline plan.** Its geometry-free, deterministic-output architecture
+> was superseded on 2026-08-20. Current generation architecture lives in
+> [`../../architecture/HYBRID_AI.md`](../../architecture/HYBRID_AI.md).
 
 > **For the implementing agent:** Work milestone by milestone and do not advance until the current acceptance criteria pass. This is a single-developer project targeting a useful baseline in roughly one focused week. Prefer the smallest reliable implementation over speculative generality.
 

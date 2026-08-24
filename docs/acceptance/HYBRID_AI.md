@@ -66,7 +66,10 @@ Repository-wide Ruff/mypy have pre-existing issues outside the focused migration
 
 ## Remaining acceptance sequence
 
-The Windows runner and native lifecycle harness are implemented in `scripts/run_windows_hybrid_corpus.ps1` and `scripts/validate_in_visio.ps1`. Their execution contract is documented in `docs/WINDOWS_HYBRID_ACCEPTANCE.md`.
+The Windows runner and native lifecycle harness are implemented in
+`scripts/run_windows_hybrid_corpus.ps1` and `scripts/validate_in_visio.ps1`.
+Their execution contract is documented in
+[`WINDOWS_VISIO.md`](WINDOWS_VISIO.md).
 
 1. Pull the exact candidate into a clean Windows checkout with desktop Microsoft Visio installed.
 2. Run the three-case stochastic corpus through `scripts/run_windows_hybrid_corpus.ps1` without disabling critique.

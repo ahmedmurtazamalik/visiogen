@@ -1,6 +1,9 @@
 # Visiogen Hybrid-AI Migration Plan
 
-> **Authoritative from 2026-08-20.** This plan replaces the geometry-free, deterministic-output assumptions in `implementation_plan.md` and `agent_implementation_plan.md`. Those files remain historical records of the completed baseline milestones.
+> **Archived migration record.** This plan replaced the geometry-free,
+> deterministic-output assumptions in the baseline plans and was implemented on
+> 2026-08-20. Current architecture lives in
+> [`../../architecture/HYBRID_AI.md`](../../architecture/HYBRID_AI.md).
 
 **Project class:** exploratory single-developer MVP
 **Time budget:** 3–4 focused days
