@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "visiogen"
 version = "0.1.0"
-description = "Generate editable Visio diagrams from structured text descriptions"
+description = "Generate Visio diagrams and analyze diagrams in PDF or DOCX documents"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
