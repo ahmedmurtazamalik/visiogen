@@ -1,6 +1,37 @@
 # Visiogen
 
-Visiogen converts natural-language requests into editable native Microsoft Visio `.vsdx` diagrams. It targets flowcharts, system diagrams, and abstract component or patent-oriented schematics.
+Visiogen is an AI-assisted diagram toolkit with two independent product
+directions:
+
+1. **Diagram generation:** turn a natural-language request into an editable,
+   native Microsoft Visio `.vsdx` first draft.
+2. **Document analysis:** inspect diagrams in PDF or DOCX documents, describe their
+   visible semantics, and compare them with related document text.
+
+The generation pipeline is implemented. Document analysis is the active next
+phase; its package and contributor boundaries are established, but the public
+`visiogen analyze` command is not implemented yet.
+
+The supported generation targets are flowcharts, system and architecture diagrams,
+and abstract component or patent-oriented schematics. Visiogen produces editable
+first drafts, not CAD models, physically exact reconstructions, or filing-ready
+patent drawings.
+
+## Product paths
+
+```text
+Generation                         Analysis
+text request                       PDF or DOCX
+    → AI diagram design                → safe document decomposition
+    → hard validation                  → diagram discovery
+    → native VSDX rendering            → visual semantic reconstruction
+    → image-based critique             → faithful textual description
+    → editable Visio draft             → text/diagram consistency findings
+```
+
+The paths share narrowly scoped provider and configuration infrastructure, but
+neither depends on the other. Generation work can continue while document analysis
+is developed independently.
 
 ## Hybrid-AI architecture
 
@@ -20,11 +51,8 @@ text request
 
 Output is intentionally allowed to vary between runs. Code remains authoritative for hard invariants and VSDX package safety; AI contributes semantic judgment, hierarchy, composition, geometry, and image-grounded improvement. The model never authors VSDX XML or ShapeSheet formulas directly.
 
-The generation contract is
-[`docs/architecture/HYBRID_AI.md`](docs/architecture/HYBRID_AI.md). The independent
-document-analysis roadmap is
-[`docs/plans/active/DOCUMENT_ANALYSIS.md`](docs/plans/active/DOCUMENT_ANALYSIS.md).
-Superseded implementation plans are retained under `docs/plans/archive/`.
+The authoritative generation contract is
+[`docs/architecture/HYBRID_AI.md`](docs/architecture/HYBRID_AI.md).
 
 ## Generate a diagram
 
@@ -53,6 +81,29 @@ uv run visiogen generate \
   --no-critique
 ```
 
+## Analyze a document
+
+The planned analysis workflow is:
+
+```text
+PDF or DOCX
+→ discover diagram candidates
+→ extract visible objects, labels, containers, connectors, and directions
+→ preserve image-region and document-text evidence
+→ generate a structured diagram model and faithful description
+→ independently extract claims from related prose
+→ report evidence-backed inconsistencies and uncertainty
+```
+
+This work does not require Microsoft Visio and does not call the generation
+pipeline. The implementation plan, schemas, security model, fixture strategy, and
+acceptance gates are documented in
+[`docs/plans/active/DOCUMENT_ANALYSIS.md`](docs/plans/active/DOCUMENT_ANALYSIS.md).
+
+The intended future interface is `visiogen analyze`; it should not be considered
+available until a tested vertical slice is added to the analysis-owned command
+registration.
+
 ## Development
 
 ```bash
@@ -62,6 +113,14 @@ uv build
 ```
 
 Fake provider runners are used only for low-level schema, process, retry, and orchestration tests. They are not AI-quality evidence. Real-provider acceptance artifacts must come through the production adapter and retain their prompts and responses.
+
+The repository is divided into generation-owned and analysis-owned paths so two
+contributors can work concurrently. See
+[`docs/development/WORKSTREAMS.md`](docs/development/WORKSTREAMS.md) for ownership,
+import-direction, worktree, and integration rules.
+
+The documentation index is [`docs/README.md`](docs/README.md). Current architecture
+and active plans are separated from historical plans and milestone records.
 
 ## Existing milestone evidence
 
