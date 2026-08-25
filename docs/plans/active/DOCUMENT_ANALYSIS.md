@@ -1,6 +1,6 @@
 # Visiogen Document-to-Diagram Analysis Implementation Plan
 
-**Status:** Phases A0-A3 complete; Phase A4 next
+**Status:** Phases A0-A4 complete; Phase A5 next
 
 **Date:** 2026-08-24
 
@@ -1153,6 +1153,13 @@ rather than fabricated certainty.
 **Suggested commit:** `Extract evidence-grounded diagram semantics from images`
 
 ### Phase A4 — Faithful textual description
+
+**Status:** Complete. Deterministic traceable JSON and accessible Markdown composition,
+canonical section ordering, exact visible-label/reference rendering, relationship and
+containment narration, ambiguity/disconnection/limitation reporting, hard coverage
+validation, atomic artifacts, golden examples, and the checksum-bound six-case A3
+acceptance corpus are implemented. The gate passed and its evidence is preserved in
+[`../../acceptance/A4_FAITHFUL_DESCRIPTION.md`](../../acceptance/A4_FAITHFUL_DESCRIPTION.md).
 
 **Goal:** Produce readable, comprehensive descriptions that remain mechanically
 traceable to the analyzed model.

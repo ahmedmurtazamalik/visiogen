@@ -15,6 +15,7 @@ organized here by purpose.
 - [Deterministic PDF/DOCX ingestion](analysis/DOCUMENT_INGESTION.md)
 - [Diagram discovery and image preparation](analysis/DIAGRAM_DISCOVERY.md)
 - [Visual observation and semantic reconstruction](analysis/VISUAL_SEMANTICS.md)
+- [Faithful textual description](analysis/FAITHFUL_DESCRIPTION.md)
 
 ## Development
 
@@ -25,6 +26,7 @@ organized here by purpose.
 
 - [A2 diagram discovery acceptance](acceptance/A2_DIAGRAM_DISCOVERY.md)
 - [A3 visual semantics acceptance](acceptance/A3_VISUAL_SEMANTICS.md)
+- [A4 faithful description acceptance](acceptance/A4_FAITHFUL_DESCRIPTION.md)
 - [Hybrid-AI verification record](acceptance/HYBRID_AI.md)
 - [Windows and native Visio procedure](acceptance/WINDOWS_VISIO.md)
 
