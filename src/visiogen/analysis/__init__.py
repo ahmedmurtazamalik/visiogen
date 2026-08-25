@@ -6,11 +6,23 @@ the text-to-VSDX renderer or generation pipeline.
 """
 
 from visiogen.analysis.alignment import align_claim_entities
+from visiogen.analysis.adjudication import (
+    AdjudicationRequest,
+    StructuredAdjudicationWorkflow,
+    apply_adjudication_decision,
+    build_adjudication_request,
+)
 from visiogen.analysis.claim_workflow import StructuredClaimExtractionWorkflow
 from visiogen.analysis.claims import (
     DocumentClaimBatch,
     EntityAlignmentSet,
     TextSelection,
+)
+from visiogen.analysis.comparison import (
+    ConsistencyAnalysis,
+    ConsistencyFinding,
+    compare_diagram_and_claims,
+    render_findings_markdown,
 )
 from visiogen.analysis.description import (
     DiagramDescription,
@@ -30,18 +42,26 @@ __all__ = [
     "CandidateDiscovery",
     "CandidatePreparation",
     "CandidateSelection",
+    "AdjudicationRequest",
     "DocumentClaimBatch",
     "DiagramDescription",
     "EntityAlignmentSet",
+    "ConsistencyAnalysis",
+    "ConsistencyFinding",
     "SemanticAnalysisWorkflow",
     "StructuredClaimExtractionWorkflow",
+    "StructuredAdjudicationWorkflow",
     "StructuredObservationWorkflow",
     "StructuredReconstructionWorkflow",
     "align_claim_entities",
+    "apply_adjudication_decision",
+    "build_adjudication_request",
+    "compare_diagram_and_claims",
     "compose_diagram_description",
     "discover_diagram_candidates",
     "prepare_diagram_candidates",
     "render_description_markdown",
+    "render_findings_markdown",
     "TextSelection",
     "select_relevant_text",
     "write_description_bundle",
