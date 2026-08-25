@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
+from collections.abc import Sequence
 from typing import Protocol, runtime_checkable
 
 from visiogen.models import DiagramGraph
@@ -41,3 +43,14 @@ class StructuredModelCall(Protocol):
     """Injected structured-model transport used by the shared workflow."""
 
     def __call__(self, system_prompt: str, user_prompt: str) -> ProviderResponse: ...
+
+
+class ImageStructuredCall(Protocol):
+    """Structured provider capability that accepts real image files."""
+
+    def call_with_images(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        images: Sequence[str | Path],
+    ) -> ProviderResponse: ...

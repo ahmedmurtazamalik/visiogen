@@ -3,16 +3,15 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal, Protocol
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from visiogen.design import DesignValidationError, DiagramDesign, validate_design
 from visiogen.normalization import GraphNormalizationError
-from visiogen.providers.base import ProviderResponse
+from visiogen.providers.base import ImageStructuredCall
 
 IssueSeverity = Literal["low", "medium", "high"]
 IssueCategory = Literal[
@@ -51,17 +50,6 @@ class VisualCritique(CritiqueModel):
     summary: str
     issues: list[VisualIssue] = Field(default_factory=list)
     revised_design: DiagramDesign | None = None
-
-
-class ImageStructuredCall(Protocol):
-    """Structured provider capability that accepts real image files."""
-
-    def call_with_images(
-        self,
-        system_prompt: str,
-        user_prompt: str,
-        images: Sequence[str | Path],
-    ) -> ProviderResponse: ...
 
 
 class CritiqueError(ValueError):
