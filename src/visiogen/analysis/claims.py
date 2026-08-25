@@ -140,6 +140,10 @@ class DocumentClaim(AnalysisModel):
     def validate_claim(self) -> DocumentClaim:
         if (self.object_text is None) != (self.normalized_object is None):
             raise ValueError("Claim object text and normalization must be supplied together")
+        if self.predicate in {"exists", "not_exists"} and self.object_text is not None:
+            raise ValueError(
+                "Existence claims must keep figure references in scope, not object_text"
+            )
         if len(self.evidence_ids) != len(set(self.evidence_ids)):
             raise ValueError("Claim evidence IDs must be unique")
         return self

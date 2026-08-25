@@ -147,6 +147,22 @@ def test_claim_validation_rejects_unselected_or_inexact_evidence() -> None:
         validate_document_claims(batch, _selection())
 
 
+def test_existence_claims_cannot_store_figure_locator_as_object() -> None:
+    payload = json.loads(_response())
+    claim = payload["claims"][0]
+    claim.update(
+        {
+            "predicate": "not_exists",
+            "object_text": "Figure 2",
+            "normalized_object": "figure 2",
+            "modality": "negated",
+        }
+    )
+
+    with pytest.raises(ValueError, match="figure references in scope"):
+        DocumentClaimBatch.model_validate(payload)
+
+
 def test_alignment_prefers_reference_then_alias_and_retains_unresolved_short_label() -> None:
     batch = DocumentClaimBatch.model_validate_json(_response())
     validated = validate_document_claims(batch, _selection())
