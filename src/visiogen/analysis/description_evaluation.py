@@ -91,6 +91,18 @@ def score_description_coverage(
         for item in diagram.objects
         if item.alternatives or item.confidence in {"low", "unknown"}
     }
+    connected_ids = {
+        value
+        for relationship in diagram.relationships
+        for value in (relationship.source_id, relationship.target_id)
+        if value is not None
+    }
+    container_ids = {item.parent_id for item in diagram.objects if item.parent_id is not None}
+    ambiguous_objects.update(
+        item.id
+        for item in diagram.objects
+        if item.id not in connected_ids and item.id not in container_ids
+    )
     ambiguous_relationships = {
         item.id
         for item in diagram.relationships

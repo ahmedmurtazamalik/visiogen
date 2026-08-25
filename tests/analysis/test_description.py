@@ -199,3 +199,17 @@ def test_markdown_escapes_source_controlled_markup() -> None:
 
     assert "Control \\*\\[A\\]\\*" in markdown
     assert "bus\\_\\[1\\]" in markdown
+
+
+def test_description_calls_out_disconnected_ordinary_objects() -> None:
+    diagram = _diagram()
+    diagram.relationships = []
+
+    description = compose_diagram_description(diagram)
+    ambiguity_text = " ".join(
+        statement.text for statement in description.sections[6].statements
+    )
+
+    assert "Sensor 10” has no modeled relationship connector" in ambiguity_text
+    assert "unlabeled object object-0003 has no modeled relationship connector" in ambiguity_text
+    assert "Platform” has no modeled relationship connector" not in ambiguity_text

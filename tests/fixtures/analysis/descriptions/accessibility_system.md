@@ -33,8 +33,8 @@ Candidate: `candidate-0042`
 
 ## Ambiguities and disconnected elements
 
-- unlabeled object object-0003 has low interpretation confidence. Alternative readings are “off-page reference” (low confidence: the symbol has no readable label).
-- Relationship relationship-0001 is ambiguous: its direction is unclear, its endpoint certainty is known/ambiguous, and its confidence is medium. Alternative readings are “forward communication” (medium confidence: a partial mark may be an arrowhead) and “undirected association” (medium confidence: the mark may be image damage).
+- unlabeled object object-0003 retains alternative interpretations at low overall confidence. Alternative readings are “off-page reference” (low confidence: the symbol has no readable label).
+- Relationship relationship-0001 retains uncertainty: its direction is unclear, its endpoint certainty is known/ambiguous, and its confidence is medium. Alternative readings are “forward communication” (medium confidence: a partial mark may be an arrowhead) and “undirected association” (medium confidence: the mark may be image damage).
 
 ## Visibility and interpretation limitations
 

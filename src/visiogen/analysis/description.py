@@ -401,9 +401,14 @@ def compose_diagram_description(diagram: AnalyzedDiagram) -> DiagramDescription:
     for item in diagram.objects:
         if not item.alternatives and item.confidence not in {"low", "unknown"}:
             continue
-        text = f"{_object_name(item)} has {item.confidence} interpretation confidence."
         if item.alternatives:
-            text += f" Alternative readings are {_alternative_text(item.alternatives)}."
+            text = (
+                f"{_object_name(item)} retains alternative interpretations at "
+                f"{item.confidence} overall confidence. Alternative readings are "
+                f"{_alternative_text(item.alternatives)}."
+            )
+        else:
+            text = f"{_object_name(item)} has {item.confidence} interpretation confidence."
         builder.add(
             "ambiguities",
             "interpreted",
@@ -429,7 +434,7 @@ def compose_diagram_description(diagram: AnalyzedDiagram) -> DiagramDescription:
                 f"its endpoint certainty is {item.source_certainty}/{item.target_certainty}"
             )
         details.append(f"its confidence is {item.confidence}")
-        text = f"Relationship {item.id} is ambiguous: {_join_names(details)}."
+        text = f"Relationship {item.id} retains uncertainty: {_join_names(details)}."
         if item.alternatives:
             text += f" Alternative readings are {_alternative_text(item.alternatives)}."
         builder.add(
@@ -440,6 +445,25 @@ def compose_diagram_description(diagram: AnalyzedDiagram) -> DiagramDescription:
                 [value for value in (item.source_id, item.target_id) if value is not None]
             ),
             relationship_ids=[item.id],
+            evidence_ids=item.evidence_ids,
+            confidence=item.confidence,
+        )
+
+    connected_ids = {
+        value
+        for relationship in diagram.relationships
+        for value in (relationship.source_id, relationship.target_id)
+        if value is not None
+    }
+    container_ids = {item.parent_id for item in diagram.objects if item.parent_id is not None}
+    for item in diagram.objects:
+        if item.id in connected_ids or item.id in container_ids:
+            continue
+        builder.add(
+            "ambiguities",
+            "derived",
+            f"{_object_name(item)} has no modeled relationship connector.",
+            object_ids=[item.id],
             evidence_ids=item.evidence_ids,
             confidence=item.confidence,
         )
