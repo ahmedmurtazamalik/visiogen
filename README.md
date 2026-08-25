@@ -10,10 +10,10 @@ directions:
 
 The generation pipeline is implemented. Document analysis has completed safe
 deterministic PDF/DOCX ingestion, diagram discovery/image preparation, and accepted
-evidence-grounded visual observation, semantic reconstruction, and faithful textual
-description, plus bounded document-text claim extraction and conservative entity
-alignment. Consistency findings are the next analysis phase. The public `visiogen
-analyze` command is not implemented yet.
+evidence-grounded visual observation, semantic reconstruction, faithful textual
+description, bounded document-text claim extraction, conservative entity alignment,
+and evidence-backed consistency findings. Public pipeline and CLI integration are the
+next analysis phase; the `visiogen analyze` command is not implemented yet.
 
 The supported generation targets are flowcharts, system and architecture diagrams,
 and abstract component or patent-oriented schematics. Visiogen produces editable
@@ -111,6 +111,12 @@ dense tiled images, and explicit ambiguity. See
 A4 deterministically turns that validated semantic model into traceable JSON and
 accessible Markdown without another model call. Its six-case acceptance record is
 [`docs/acceptance/A4_FAITHFUL_DESCRIPTION.md`](docs/acceptance/A4_FAITHFUL_DESCRIPTION.md).
+
+A6 compares the diagram reconstruction with independently extracted prose claims.
+Its 39-case deterministic acceptance matrix covers contradictions, consistency, and
+ambiguity across all planned categories with evidence-complete findings and strict
+omission safeguards. See
+[`docs/acceptance/A6_CONSISTENCY.md`](docs/acceptance/A6_CONSISTENCY.md).
 
 The intended future interface is `visiogen analyze`; it should not be considered
 available until a tested vertical slice is added to the analysis-owned command

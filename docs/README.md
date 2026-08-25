@@ -17,6 +17,7 @@ organized here by purpose.
 - [Visual observation and semantic reconstruction](analysis/VISUAL_SEMANTICS.md)
 - [Faithful textual description](analysis/FAITHFUL_DESCRIPTION.md)
 - [Text claims and entity alignment](analysis/TEXT_CLAIMS_AND_ALIGNMENT.md)
+- [Consistency analysis and findings](analysis/CONSISTENCY_ANALYSIS.md)
 
 ## Development
 
@@ -29,6 +30,7 @@ organized here by purpose.
 - [A3 visual semantics acceptance](acceptance/A3_VISUAL_SEMANTICS.md)
 - [A4 faithful description acceptance](acceptance/A4_FAITHFUL_DESCRIPTION.md)
 - [A5 text claims and alignment acceptance](acceptance/A5_TEXT_CLAIMS.md)
+- [A6 consistency engine acceptance](acceptance/A6_CONSISTENCY.md)
 - [Hybrid-AI verification record](acceptance/HYBRID_AI.md)
 - [Windows and native Visio procedure](acceptance/WINDOWS_VISIO.md)
 

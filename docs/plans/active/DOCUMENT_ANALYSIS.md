@@ -1,6 +1,6 @@
 # Visiogen Document-to-Diagram Analysis Implementation Plan
 
-**Status:** Phases A0-A5 complete; Phase A6 next
+**Status:** Phases A0-A6 complete; Phase A7 next
 
 **Date:** 2026-08-24
 
@@ -1216,6 +1216,12 @@ and negation cases are classified correctly; ambiguous entities remain unresolve
 **Suggested commit:** `Extract and align diagram-related document claims`
 
 ### Phase A6 — Consistency engine and findings
+
+**Implementation status (2026-08-25):** Complete. The strict finding contract,
+evidence-reference validation, diagram-internal and cross-source rules, conservative
+modality/absence handling, Markdown finding section, bounded semantic-adjudication
+seam, acceptance-gate scoring, and complete 39-case controlled matrix are accepted in
+[`docs/acceptance/A6_CONSISTENCY.md`](../../acceptance/A6_CONSISTENCY.md).
 
 **Goal:** Compare diagram facts and text claims with high precision and produce
 auditable findings.
