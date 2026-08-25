@@ -1,5 +1,8 @@
 """Candidate enumeration, classification, deduplication, and selection tests."""
 
+import pytest
+
+from visiogen.analysis.errors import CandidateClassificationError
 from visiogen.analysis.models import CandidateDecision
 from visiogen.analysis.selection import CandidateSelection, discover_diagram_candidates
 from visiogen.documents.models import (
@@ -161,3 +164,39 @@ def test_page_filter_and_candidate_limit_have_explicit_dispositions() -> None:
         "filtered_out",
     ]
     assert result.coverage.filtered_out == 2
+
+
+def test_candidate_limit_records_every_excess_diagram_as_skipped() -> None:
+    snapshot = _snapshot(
+        [
+            _asset("page-1", "1" * 64, page=1),
+            _asset("page-2", "2" * 64, page=2),
+            _asset("page-3", "3" * 64, page=3),
+        ]
+    )
+
+    result = discover_diagram_candidates(
+        snapshot,
+        classifier=DiagramClassifier(),
+        limits=DocumentSafetyLimits(max_diagram_candidates=1),
+    )
+
+    assert [candidate.disposition for candidate in result.candidates] == [
+        "selected",
+        "skipped_limit",
+        "skipped_limit",
+    ]
+    assert result.coverage.selected == 1
+    assert result.coverage.skipped_limit == 2
+    assert all(candidate.disposition_reason for candidate in result.candidates)
+
+
+def test_selection_rejects_conflicting_or_missing_explicit_targets() -> None:
+    with pytest.raises(ValueError, match="mutually exclusive"):
+        CandidateSelection(page_number=1, candidate_id="candidate-0001")
+
+    with pytest.raises(CandidateClassificationError, match="does not exist"):
+        discover_diagram_candidates(
+            _snapshot([_asset("page", "4" * 64)]),
+            selection=CandidateSelection(candidate_id="candidate-9999"),
+        )

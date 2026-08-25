@@ -1,13 +1,14 @@
 """Tests for bounded DOCX package inventory."""
 
 from pathlib import Path
-from zipfile import ZIP_DEFLATED, ZipFile
+from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
 import pytest
 
 from visiogen.documents.errors import (
     DocumentExtractionError,
     DocumentLimitExceededError,
+    EncryptedDocumentError,
     UnsafeDocumentError,
 )
 from visiogen.documents.safety import DocumentSafetyLimits, inspect_docx_archive
@@ -85,6 +86,38 @@ def test_docx_inventory_rejects_macros_and_resource_expansion(tmp_path: Path) ->
             compressed,
             limits=DocumentSafetyLimits(max_compression_ratio=2),
         )
+
+
+def test_docx_inventory_rejects_encrypted_symlink_and_activex_members(
+    tmp_path: Path,
+) -> None:
+    encrypted = write_docx(tmp_path / "encrypted.docx")
+    data = bytearray(encrypted.read_bytes())
+    local = data.index(b"PK\x03\x04")
+    central = data.index(b"PK\x01\x02")
+    data[local + 6 : local + 8] = (1).to_bytes(2, "little")
+    data[central + 8 : central + 10] = (1).to_bytes(2, "little")
+    encrypted.write_bytes(data)
+    with pytest.raises(EncryptedDocumentError, match="Encrypted DOCX member"):
+        inspect_docx_archive(encrypted)
+
+    symlink = tmp_path / "symlink.docx"
+    with ZipFile(symlink, "w") as archive:
+        archive.writestr("[Content_Types].xml", b"<Types/>")
+        archive.writestr("word/document.xml", b"<document/>")
+        member = ZipInfo("word/media/link.png")
+        member.create_system = 3
+        member.external_attr = 0o120777 << 16
+        archive.writestr(member, b"target.png")
+    with pytest.raises(UnsafeDocumentError, match="symbolic link"):
+        inspect_docx_archive(symlink)
+
+    activex = write_docx(
+        tmp_path / "activex.docx",
+        extra=[("word/activeX/activeX1.bin", b"active")],
+    )
+    with pytest.raises(UnsafeDocumentError, match="ActiveX"):
+        inspect_docx_archive(activex)
 
 
 def test_docx_inventory_returns_validated_member_metadata(tmp_path: Path) -> None:

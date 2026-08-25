@@ -45,3 +45,17 @@ def test_publish_artifact_directory_rejects_nonempty_destination(tmp_path: Path)
         publish_artifact_directory(output, lambda stage: None)
 
     assert (output / "owned.txt").read_text() == "keep"
+
+
+def test_publish_artifact_directory_rejects_symbolic_link_destination(
+    tmp_path: Path,
+) -> None:
+    target = tmp_path / "target"
+    target.mkdir()
+    output = tmp_path / "evidence"
+    output.symlink_to(target, target_is_directory=True)
+
+    with pytest.raises(UnsafeDocumentError, match="symbolic link"):
+        publish_artifact_directory(output, lambda stage: None)
+
+    assert output.is_symlink()

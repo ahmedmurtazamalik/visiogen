@@ -39,6 +39,15 @@ _PAGE_SIZE = re.compile(
     re.IGNORECASE,
 )
 _PDF_NAME_TOKEN = re.compile(rb"/(?:#[0-9A-Fa-f]{2}|[^\x00\t\n\f\r ()<>\[\]{}/%])+")
+_UNSAFE_PDF_ACTIONS = {
+    b"JavaScript": "JavaScript",
+    b"Launch": "launch action",
+    b"URI": "external URI action",
+    b"GoToR": "remote go-to action",
+    b"GoToE": "embedded go-to action",
+    b"SubmitForm": "form submission action",
+    b"ImportData": "external data import action",
+}
 
 
 def _decode_pdf_name(token: bytes) -> bytes:
@@ -59,6 +68,10 @@ def _contains_javascript_action(data: bytes) -> bool:
         _decode_pdf_name(match.group()) == b"JavaScript"
         for match in _PDF_NAME_TOKEN.finditer(data)
     )
+
+
+def _pdf_names(data: bytes) -> set[bytes]:
+    return {_decode_pdf_name(match.group()) for match in _PDF_NAME_TOKEN.finditer(data)}
 
 
 def _resolve_command(name: str) -> str:
@@ -152,8 +165,12 @@ def _pdf_security_scan(
         source_data = admitted.path.read_bytes()
     except OSError as error:
         raise DocumentExtractionError("PDF could not be read during security inspection") from error
-    if _contains_javascript_action(source_data):
-        raise UnsafeDocumentError("PDF JavaScript is not supported")
+    names = _pdf_names(source_data)
+    if b"Encrypt" in names:
+        raise EncryptedDocumentError("Encrypted PDFs are not supported")
+    for action_name, description in _UNSAFE_PDF_ACTIONS.items():
+        if action_name in names:
+            raise UnsafeDocumentError(f"PDF {description} is not supported")
     javascript = _run(
         runner,
         [_resolve_command("pdfinfo"), "-js", str(admitted.path)],

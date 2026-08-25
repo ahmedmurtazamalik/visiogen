@@ -4,8 +4,8 @@ import hashlib
 import json
 from pathlib import Path
 
-from PIL import Image
 import pytest
+from PIL import Image
 
 from visiogen.analysis.errors import ImagePreparationError
 from visiogen.analysis.models import CandidateDecision
@@ -138,3 +138,45 @@ def test_preparation_rejects_an_asset_changed_after_snapshot(tmp_path: Path) -> 
         prepare_diagram_candidates(snapshot, discovery, bundle, output)
 
     assert not output.exists()
+
+
+def test_preparation_rejects_mismatched_source_and_unsafe_snapshot_paths(
+    tmp_path: Path,
+) -> None:
+    snapshot, bundle = _snapshot_bundle(tmp_path)
+    discovery = discover_diagram_candidates(snapshot, classifier=CroppingClassifier())
+
+    wrong_discovery = discovery.model_copy(update={"source_id": "different-source"})
+    with pytest.raises(ImagePreparationError, match="different document"):
+        prepare_diagram_candidates(
+            snapshot,
+            wrong_discovery,
+            bundle,
+            tmp_path / "wrong-source",
+        )
+
+    real_bundle = tmp_path / "real-snapshot"
+    bundle.rename(real_bundle)
+    bundle.symlink_to(real_bundle, target_is_directory=True)
+    with pytest.raises(ImagePreparationError, match="real directory"):
+        prepare_diagram_candidates(
+            snapshot,
+            discovery,
+            bundle,
+            tmp_path / "unsafe-source",
+        )
+
+
+def test_preparation_rejects_invalid_derivative_dimensions(tmp_path: Path) -> None:
+    snapshot, bundle = _snapshot_bundle(tmp_path)
+    discovery = discover_diagram_candidates(snapshot, classifier=CroppingClassifier())
+
+    with pytest.raises(ValueError, match="dimensions or overlap"):
+        prepare_diagram_candidates(
+            snapshot,
+            discovery,
+            bundle,
+            tmp_path / "invalid",
+            tile_edge=128,
+            tile_overlap=128,
+        )

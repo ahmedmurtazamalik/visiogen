@@ -157,5 +157,7 @@ and decoded-image pixel limits.
 
 Phase A0 is complete. The product boundary, unsupported behavior, confidence model,
 selection behavior, resource limits, evidence rules, dependency policy, and fixture
-matrix are frozen above. Phase A1 may refine implementation details without
-silently expanding this scope.
+matrix are frozen above. The machine-readable fixture charter also records the
+expected disposition of every unsupported construct and the numeric reviewer rubric,
+so later phases cannot pass by omitting an adverse case or weakening a threshold.
+Phase A1 may refine implementation details without silently expanding this scope.

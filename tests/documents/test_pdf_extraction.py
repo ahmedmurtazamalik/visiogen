@@ -1,7 +1,6 @@
 """Real Poppler acceptance for deterministic PDF text and page rendering."""
 
 import json
-import shutil
 from pathlib import Path
 
 import pytest
@@ -10,18 +9,14 @@ from fixture_builders import write_text_pdf
 from visiogen.documents.errors import (
     DocumentLimitExceededError,
     DocumentRenderError,
+    EncryptedDocumentError,
     UnsafeDocumentError,
 )
 from visiogen.documents.extractor import extract_document
 from visiogen.documents.safety import DocumentSafetyLimits
 
-POPPLER_AVAILABLE = all(
-    shutil.which(command) for command in ("pdfinfo", "pdfdetach", "pdftotext", "pdftoppm")
-)
-
 
 @pytest.mark.integration
-@pytest.mark.skipif(not POPPLER_AVAILABLE, reason="Poppler commands are not installed")
 def test_extract_pdf_writes_coordinate_text_and_real_page_render(tmp_path: Path) -> None:
     source = write_text_pdf(tmp_path / "diagram.pdf")
     output = tmp_path / "evidence"
@@ -46,7 +41,6 @@ def test_extract_pdf_writes_coordinate_text_and_real_page_render(tmp_path: Path)
 
 
 @pytest.mark.integration
-@pytest.mark.skipif(not POPPLER_AVAILABLE, reason="Poppler commands are not installed")
 def test_extract_pdf_rejects_javascript_and_malformed_sources(tmp_path: Path) -> None:
     javascript = write_text_pdf(tmp_path / "javascript.pdf", javascript=True)
     with pytest.raises(UnsafeDocumentError, match="JavaScript"):
@@ -61,7 +55,6 @@ def test_extract_pdf_rejects_javascript_and_malformed_sources(tmp_path: Path) ->
 
 
 @pytest.mark.integration
-@pytest.mark.skipif(not POPPLER_AVAILABLE, reason="Poppler commands are not installed")
 def test_extract_pdf_enforces_render_pixel_preflight(tmp_path: Path) -> None:
     source = write_text_pdf(tmp_path / "large-render.pdf")
 
@@ -71,5 +64,44 @@ def test_extract_pdf_enforces_render_pixel_preflight(tmp_path: Path) -> None:
             tmp_path / "evidence",
             limits=DocumentSafetyLimits(max_image_pixels=1_000),
         )
+
+    assert not (tmp_path / "evidence").exists()
+
+
+@pytest.mark.integration
+def test_extract_pdf_surfaces_missing_native_text_without_skipping_render(
+    tmp_path: Path,
+) -> None:
+    source = write_text_pdf(tmp_path / "image-only.pdf", text="")
+
+    snapshot = extract_document(source, tmp_path / "evidence")
+
+    assert snapshot.text_blocks == []
+    assert len(snapshot.visual_assets) == 1
+    assert {warning.code for warning in snapshot.warnings} == {"no_native_pdf_text"}
+    assert snapshot.coverage.native_text == "complete"
+    assert snapshot.coverage.rendered_pages == "complete"
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    ("kwargs", "error_type", "message"),
+    [
+        ({"attachment": True}, UnsafeDocumentError, "embedded files"),
+        ({"encrypted": True}, EncryptedDocumentError, "Encrypted"),
+        ({"action": "launch"}, UnsafeDocumentError, "launch action"),
+        ({"action": "external_uri"}, UnsafeDocumentError, "external URI"),
+    ],
+)
+def test_extract_pdf_rejects_active_external_and_encrypted_content(
+    tmp_path: Path,
+    kwargs: dict[str, object],
+    error_type: type[Exception],
+    message: str,
+) -> None:
+    source = write_text_pdf(tmp_path / "unsafe.pdf", **kwargs)
+
+    with pytest.raises(error_type, match=message):
+        extract_document(source, tmp_path / "evidence")
 
     assert not (tmp_path / "evidence").exists()

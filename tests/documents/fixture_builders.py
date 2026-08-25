@@ -6,7 +6,6 @@ import base64
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
 
-
 PNG_1X1 = base64.b64decode(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
 )
@@ -17,17 +16,16 @@ def write_text_pdf(
     text: str = "Sensor to Processor",
     *,
     javascript: bool = False,
+    action: str | None = None,
+    attachment: bool = False,
+    encrypted: bool = False,
 ) -> Path:
     """Write one valid Helvetica text page without third-party fixture tooling."""
 
     escaped = text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
     stream = f"BT /F1 18 Tf 72 720 Td ({escaped}) Tj ET\n".encode("ascii")
-    catalog = b"<< /Type /Catalog /Pages 2 0 R"
-    if javascript:
-        catalog += b" /OpenAction 6 0 R"
-    catalog += b" >>"
     objects = [
-        catalog,
+        b"",
         b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
         (
             b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] "
@@ -36,8 +34,46 @@ def write_text_pdf(
         b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
         b"<< /Length " + str(len(stream)).encode("ascii") + b" >>\nstream\n" + stream + b"endstream",
     ]
-    if javascript:
-        objects.append(b"<< /S /JavaScript /JS (app.alert('unsafe')) >>")
+    catalog = b"<< /Type /Catalog /Pages 2 0 R"
+    next_number = 6
+    if javascript or action:
+        catalog += f" /OpenAction {next_number} 0 R".encode()
+        if javascript:
+            objects.append(b"<< /S /JavaScript /JS (app.alert('unsafe')) >>")
+        elif action == "launch":
+            objects.append(b"<< /S /Launch /F (unsafe.bin) >>")
+        elif action == "external_uri":
+            objects.append(b"<< /S /URI /URI (https://example.invalid/) >>")
+        else:
+            raise ValueError(f"Unknown PDF fixture action: {action}")
+        next_number += 1
+    if attachment:
+        specification_number = next_number
+        stream_number = next_number + 1
+        catalog += (
+            b" /Names << /EmbeddedFiles << /Names [(payload.txt) "
+            + f"{specification_number} 0 R".encode()
+            + b"] >> >>"
+        )
+        objects.append(
+            b"<< /Type /Filespec /F (payload.txt) /EF << /F "
+            + f"{stream_number} 0 R".encode()
+            + b" >> >>"
+        )
+        payload = b"unsafe attachment"
+        objects.append(
+            b"<< /Type /EmbeddedFile /Length "
+            + str(len(payload)).encode()
+            + b" >>\nstream\n"
+            + payload
+            + b"\nendstream"
+        )
+        next_number += 2
+    encrypt_number = None
+    if encrypted:
+        encrypt_number = next_number
+        objects.append(b"<< /Filter /Standard /V 1 /R 2 /O () /U () /P -4 >>")
+    objects[0] = catalog + b" >>"
     content = bytearray(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n")
     offsets = [0]
     for number, value in enumerate(objects, start=1):
@@ -50,12 +86,11 @@ def write_text_pdf(
     content.extend(b"0000000000 65535 f \n")
     for offset in offsets[1:]:
         content.extend(f"{offset:010d} 00000 n \n".encode("ascii"))
-    content.extend(
-        (
-            f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\n"
-            f"startxref\n{xref}\n%%EOF\n"
-        ).encode("ascii")
-    )
+    trailer = f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R"
+    if encrypt_number is not None:
+        trailer += f" /Encrypt {encrypt_number} 0 R"
+    trailer += f" >>\nstartxref\n{xref}\n%%EOF\n"
+    content.extend(trailer.encode("ascii"))
     path.write_bytes(content)
     return path
 

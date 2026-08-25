@@ -3,9 +3,11 @@
 import hashlib
 from pathlib import Path
 
+import pytest
 from PIL import Image, ImageDraw
 
 from visiogen.analysis.deduplication import find_embedded_page_duplicates
+from visiogen.analysis.errors import ImagePreparationError
 from visiogen.analysis.selection import discover_diagram_candidates
 from visiogen.documents.models import (
     CoverageReport,
@@ -13,6 +15,7 @@ from visiogen.documents.models import (
     SourceLocation,
     VisualAsset,
 )
+from visiogen.documents.safety import DocumentSafetyLimits
 
 
 def _diagram() -> Image.Image:
@@ -116,3 +119,16 @@ def test_perceptual_match_rejects_an_unrelated_chart(tmp_path: Path) -> None:
     snapshot.visual_assets = [snapshot.visual_assets[0], snapshot.visual_assets[2]]
 
     assert find_embedded_page_duplicates(snapshot, bundle) == ()
+
+
+def test_perceptual_matching_enforces_comparison_budget_before_decoding(
+    tmp_path: Path,
+) -> None:
+    snapshot, bundle = _snapshot(tmp_path)
+
+    with pytest.raises(ImagePreparationError, match="comparison limit"):
+        find_embedded_page_duplicates(
+            snapshot,
+            bundle,
+            limits=DocumentSafetyLimits(max_perceptual_comparisons=1),
+        )

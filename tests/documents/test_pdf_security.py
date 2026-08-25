@@ -2,7 +2,7 @@
 
 import pytest
 
-from visiogen.documents.pdf import _contains_javascript_action
+from visiogen.documents.pdf import _contains_javascript_action, _pdf_names
 
 
 @pytest.mark.parametrize(
@@ -20,3 +20,9 @@ def test_javascript_action_detection_decodes_pdf_name_escapes(
     expected: bool,
 ) -> None:
     assert _contains_javascript_action(content) is expected
+
+
+def test_pdf_name_preflight_exposes_obfuscated_unsafe_actions() -> None:
+    names = _pdf_names(b"<< /S /Lau#6Ech /Next << /S /U#52I >> >>")
+
+    assert {b"Launch", b"URI"} <= names

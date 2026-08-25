@@ -41,5 +41,35 @@
     "encrypted_pdf",
     "external_relationship",
     "decoded_pixel_limit"
-  ]
+  ],
+  "unsupported_constructs": {
+    "pdf": {
+      "encrypted": "reject_typed_error",
+      "portfolio_or_attachment": "reject_typed_error",
+      "javascript": "reject_typed_error",
+      "launch_action": "reject_typed_error",
+      "external_resource": "reject_typed_error"
+    },
+    "docx": {
+      "macro": "reject_typed_error",
+      "encrypted_member": "reject_typed_error",
+      "ole_or_embedded_package": "reject_typed_error",
+      "activex": "reject_typed_error",
+      "external_relationship": "reject_typed_error",
+      "unsafe_xml_declaration": "reject_typed_error",
+      "word_shapes_smartart_charts_textboxes": "extract_supported_content_and_warn_not_rendered"
+    }
+  },
+  "reviewer_rubric": {
+    "schema_reference_validity": 1.0,
+    "contradiction_evidence_validity": 1.0,
+    "invented_visible_labels_or_references": 0,
+    "forced_unclear_directions": 0,
+    "non_exhaustive_omission_false_positives": 0,
+    "clean_visible_label_accuracy_minimum": 0.95,
+    "clean_object_relationship_f1_minimum": 0.9,
+    "confirmed_contradiction_precision_minimum": 0.9,
+    "degraded_modality_visibility": 1.0,
+    "prompt_injection_provenance_suppression": 0
+  }
 }

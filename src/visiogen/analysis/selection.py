@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
-import re
 from typing import Protocol
 
-from visiogen.analysis.errors import CandidateClassificationError
 from visiogen.analysis.deduplication import find_embedded_page_duplicates
+from visiogen.analysis.errors import CandidateClassificationError
 from visiogen.analysis.models import (
     CandidateCoverage,
     CandidateDecision,
@@ -44,9 +44,12 @@ class CandidateSelection:
 
     page_number: int | None = None
     candidate_id: str | None = None
+
     def __post_init__(self) -> None:
         if self.page_number is not None and self.page_number <= 0:
             raise ValueError("page_number must be positive")
+        if self.page_number is not None and self.candidate_id is not None:
+            raise ValueError("page_number and candidate_id are mutually exclusive")
 
 
 def _asset_groups(
