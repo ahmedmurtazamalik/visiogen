@@ -10,8 +10,8 @@ directions:
 
 The generation pipeline is implemented. Document analysis has completed safe
 deterministic PDF/DOCX ingestion and accepted diagram discovery/image preparation;
-visual semantic reconstruction is the next phase. The public `visiogen analyze`
-command is not implemented yet.
+visual observation and semantic reconstruction are under development. The public
+`visiogen analyze` command is not implemented yet.
 
 The supported generation targets are flowcharts, system and architecture diagrams,
 and abstract component or patent-oriented schematics. Visiogen produces editable

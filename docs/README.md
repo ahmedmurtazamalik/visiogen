@@ -14,6 +14,7 @@ organized here by purpose.
 - [Frozen document-analysis MVP contract](analysis/MVP_CONTRACT.md)
 - [Deterministic PDF/DOCX ingestion](analysis/DOCUMENT_INGESTION.md)
 - [Diagram discovery and image preparation](analysis/DIAGRAM_DISCOVERY.md)
+- [Visual observation and semantic reconstruction](analysis/VISUAL_SEMANTICS.md)
 
 ## Development
 

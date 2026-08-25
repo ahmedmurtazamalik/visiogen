@@ -1121,6 +1121,13 @@ fixture set, and every accepted/ignored candidate has a recorded reason.
 
 ### Phase A3 — Visual observation and semantic reconstruction
 
+**Status:** In progress. Strict observation and semantic models, deterministic
+tile-to-source transforms, hard evidence/reference/anti-invention validation,
+overview-plus-tiles calls, one bounded repair per stage, complete call traces, and
+the four-call candidate budget are implemented. Controlled semantic fixtures and
+real-provider accuracy acceptance remain open. See
+[`../../analysis/VISUAL_SEMANTICS.md`](../../analysis/VISUAL_SEMANTICS.md).
+
 **Goal:** Produce a strict, evidence-grounded diagram model from images.
 
 Files:
