@@ -51,6 +51,7 @@ Limits are configuration values, not scattered constants:
 | Pixels in one decoded/rendered image | 40 million |
 | Total rendered pixels per document | 500 million |
 | Automatically analyzed diagram candidates | 8 |
+| Embedded/page perceptual duplicate comparisons | 64 |
 | Tiles per diagram candidate | 24 |
 | Model calls per diagram candidate | 4 |
 

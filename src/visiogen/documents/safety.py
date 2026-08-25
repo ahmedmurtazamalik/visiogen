@@ -28,6 +28,7 @@ class DocumentSafetyLimits:
     max_image_pixels: int = 40_000_000
     max_total_rendered_pixels: int = 500_000_000
     max_diagram_candidates: int = 8
+    max_perceptual_comparisons: int = 64
     max_tiles_per_candidate: int = 24
     max_model_calls_per_candidate: int = 4
     external_command_timeout_seconds: float = 120.0
