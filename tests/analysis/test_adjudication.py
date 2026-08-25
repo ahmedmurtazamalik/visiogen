@@ -11,7 +11,7 @@ from visiogen.analysis.adjudication import (
     apply_adjudication_decision,
     build_adjudication_request,
 )
-from visiogen.analysis.claims import DocumentClaimBatch, TextClaimEvidence
+from visiogen.analysis.claims import DocumentClaimBatch
 from visiogen.analysis.comparison import ConsistencyFinding
 from visiogen.analysis.semantics import AnalyzedDiagram
 from visiogen.providers.base import ProviderResponse
@@ -144,8 +144,11 @@ def test_workflow_never_permits_model_confirmed_contradiction() -> None:
         }
     )
 
-    with pytest.raises(AdjudicationWorkflowError):
+    with pytest.raises(AdjudicationWorkflowError) as captured:
         StructuredAdjudicationWorkflow(FakeCall([invalid, invalid])).adjudicate(request)
+
+    assert len(captured.value.traces) == 2
+    assert captured.value.validation_error
 
 
 def test_decision_updates_only_review_fields_and_preserves_evidence() -> None:
@@ -159,3 +162,38 @@ def test_decision_updates_only_review_fields_and_preserves_evidence() -> None:
     assert updated.text_claim == finding.text_claim
     assert updated.diagram_evidence_ids == finding.diagram_evidence_ids
     assert updated.text_evidence_ids == finding.text_evidence_ids
+
+
+def test_request_rejects_missing_or_cross_candidate_evidence() -> None:
+    finding, diagram, batch = _sources()
+    finding.diagram_evidence_ids = ["evidence-9999"]
+
+    with pytest.raises(ValueError, match="unavailable evidence"):
+        build_adjudication_request(finding, diagram, batch)
+
+    finding.diagram_evidence_ids = ["evidence-0001"]
+    batch.candidate_id = "candidate-0002"
+    with pytest.raises(ValueError, match="different candidate IDs"):
+        build_adjudication_request(finding, diagram, batch)
+
+
+def test_annotation_evidence_is_available_to_bounded_adjudication() -> None:
+    finding, diagram, batch = _sources()
+    payload = diagram.model_dump(mode="json")
+    payload["annotations"] = [
+        {
+            "id": "annotation-0001",
+            "kind": "callout",
+            "visible_text": "DB stores records",
+            "attached_object_ids": ["object-0001"],
+            "bbox": {"left": 0.3, "top": 0.1, "right": 0.6, "bottom": 0.2},
+            "evidence_ids": ["evidence-0002"],
+            "confidence": "high",
+        }
+    ]
+    diagram = AnalyzedDiagram.model_validate(payload)
+    finding.diagram_evidence_ids = ["evidence-0002"]
+
+    request = build_adjudication_request(finding, diagram, batch)
+
+    assert "DB stores records" in request.model_dump_json()

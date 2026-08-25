@@ -4,8 +4,14 @@ from __future__ import annotations
 
 from pydantic import Field, ValidationError
 
-from visiogen.analysis.claim_prompts import build_claim_prompt, build_claim_repair_prompt
-from visiogen.analysis.claim_validation import ClaimValidationError, validate_document_claims
+from visiogen.analysis.claim_prompts import (
+    build_claim_prompt,
+    build_claim_repair_prompt,
+)
+from visiogen.analysis.claim_validation import (
+    ClaimValidationError,
+    validate_document_claims,
+)
 from visiogen.analysis.claims import DocumentClaimBatch, TextSelection
 from visiogen.analysis.models import AnalysisModel
 from visiogen.providers.base import ProviderResponse, StructuredModelCall
@@ -26,7 +32,18 @@ class ClaimExtractionResult(AnalysisModel):
 
 
 class ClaimExtractionWorkflowError(ValueError):
-    pass
+    """Claim extraction failed with retained bounded-call evidence."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        traces: list[ClaimCallTrace] | None = None,
+        validation_error: str | None = None,
+    ) -> None:
+        self.traces = tuple(traces or [])
+        self.validation_error = validation_error
+        super().__init__(message)
 
 
 class StructuredClaimExtractionWorkflow:
@@ -63,7 +80,9 @@ class StructuredClaimExtractionWorkflow:
             except (ValidationError, ClaimValidationError) as error:
                 if attempt == 2:
                     raise ClaimExtractionWorkflowError(
-                        f"Document claims are invalid after one repair attempt: {error}"
+                        f"Document claims are invalid after one repair attempt: {error}",
+                        traces=traces,
+                        validation_error=str(error),
                     ) from error
                 user_prompt = build_claim_repair_prompt(
                     selection_json,

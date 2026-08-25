@@ -166,3 +166,42 @@ def test_explicit_selection_rejects_unknown_blocks() -> None:
         assert "unknown block" in str(error)
     else:
         raise AssertionError("unknown explicit block was accepted")
+
+
+def test_selection_uses_title_and_relationship_labels_with_token_boundaries() -> None:
+    snapshot = _snapshot().model_copy(
+        update={
+            "text_blocks": [
+                _block("text-0001", "Control architecture is detailed below.", 0),
+                _block("text-0002", "The commands path is mandatory.", 1),
+                _block("text-0003", "A Biosensor is discussed elsewhere.", 2),
+            ]
+        }
+    )
+    payload = _diagram().model_dump(mode="json")
+    payload["title"] = "Control architecture"
+    payload["title_evidence_ids"] = ["evidence-0001"]
+    payload["objects"][0]["visible_label"] = "Sensor"
+    payload["objects"][0]["normalized_label"] = "sensor"
+    payload["relationships"] = [
+        {
+            "id": "relationship-0001",
+            "source_id": "object-0001",
+            "target_id": "object-0002",
+            "source_certainty": "known",
+            "target_certainty": "known",
+            "direction": "forward",
+            "relation": "control",
+            "visible_label": "commands",
+            "normalized_label": "commands",
+            "path": [{"x": 0.3, "y": 0.3}, {"x": 0.6, "y": 0.3}],
+            "line_style": "solid",
+            "evidence_ids": ["evidence-0002"],
+            "confidence": "high",
+        }
+    ]
+
+    selection = select_relevant_text(snapshot, AnalyzedDiagram.model_validate(payload))
+
+    assert [item.block_id for item in selection.blocks] == ["text-0001", "text-0002"]
+    assert all(item.reasons == ["label_match"] for item in selection.blocks)

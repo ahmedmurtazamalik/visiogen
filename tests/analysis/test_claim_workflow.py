@@ -5,9 +5,19 @@ import json
 import pytest
 
 from visiogen.analysis.alignment import align_claim_entities
-from visiogen.analysis.claim_validation import ClaimValidationError, validate_document_claims
-from visiogen.analysis.claim_workflow import StructuredClaimExtractionWorkflow
-from visiogen.analysis.claims import DocumentClaimBatch, SelectedTextBlock, TextSelection
+from visiogen.analysis.claim_validation import (
+    ClaimValidationError,
+    validate_document_claims,
+)
+from visiogen.analysis.claim_workflow import (
+    ClaimExtractionWorkflowError,
+    StructuredClaimExtractionWorkflow,
+)
+from visiogen.analysis.claims import (
+    DocumentClaimBatch,
+    SelectedTextBlock,
+    TextSelection,
+)
 from visiogen.analysis.semantics import AnalyzedDiagram
 from visiogen.documents.models import SourceLocation
 from visiogen.providers.base import ProviderResponse
@@ -139,11 +149,32 @@ def test_claim_workflow_repairs_bad_span_without_diagram_context() -> None:
     assert result.claims.claims[1].modality == "required"
 
 
+def test_claim_workflow_retains_both_failed_call_traces() -> None:
+    caller = FakeCall([_response(bad_span=True), _response(bad_span=True)])
+
+    with pytest.raises(ClaimExtractionWorkflowError) as captured:
+        StructuredClaimExtractionWorkflow(caller).extract(_selection())
+
+    assert len(captured.value.traces) == 2
+    assert captured.value.validation_error
+    assert "exact source span" in captured.value.validation_error
+
+
 def test_claim_validation_rejects_unselected_or_inexact_evidence() -> None:
     batch = DocumentClaimBatch.model_validate_json(_response())
     batch.evidence[0].block_id = "text-9999"
 
     with pytest.raises(ClaimValidationError, match="unselected block"):
+        validate_document_claims(batch, _selection())
+
+
+def test_claim_validation_rejects_entities_absent_from_cited_evidence() -> None:
+    payload = json.loads(_response())
+    payload["claims"][1]["subject_text"] = "Controller 99"
+    payload["claims"][1]["normalized_subject"] = "controller 99"
+    batch = DocumentClaimBatch.model_validate(payload)
+
+    with pytest.raises(ClaimValidationError, match="subject is absent"):
         validate_document_claims(batch, _selection())
 
 
@@ -177,3 +208,16 @@ def test_alignment_prefers_reference_then_alias_and_retains_unresolved_short_lab
     validated.claims[1].normalized_subject = "x"
     unresolved = align_claim_entities(validated, _diagram()).alignments
     assert next(item for item in unresolved if item.claim_id == "claim-0002").method == "unresolved"
+
+
+def test_uncertain_or_ambiguous_alias_cannot_resolve_later_claims() -> None:
+    payload = json.loads(_response())
+    payload["claims"][0]["modality"] = "possible"
+    batch = validate_document_claims(DocumentClaimBatch.model_validate(payload), _selection())
+
+    by_key = {
+        (item.claim_id, item.entity_role): item
+        for item in align_claim_entities(batch, _diagram()).alignments
+    }
+
+    assert by_key[("claim-0002", "subject")].method == "unresolved"

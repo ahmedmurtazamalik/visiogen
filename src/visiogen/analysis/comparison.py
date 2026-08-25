@@ -15,7 +15,11 @@ from visiogen.analysis.claims import (
     EntityAlignmentSet,
 )
 from visiogen.analysis.models import AnalysisModel, Confidence
-from visiogen.analysis.semantics import AnalyzedDiagram, AnalyzedObject, AnalyzedRelationship
+from visiogen.analysis.semantics import (
+    AnalyzedDiagram,
+    AnalyzedObject,
+    AnalyzedRelationship,
+)
 
 FindingCategory = Literal[
     "label",
@@ -187,6 +191,58 @@ def _contains(outer: AnalyzedObject, inner: AnalyzedObject) -> bool:
 
 def _alignment_map(alignments: EntityAlignmentSet) -> dict[tuple[str, str], EntityAlignment]:
     return {(item.claim_id, item.entity_role): item for item in alignments.alignments}
+
+
+def _validate_alignment_references(
+    diagram: AnalyzedDiagram,
+    batch: DocumentClaimBatch,
+    alignments: EntityAlignmentSet,
+) -> None:
+    """Reject incomplete or cross-wired alignment inputs before comparison."""
+
+    claims = {item.id: item for item in batch.claims}
+    object_ids = {item.id for item in diagram.objects}
+    expected: set[tuple[str, str]] = set()
+    for claim in batch.claims:
+        if claim.predicate not in {"figure_title", "figure_purpose"}:
+            expected.add((claim.id, "subject"))
+        if claim.predicate in {"alias", "contains", "connects_to", "sequence"}:
+            expected.add((claim.id, "object"))
+    actual = {(item.claim_id, item.entity_role) for item in alignments.alignments}
+    errors = []
+    if missing := expected - actual:
+        errors.append(f"Missing entity alignments {sorted(missing)}")
+    if extra := actual - expected:
+        errors.append(f"Unexpected entity alignments {sorted(extra)}")
+    for alignment in alignments.alignments:
+        claim = claims.get(alignment.claim_id)
+        if claim is None:
+            continue
+        expected_text = (
+            claim.subject_text if alignment.entity_role == "subject" else claim.object_text
+        )
+        expected_normalized = (
+            claim.normalized_subject
+            if alignment.entity_role == "subject"
+            else claim.normalized_object
+        )
+        if alignment.entity_text != expected_text or alignment.normalized_entity != expected_normalized:
+            errors.append(
+                f"Alignment for {(alignment.claim_id, alignment.entity_role)!r} "
+                "does not match its claim entity"
+            )
+        if set(alignment.evidence_ids) != set(claim.evidence_ids):
+            errors.append(
+                f"Alignment for {(alignment.claim_id, alignment.entity_role)!r} "
+                "does not preserve claim evidence"
+            )
+        if alignment.object_id is not None and alignment.object_id not in object_ids:
+            errors.append(
+                f"Alignment for {(alignment.claim_id, alignment.entity_role)!r} "
+                f"references unknown object {alignment.object_id!r}"
+            )
+    if errors:
+        raise ValueError("; ".join(errors))
 
 
 def _confidence_for(*values: Confidence) -> Confidence:
@@ -926,7 +982,13 @@ def _validate_finding_references(
     batch: DocumentClaimBatch,
 ) -> None:
     diagram_evidence = set(diagram.title_evidence_ids)
-    for collection in (diagram.objects, diagram.relationships, diagram.groups, diagram.legends):
+    for collection in (
+        diagram.objects,
+        diagram.relationships,
+        diagram.groups,
+        diagram.legends,
+        diagram.annotations,
+    ):
         for item in collection:
             diagram_evidence.update(item.evidence_ids)
     text_evidence = {item.id for item in batch.evidence}
@@ -957,22 +1019,26 @@ def compare_diagram_and_claims(
     candidate_ids = {diagram.candidate_id, batch.candidate_id, alignments.candidate_id}
     if len(candidate_ids) != 1:
         raise ValueError("Diagram, claim batch, and alignments must share a candidate ID")
+    _validate_alignment_references(diagram, batch, alignments)
     builder = _FindingBuilder()
     _diagram_internal_findings(diagram, builder)
     _compare_claims(diagram, batch, alignments, builder)
 
     # Strict coverage is intentionally inert without evidence-bearing exhaustive
     # claims. A user policy alone cannot manufacture a text citation.
-    exhaustive_claims = [claim for claim in batch.claims if claim.exhaustive]
-    aligned = {
+    exhaustive_object_claims = [
+        claim for claim in batch.claims if claim.exhaustive and claim.predicate == "exists"
+    ]
+    aligned_objects = {
         item.object_id
         for item in alignments.alignments
-        if item.object_id is not None and any(claim.id == item.claim_id for claim in exhaustive_claims)
+        if item.object_id is not None
+        and any(claim.id == item.claim_id for claim in exhaustive_object_claims)
     }
-    if exhaustive_claims and (strict_coverage or any(claim.exhaustive for claim in exhaustive_claims)):
-        anchor = exhaustive_claims[0]
+    if exhaustive_object_claims:
+        anchor = exhaustive_object_claims[0]
         for item in diagram.objects:
-            if item.id not in aligned:
+            if item.id not in aligned_objects:
                 builder.add(
                     category="exhaustive_scope",
                     status="possible_omission",
@@ -985,6 +1051,52 @@ def compare_diagram_and_claims(
                     explanation="The visible object is not represented in the exhaustive textual inventory.",
                     confidence=_confidence_for(item.confidence, anchor.confidence),
                     review_action="Determine whether the inventory or diagram should include this component.",
+                )
+
+    exhaustive_relationship_claims = [
+        claim
+        for claim in batch.claims
+        if claim.exhaustive and claim.predicate in {"connects_to", "sequence"}
+    ]
+    if exhaustive_relationship_claims:
+        alignment_map = _alignment_map(alignments)
+        represented: set[frozenset[str]] = set()
+        for claim in exhaustive_relationship_claims:
+            subject, _ = _resolved_object(claim.id, "subject", alignment_map, {
+                item.id: item for item in diagram.objects
+            })
+            target, _ = _resolved_object(claim.id, "object", alignment_map, {
+                item.id: item for item in diagram.objects
+            })
+            if subject is not None and target is not None:
+                represented.add(frozenset((subject.id, target.id)))
+        anchor = exhaustive_relationship_claims[0]
+        objects = {item.id: item for item in diagram.objects}
+        for relationship in diagram.relationships:
+            endpoints = frozenset(
+                item
+                for item in (relationship.source_id, relationship.target_id)
+                if item is not None
+            )
+            if len(endpoints) == 2 and endpoints not in represented:
+                builder.add(
+                    category="exhaustive_scope",
+                    status="possible_omission",
+                    severity="warning",
+                    diagram_fact=_relationship_fact(relationship, objects),
+                    text_claim=_claim_proposition(anchor),
+                    claim_id=anchor.id,
+                    diagram_evidence_ids=relationship.evidence_ids,
+                    text_evidence_ids=anchor.evidence_ids,
+                    explanation=(
+                        "The visible relationship is not represented in the exhaustive "
+                        "textual relationship inventory."
+                    ),
+                    confidence=_confidence_for(relationship.confidence, anchor.confidence),
+                    review_action=(
+                        "Determine whether the relationship inventory or diagram should "
+                        "include this connection."
+                    ),
                 )
 
     analysis = ConsistencyAnalysis(

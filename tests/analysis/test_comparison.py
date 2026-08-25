@@ -235,6 +235,46 @@ def test_exhaustive_claim_flags_only_unaligned_objects_as_possible_omissions() -
     assert {item.diagram_fact.subject for item in omissions} == {"processor 20", "archive 30"}
 
 
+def test_exhaustive_relationship_scope_flags_only_unlisted_relationships() -> None:
+    payload = _diagram(extra=True).model_dump(mode="json")
+    payload["relationships"].append(
+        {
+            "id": "relationship-0002",
+            "source_id": "object-0002",
+            "target_id": "object-0003",
+            "source_certainty": "known",
+            "target_certainty": "known",
+            "direction": "forward",
+            "relation": "data",
+            "path": [{"x": 0.6, "y": 0.3}, {"x": 0.7, "y": 0.3}],
+            "line_style": "solid",
+            "evidence_ids": ["evidence-0005"],
+            "confidence": "high",
+        }
+    )
+    diagram = AnalyzedDiagram.model_validate(payload)
+    claim = _claim(exhaustive=True)
+    batch, alignments = _inputs(diagram, claim)
+
+    result = compare_diagram_and_claims(diagram, batch, alignments)
+
+    omissions = [item for item in result.findings if item.status == "possible_omission"]
+    assert len(omissions) == 1
+    assert omissions[0].diagram_evidence_ids == ["evidence-0005"]
+    assert omissions[0].diagram_fact.predicate == "connects_to"
+
+
+def test_comparison_rejects_incomplete_or_cross_wired_alignments() -> None:
+    diagram = _diagram()
+    claim = _claim()
+    batch, alignments = _inputs(diagram, claim)
+    alignments.alignments.pop()
+    alignments.alignments[0].evidence_ids = ["text-evidence-9999"]
+
+    with pytest.raises(ValueError, match="Missing entity alignments.*preserve claim evidence"):
+        compare_diagram_and_claims(diagram, batch, alignments)
+
+
 def test_confirmed_contradiction_cannot_drop_text_evidence() -> None:
     with pytest.raises(ValidationError, match="evidence from both sources"):
         ConsistencyFinding(

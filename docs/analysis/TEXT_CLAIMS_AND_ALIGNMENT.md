@@ -13,7 +13,8 @@ the A3 diagram interpretation on its first pass.
 - candidate asset anchors and linked captions;
 - bounded neighboring-block proximity;
 - figure-number cross-references;
-- exact visible-label and reference-number matches;
+- token-bounded diagram-title, object-label, connector-label, and reference-number
+  matches;
 - explicit user-selected block IDs;
 - page-region proximity when page coordinates are available.
 
@@ -26,7 +27,9 @@ The structured workflow records exact source spans with block IDs and zero-based
 offsets, atomic predicates, exact and conservatively normalized subjects/objects,
 modality, scope, qualifiers, exhaustive wording, current-figure relevance, confidence,
 and ambiguity. Hard validation rejects spans outside selected blocks, mismatched text,
-unknown evidence, invalid normalization, and incompatible negation/exhaustive scope.
+unknown evidence, entities absent from their cited spans, invalid normalization, and
+incompatible negation/exhaustive scope. Both failed attempts retain their exact traces
+and final validation error.
 
 The selected prose is delimited as untrusted data. One bounded repair may correct only
 schema, IDs, spans, normalization, modality, or scope; it may not introduce new claims.
@@ -37,7 +40,8 @@ Alignment currently applies these layers in order:
 
 1. exact reference numeral;
 2. exact normalized visible label;
-3. explicit alias claims that refer to the current figure;
+3. unambiguous medium/high-confidence asserted or required alias claims that refer to
+   the current figure;
 4. length-sensitive conservative fuzzy matching with a uniqueness margin;
 5. unresolved output with alternatives rather than a forced match.
 

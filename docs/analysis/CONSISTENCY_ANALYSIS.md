@@ -31,12 +31,18 @@ Every finding retains:
 Confirmed contradictions require medium or high confidence and evidence from both
 sources. Low-confidence disagreements are downgraded to probable contradictions.
 Unresolved alignment is never treated as proof that an object is absent.
+Before comparison, the engine rejects missing, extra, cross-wired, unknown-object, or
+evidence-changing alignments. Annotation evidence is recognized by both finding
+validation and bounded adjudication.
 
 ## Omission policy
 
 An unmentioned diagram component is not an omission. `possible_omission` is available
 only when evidence-bearing claims explicitly mark an inventory as exhaustive. Strict
 coverage does not manufacture a text citation when no exhaustive claim exists.
+Object inventories and relationship inventories are scoped independently: exhaustive
+object claims can identify unlisted objects, while exhaustive relationship claims can
+identify unlisted visible connections without creating bogus object omissions.
 
 ## Acceptance
 

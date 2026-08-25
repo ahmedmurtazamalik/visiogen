@@ -84,7 +84,18 @@ class AdjudicationResult(AnalysisModel):
 
 
 class AdjudicationWorkflowError(ValueError):
-    pass
+    """Adjudication failed with retained bounded-call evidence."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        traces: list[AdjudicationTrace] | None = None,
+        validation_error: str | None = None,
+    ) -> None:
+        self.traces = tuple(traces or [])
+        self.validation_error = validation_error
+        super().__init__(message)
 
 
 def _diagram_evidence_content(diagram: AnalyzedDiagram) -> dict[str, str]:
@@ -112,6 +123,13 @@ def _diagram_evidence_content(diagram: AnalyzedDiagram) -> dict[str, str]:
         summary = f"legend symbol={item.symbol!r}; meaning={item.meaning!r}"
         for evidence_id in item.evidence_ids:
             content[evidence_id] = summary
+    for item in diagram.annotations:
+        summary = (
+            f"annotation id={item.id}; kind={item.kind!r}; "
+            f"visible_text={item.visible_text!r}; attached_objects={item.attached_object_ids!r}"
+        )
+        for evidence_id in item.evidence_ids:
+            content[evidence_id] = summary
     if diagram.title is not None:
         for evidence_id in diagram.title_evidence_ids:
             content[evidence_id] = f"visible diagram title={diagram.title!r}"
@@ -127,6 +145,8 @@ def build_adjudication_request(
 
     if finding.text_claim is None:
         raise ValueError("Diagram-internal warnings are not eligible for semantic adjudication")
+    if diagram.candidate_id != batch.candidate_id:
+        raise ValueError("Diagram and claim batch have different candidate IDs")
     diagram_content = _diagram_evidence_content(diagram)
     text_content = {item.id: item.exact_text for item in batch.evidence}
     evidence = [
@@ -147,6 +167,13 @@ def build_adjudication_request(
         for evidence_id in finding.text_evidence_ids
         if evidence_id in text_content
     )
+    missing_diagram = set(finding.diagram_evidence_ids) - set(diagram_content)
+    missing_text = set(finding.text_evidence_ids) - set(text_content)
+    if missing_diagram or missing_text:
+        raise ValueError(
+            "Adjudication finding cites unavailable evidence: "
+            f"diagram={sorted(missing_diagram)}, text={sorted(missing_text)}"
+        )
     return AdjudicationRequest(
         finding_id=finding.id,
         category=finding.category,
@@ -205,7 +232,9 @@ class StructuredAdjudicationWorkflow:
             except (ValidationError, ValueError) as error:
                 if attempt == 2:
                     raise AdjudicationWorkflowError(
-                        f"Adjudication is invalid after one repair attempt: {error}"
+                        f"Adjudication is invalid after one repair attempt: {error}",
+                        traces=traces,
+                        validation_error=str(error),
                     ) from error
                 user_prompt = (
                     "Repair only the schema or finding ID in the previous adjudication. Do not "

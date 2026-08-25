@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from collections import defaultdict
 import re
+from collections import defaultdict
 
-from visiogen.analysis.claims import SelectionReason, SelectedTextBlock, TextSelection
+from visiogen.analysis.claims import SelectedTextBlock, SelectionReason, TextSelection
 from visiogen.analysis.semantics import AnalyzedDiagram
 from visiogen.documents.models import DocumentSnapshot, NormalizedBox, TextBlock
 
@@ -19,9 +19,10 @@ def _normalized(value: str) -> str:
 def _contains_term(text: str, term: str) -> bool:
     normalized_text = _normalized(text)
     normalized_term = _normalized(term)
-    if len(normalized_term) <= 2:
-        return re.search(rf"(?<!\w){re.escape(normalized_term)}(?!\w)", normalized_text) is not None
-    return normalized_term in normalized_text
+    return (
+        re.search(rf"(?<!\w){re.escape(normalized_term)}(?!\w)", normalized_text)
+        is not None
+    )
 
 
 def _near_region(block: TextBlock, pages: set[int], region: NormalizedBox | None) -> bool:
@@ -59,6 +60,11 @@ def select_relevant_text(
     reasons: dict[str, set[SelectionReason]] = defaultdict(set)
     anchors: set[int] = set()
     labels = [item.visible_label for item in diagram.objects if item.visible_label]
+    labels.extend(
+        item.visible_label for item in diagram.relationships if item.visible_label
+    )
+    if diagram.title:
+        labels.append(diagram.title)
     references = [value for item in diagram.objects for value in item.reference_numbers]
 
     for block in snapshot.text_blocks:

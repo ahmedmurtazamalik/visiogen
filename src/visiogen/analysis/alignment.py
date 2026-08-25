@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from difflib import SequenceMatcher
 import re
+from difflib import SequenceMatcher
 
 from visiogen.analysis.claim_validation import normalize_claim_text
 from visiogen.analysis.claims import (
@@ -157,6 +157,9 @@ def align_claim_entities(
             claim.predicate == "alias"
             and claim.normalized_object is not None
             and claim.refers_to_candidate == "yes"
+            and claim.modality in {"asserted", "required"}
+            and claim.confidence in {"high", "medium"}
+            and not claim.ambiguity
         ):
             aliases[claim.normalized_subject] = claim.normalized_object
             aliases[claim.normalized_object] = claim.normalized_subject
