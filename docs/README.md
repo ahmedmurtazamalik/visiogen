@@ -13,6 +13,7 @@ organized here by purpose.
 - [Document-to-diagram analysis](plans/active/DOCUMENT_ANALYSIS.md)
 - [Frozen document-analysis MVP contract](analysis/MVP_CONTRACT.md)
 - [Deterministic PDF/DOCX ingestion](analysis/DOCUMENT_INGESTION.md)
+- [Diagram discovery and image preparation](analysis/DIAGRAM_DISCOVERY.md)
 
 ## Development
 

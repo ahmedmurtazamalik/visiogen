@@ -8,9 +8,9 @@ directions:
 2. **Document analysis:** inspect diagrams in PDF or DOCX documents, describe their
    visible semantics, and compare them with related document text.
 
-The generation pipeline is implemented. Document analysis is the active next
-phase; its package and contributor boundaries are established, but the public
-`visiogen analyze` command is not implemented yet.
+The generation pipeline is implemented. Document analysis has completed safe
+deterministic PDF/DOCX ingestion, and diagram discovery/image preparation is under
+development. The public `visiogen analyze` command is not implemented yet.
 
 The supported generation targets are flowcharts, system and architecture diagrams,
 and abstract component or patent-oriented schematics. Visiogen produces editable

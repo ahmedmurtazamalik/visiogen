@@ -1,6 +1,6 @@
 # Visiogen Document-to-Diagram Analysis Implementation Plan
 
-**Status:** Phases A0-A1 complete; Phase A2 next
+**Status:** Phases A0-A1 complete; Phase A2 in progress
 
 **Date:** 2026-08-24
 
@@ -1088,6 +1088,13 @@ oversized, external-resource, and archive-abuse cases fail or warn exactly as sp
 **Suggested commit:** `Add safe PDF and DOCX document extraction`
 
 ### Phase A2 — Diagram discovery and image preparation
+
+**Status:** In progress. Candidate contracts, exact deduplication, conservative
+mechanical classification, structured multimodal classification, explicit selection,
+bounded crop/overview/tile preparation, and a locally generated reviewed corpus are
+implemented. Perceptual page/embedded deduplication, real-provider metrics, and
+acceptance evidence remain open. See
+[`../../analysis/DIAGRAM_DISCOVERY.md`](../../analysis/DIAGRAM_DISCOVERY.md).
 
 **Goal:** Reliably find and prepare candidate diagrams while excluding obvious
 photographs, charts, and decorative assets.
