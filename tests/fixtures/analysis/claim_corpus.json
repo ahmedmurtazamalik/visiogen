@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "provenance": "Locally authored controlled prose and semantic objects for A5 acceptance.",
+  "cases": [
+    {
+      "id": "required_relationship",
+      "text": "In Figure 1, Sensor 10 must connect to Processor 20.",
+      "objects": [["Sensor 10", "10"], ["Processor 20", "20"]],
+      "expected": [["sensor 10", "connects_to", "processor 20", "required"]]
+    },
+    {
+      "id": "negated_existence",
+      "text": "Camera 30 is not present in Figure 2.",
+      "objects": [["Camera 30", "30"]],
+      "expected": [["camera 30", "not_exists", null, "negated"]]
+    },
+    {
+      "id": "possible_relationship",
+      "text": "Gateway 40 may connect to Service 50 in Figure 3.",
+      "objects": [["Gateway 40", "40"], ["Service 50", "50"]],
+      "expected": [["gateway 40", "connects_to", "service 50", "possible"]]
+    },
+    {
+      "id": "example_scope",
+      "text": "For example, Demo 60 connects to Store 70 in Figure 4.",
+      "objects": [["Demo 60", "60"], ["Store 70", "70"]],
+      "expected": [["demo 60", "connects_to", "store 70", "example"]]
+    },
+    {
+      "id": "explicit_alias",
+      "text": "In Figure 5, Sensor 10 is also called probe. Probe connects to Processor 20.",
+      "objects": [["Sensor 10", "10"], ["Processor 20", "20"]],
+      "expected": [
+        ["sensor 10", "alias", "probe", "asserted"],
+        ["probe", "connects_to", "processor 20", "asserted"]
+      ],
+      "alias_entity": "probe"
+    },
+    {
+      "id": "ambiguous_short_label",
+      "text": "In Figure 6, X connects to Hub 80.",
+      "objects": [["X", null], ["X", null], ["Hub 80", "80"]],
+      "expected": [["x", "connects_to", "hub 80", "asserted"]],
+      "unresolved_entity": "x"
+    },
+    {
+      "id": "exhaustive_inventory",
+      "text": "The complete inventory for Figure 7 consists only of Sensor 10 and Processor 20.",
+      "objects": [["Sensor 10", "10"], ["Processor 20", "20"]],
+      "expected": [],
+      "require_exhaustive": true
+    }
+  ]
+}
