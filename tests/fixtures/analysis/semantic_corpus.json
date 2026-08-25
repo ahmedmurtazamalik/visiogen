@@ -5,7 +5,7 @@
     {
       "id": "branching_flow",
       "generation_kind": "branching_flow",
-      "expected_family": "flowchart",
+      "accepted_families": ["flowchart"],
       "allowed_additional_object_labels": [],
       "objects": [
         {"label": "Start", "references": []},
@@ -23,7 +23,7 @@
     {
       "id": "contained_system",
       "generation_kind": "contained_system",
-      "expected_family": "system_block",
+      "accepted_families": ["system_block"],
       "allowed_additional_object_labels": ["Platform"],
       "objects": [
         {"label": "Client", "references": []},
@@ -39,7 +39,7 @@
     {
       "id": "reference_schematic",
       "generation_kind": "reference_schematic",
-      "expected_family": "component_schematic",
+      "accepted_families": ["component_schematic", "system_block"],
       "allowed_additional_object_labels": [],
       "objects": [
         {"label": "Sensor 10", "references": ["10"]},
@@ -55,7 +55,7 @@
     {
       "id": "crossing_without_junction",
       "generation_kind": "crossing_without_junction",
-      "expected_family": "data_flow",
+      "accepted_families": ["data_flow", "system_block"],
       "allowed_additional_object_labels": [],
       "objects": [
         {"label": "A", "references": []},
@@ -72,7 +72,7 @@
     {
       "id": "dense_tiled",
       "generation_kind": "dense_tiled",
-      "expected_family": "system_block",
+      "accepted_families": ["system_block", "flowchart"],
       "allowed_additional_object_labels": [],
       "objects": [
         {"label": "Node 1", "references": []},
@@ -94,14 +94,14 @@
     {
       "id": "ambiguous_arrow",
       "generation_kind": "ambiguous_arrow",
-      "expected_family": "system_block",
+      "accepted_families": ["system_block"],
       "allowed_additional_object_labels": [],
       "objects": [
-        {"label": "Source", "references": []},
-        {"label": "Target", "references": []}
+        {"label": "Node A", "references": []},
+        {"label": "Node B", "references": []}
       ],
       "relationships": [
-        {"source": "Source", "target": "Target", "direction": "unclear"}
+        {"source": "Node A", "target": "Node B", "direction": "unclear"}
       ],
       "ambiguous_direction": true
     }

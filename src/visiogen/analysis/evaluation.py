@@ -129,7 +129,7 @@ def score_semantic_case(case: dict, diagram: AnalyzedDiagram) -> SemanticCaseSco
         matched_edges=matched_edges,
         endpoint_matched_edges=len(shared_endpoints),
         direction_matched_edges=direction_matches,
-        family_correct=diagram.family == case["expected_family"],
+        family_correct=diagram.family in case["accepted_families"],
         ambiguous_direction_safe=ambiguous_safe,
     )
 

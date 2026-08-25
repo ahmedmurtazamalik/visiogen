@@ -69,7 +69,7 @@ def _diagram() -> AnalyzedDiagram:
 def test_semantic_scoring_counts_exact_objects_references_edges_and_family() -> None:
     case = {
         "id": "case",
-        "expected_family": "system_block",
+        "accepted_families": ["system_block"],
         "allowed_additional_object_labels": [],
         "objects": [
             {"label": "Source", "references": ["10"]},

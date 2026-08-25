@@ -130,13 +130,15 @@ def write_semantic_fixture(path: Path, kind: str) -> Path:
             else:
                 _arrow(draw, start, end)
     elif kind == "ambiguous_arrow":
-        _box(draw, (70, 270, 300, 420), "Source")
-        _box(draw, (700, 270, 930, 420), "Target")
+        _box(draw, (70, 270, 300, 420), "Node A")
+        _box(draw, (700, 270, 930, 420), "Node B")
         draw.line((300, 345, 700, 345), fill=(95, 95, 95), width=5)
         faint = Image.new("RGBA", image.size, (255, 255, 255, 0))
         faint_draw = ImageDraw.Draw(faint)
-        faint_draw.polygon(((690, 345), (662, 327), (662, 363)), fill=(120, 120, 120, 70))
-        faint = faint.filter(ImageFilter.GaussianBlur(radius=8))
+        # Only one damaged side of a possible arrowhead remains.  Reviewers can
+        # see the mark, but cannot safely distinguish direction from damage.
+        faint_draw.line((699, 345, 680, 332), fill=(75, 75, 75, 155), width=5)
+        faint = faint.filter(ImageFilter.GaussianBlur(radius=2))
         image = Image.alpha_composite(image.convert("RGBA"), faint).convert("RGB")
     else:
         raise ValueError(f"Unknown semantic fixture kind: {kind}")
