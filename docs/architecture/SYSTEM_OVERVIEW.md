@@ -39,10 +39,12 @@ reported as partial results rather than silently omitted. Exact logical prompts,
 transport prompts, raw responses, validated stage outputs, source and artifact
 hashes, schema hashes, warnings, and failures are retained for review.
 
-The provisional public command is `visiogen analyze`. Production Codex construction
+The public command is `visiogen analyze`. Production Codex construction
 uses separate strict-output callers for image classification, observation,
 reconstruction, and text-claim extraction. A public Markdown report is kept outside
-the private evidence directory.
+the private evidence directory. The controlled fresh PDF/DOCX vertical slice passed
+through the real `gpt-5.6-sol` provider from clean source; broader held-out quality
+remains a separate acceptance phase.
 
 ## Runtime pipeline
 

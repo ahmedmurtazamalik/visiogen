@@ -53,6 +53,8 @@ the deterministic A6 gate.
 
 This closes the A6 comparison rules, finding contracts and validators, evidence and
 confidence policy, omission safeguards, bounded adjudication boundary, human-readable
-finding sections, controlled matrix, and gate scoring. Phase A7 still needs to wire
-these components into the public multi-candidate analysis pipeline, CLI, and complete
-provenance bundle.
+finding sections, controlled matrix, and gate scoring. At the time of this decision,
+Phase A7 still needed to wire these components into the public multi-candidate
+analysis pipeline, CLI, and complete provenance bundle. That subsequent integration
+is now accepted in
+[`A7_VERTICAL_PIPELINE.md`](A7_VERTICAL_PIPELINE.md).

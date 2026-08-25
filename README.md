@@ -118,7 +118,7 @@ ambiguity across all planned categories with evidence-complete findings and stri
 omission safeguards. See
 [`docs/acceptance/A6_CONSISTENCY.md`](docs/acceptance/A6_CONSISTENCY.md).
 
-The provisional A7 interface is now registered:
+The A7 public interface is available:
 
 ```bash
 uv run visiogen analyze \
@@ -129,9 +129,10 @@ uv run visiogen analyze \
 ```
 
 It publishes an accessible report separately from the private evidence bundle and
-returns a distinct exit code for partial candidate failure. The command is not yet
-release-accepted: fresh real-provider PDF and DOCX vertical acceptance remains part
-of A7.
+returns a distinct exit code for partial candidate failure. Fresh PDF and DOCX
+sources have passed the clean-source, real-`gpt-5.6-sol`, hash-bound vertical gate;
+see [`docs/acceptance/A7_VERTICAL_PIPELINE.md`](docs/acceptance/A7_VERTICAL_PIPELINE.md).
+Broader held-out quality and DOCX rendering scope remain Phase A8.
 
 ## Development
 

@@ -31,6 +31,7 @@ organized here by purpose.
 - [A4 faithful description acceptance](acceptance/A4_FAITHFUL_DESCRIPTION.md)
 - [A5 text claims and alignment acceptance](acceptance/A5_TEXT_CLAIMS.md)
 - [A6 consistency engine acceptance](acceptance/A6_CONSISTENCY.md)
+- [A7 vertical analysis pipeline acceptance](acceptance/A7_VERTICAL_PIPELINE.md)
 - [Hybrid-AI verification record](acceptance/HYBRID_AI.md)
 - [Windows and native Visio procedure](acceptance/WINDOWS_VISIO.md)
 

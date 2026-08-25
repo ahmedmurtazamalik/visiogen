@@ -1,6 +1,6 @@
 # Visiogen Document-to-Diagram Analysis Implementation Plan
 
-**Status:** Phases A0-A6 complete; Phase A7 in progress
+**Status:** Phases A0-A7 complete; Phase A8 next
 
 **Date:** 2026-08-24
 
@@ -1249,15 +1249,17 @@ non-exhaustive omission false positives, and every finding passes evidence valid
 
 ### Phase A7 — Public analysis pipeline, CLI, and provenance
 
-**Implementation status (2026-08-25):** In progress. Provider-injected A1–A6
+**Implementation status (2026-08-25):** Complete. Provider-injected A1–A6
 orchestration, multi-candidate aggregation, explicit partial results, atomic private
 artifact publication, per-candidate stage evidence, aggregate Markdown/JSON output,
 schema hashes, artifact checksums, production Codex vision/claim construction,
 classifier trace retention, public CLI registration, scoped selection options, safe
 report publication, partial-result exit behavior, complete tool/source/timing
 provenance, provider-boundary schema hashes, aggregate model-call accounting, and
-bounded adjudication integration are implemented. Fresh clean-source PDF/DOCX
-vertical acceptance remains.
+bounded adjudication integration are implemented. Fresh clean-source PDF and DOCX
+cases passed the real `gpt-5.6-sol` provider gate with complete checksum-bound
+bundles and no VSDX generation artifacts. See
+[`../../acceptance/A7_VERTICAL_PIPELINE.md`](../../acceptance/A7_VERTICAL_PIPELINE.md).
 
 **Goal:** Compose the production vertical slice without coupling it to generation.
 

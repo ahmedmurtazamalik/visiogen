@@ -54,3 +54,20 @@ def test_a7_runner_checks_complete_hash_bound_non_vsdx_bundles() -> None:
     assert 'manifest["total_model_calls"] < 4' in source
     assert 'list(bundle.rglob("*.vsdx"))' in source
     assert '"observation", "reconstruction", "claims"' in source
+
+
+def test_preserved_a7_acceptance_evidence_covers_both_clean_source_formats() -> None:
+    evidence = json.loads(
+        (
+            Path(__file__).parents[2]
+            / "docs/acceptance/evidence/a7-vertical-pipeline.json"
+        ).read_text()
+    )
+
+    assert evidence["status"] == "passed"
+    assert evidence["source_worktree_clean"] is True
+    assert evidence["model"] == "gpt-5.6-sol"
+    assert {case["id"] for case in evidence["cases"]} == {"fresh-pdf", "fresh-docx"}
+    assert all(case["status"] == "passed" for case in evidence["cases"])
+    assert all(not case["failures"] for case in evidence["cases"])
+    assert all(case["manifest"]["partial_failures"] == [] for case in evidence["cases"])
