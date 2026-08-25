@@ -1,12 +1,12 @@
 """Real Poppler acceptance for deterministic PDF text and page rendering."""
 
 import json
-from pathlib import Path
 import shutil
+from pathlib import Path
 
 import pytest
-
 from fixture_builders import write_text_pdf
+
 from visiogen.documents.errors import (
     DocumentLimitExceededError,
     DocumentRenderError,
@@ -14,7 +14,6 @@ from visiogen.documents.errors import (
 )
 from visiogen.documents.extractor import extract_document
 from visiogen.documents.safety import DocumentSafetyLimits
-
 
 POPPLER_AVAILABLE = all(
     shutil.which(command) for command in ("pdfinfo", "pdfdetach", "pdftotext", "pdftoppm")

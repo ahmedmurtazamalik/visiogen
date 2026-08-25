@@ -2,16 +2,16 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 import hashlib
 import json
 import math
 import os
-from pathlib import Path
 import re
 import shutil
 import subprocess
 import xml.etree.ElementTree as ET
+from collections.abc import Callable
+from pathlib import Path
 
 from visiogen.documents.errors import (
     DocumentExtractionError,
@@ -38,6 +38,27 @@ _PAGE_SIZE = re.compile(
     r"(?:Page\s+\d+\s+)?size:\s*([0-9.]+)\s+x\s+([0-9.]+)\s+pts",
     re.IGNORECASE,
 )
+_PDF_NAME_TOKEN = re.compile(rb"/(?:#[0-9A-Fa-f]{2}|[^\x00\t\n\f\r ()<>\[\]{}/%])+")
+
+
+def _decode_pdf_name(token: bytes) -> bytes:
+    """Decode hexadecimal escapes in one lexical PDF name token."""
+
+    body = token[1:]
+    return re.sub(
+        rb"#([0-9A-Fa-f]{2})",
+        lambda match: bytes((int(match.group(1), 16),)),
+        body,
+    )
+
+
+def _contains_javascript_action(data: bytes) -> bool:
+    """Conservatively recognize JavaScript action names across Poppler versions."""
+
+    return any(
+        _decode_pdf_name(match.group()) == b"JavaScript"
+        for match in _PDF_NAME_TOKEN.finditer(data)
+    )
 
 
 def _resolve_command(name: str) -> str:
@@ -127,6 +148,12 @@ def _pdf_security_scan(
     runner: CommandRunner,
     limits: DocumentSafetyLimits,
 ) -> None:
+    try:
+        source_data = admitted.path.read_bytes()
+    except OSError as error:
+        raise DocumentExtractionError("PDF could not be read during security inspection") from error
+    if _contains_javascript_action(source_data):
+        raise UnsafeDocumentError("PDF JavaScript is not supported")
     javascript = _run(
         runner,
         [_resolve_command("pdfinfo"), "-js", str(admitted.path)],

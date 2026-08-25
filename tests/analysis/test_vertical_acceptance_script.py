@@ -1,9 +1,9 @@
 """A7 fresh-document acceptance fixture and provenance requirements."""
 
 import json
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
 
 from visiogen.documents.extractor import extract_document
 
