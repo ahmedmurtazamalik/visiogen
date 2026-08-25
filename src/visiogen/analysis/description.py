@@ -87,6 +87,7 @@ class DescriptionStatement(AnalysisModel):
     object_ids: list[str] = Field(default_factory=list)
     relationship_ids: list[str] = Field(default_factory=list)
     group_ids: list[str] = Field(default_factory=list)
+    annotation_ids: list[str] = Field(default_factory=list)
     legend_indices: list[int] = Field(default_factory=list)
     limitation_indices: list[int] = Field(default_factory=list)
     evidence_ids: list[str] = Field(default_factory=list)
@@ -98,6 +99,7 @@ class DescriptionStatement(AnalysisModel):
             "object_ids",
             "relationship_ids",
             "group_ids",
+            "annotation_ids",
             "legend_indices",
             "limitation_indices",
             "evidence_ids",
@@ -188,7 +190,13 @@ def _object_name(item: AnalyzedObject) -> str:
 
 def _all_evidence(diagram: AnalyzedDiagram) -> list[str]:
     values = set(diagram.title_evidence_ids)
-    for item in (*diagram.objects, *diagram.relationships, *diagram.groups, *diagram.legends):
+    for item in (
+        *diagram.objects,
+        *diagram.relationships,
+        *diagram.groups,
+        *diagram.legends,
+        *diagram.annotations,
+    ):
         values.update(item.evidence_ids)
     return sorted(values)
 
@@ -259,6 +267,7 @@ class _StatementBuilder:
         object_ids: list[str] | None = None,
         relationship_ids: list[str] | None = None,
         group_ids: list[str] | None = None,
+        annotation_ids: list[str] | None = None,
         legend_indices: list[int] | None = None,
         limitation_indices: list[int] | None = None,
         evidence_ids: list[str] | None = None,
@@ -274,6 +283,7 @@ class _StatementBuilder:
                 object_ids=object_ids or [],
                 relationship_ids=relationship_ids or [],
                 group_ids=group_ids or [],
+                annotation_ids=annotation_ids or [],
                 legend_indices=legend_indices or [],
                 limitation_indices=limitation_indices or [],
                 evidence_ids=sorted(set(evidence_ids or [])),
@@ -397,6 +407,20 @@ def compose_diagram_description(diagram: AnalyzedDiagram) -> DiagramDescription:
             evidence_ids=legend.evidence_ids,
             confidence=legend.confidence,
         )
+    for annotation in diagram.annotations:
+        attached = [objects[item_id] for item_id in annotation.attached_object_ids]
+        text = f"The visible {annotation.kind} reads {_quote(annotation.visible_text)}."
+        if attached:
+            text += f" It is attached to {_join_names([_object_name(item) for item in attached])}."
+        builder.add(
+            "annotations",
+            "observed",
+            text,
+            object_ids=annotation.attached_object_ids,
+            annotation_ids=[annotation.id],
+            evidence_ids=annotation.evidence_ids,
+            confidence=annotation.confidence,
+        )
 
     for item in diagram.objects:
         if not item.alternatives and item.confidence not in {"low", "unknown"}:
@@ -447,6 +471,23 @@ def compose_diagram_description(diagram: AnalyzedDiagram) -> DiagramDescription:
             relationship_ids=[item.id],
             evidence_ids=item.evidence_ids,
             confidence=item.confidence,
+        )
+    for annotation in diagram.annotations:
+        if not annotation.alternatives and annotation.confidence not in {"low", "unknown"}:
+            continue
+        text = (
+            f"Annotation {annotation.id} has {annotation.confidence} interpretation confidence."
+        )
+        if annotation.alternatives:
+            text += f" Alternative readings are {_alternative_text(annotation.alternatives)}."
+        builder.add(
+            "ambiguities",
+            "interpreted",
+            text,
+            object_ids=annotation.attached_object_ids,
+            annotation_ids=[annotation.id],
+            evidence_ids=annotation.evidence_ids,
+            confidence=annotation.confidence,
         )
 
     connected_ids = {
@@ -508,22 +549,26 @@ def validate_diagram_description(
     known_objects = {item.id for item in diagram.objects}
     known_relationships = {item.id for item in diagram.relationships}
     known_groups = {item.id for item in diagram.groups}
+    known_annotations = {item.id for item in diagram.annotations}
     known_evidence = _known_evidence(diagram)
     object_coverage: set[str] = set()
     relationship_coverage: set[str] = set()
     group_coverage: set[str] = set()
+    annotation_coverage: set[str] = set()
     legend_coverage: set[int] = set()
     limitation_coverage: set[int] = set()
     for statement in statements:
         object_coverage.update(statement.object_ids)
         relationship_coverage.update(statement.relationship_ids)
         group_coverage.update(statement.group_ids)
+        annotation_coverage.update(statement.annotation_ids)
         legend_coverage.update(statement.legend_indices)
         limitation_coverage.update(statement.limitation_indices)
         for label, references, known in (
             ("object", statement.object_ids, known_objects),
             ("relationship", statement.relationship_ids, known_relationships),
             ("group", statement.group_ids, known_groups),
+            ("annotation", statement.annotation_ids, known_annotations),
             ("evidence", statement.evidence_ids, known_evidence),
         ):
             for reference in references:
@@ -543,11 +588,11 @@ def validate_diagram_description(
             findings.append(f"Description omits object '{item.id}'")
         matching = [statement.text for statement in statements if item.id in statement.object_ids]
         if item.visible_label is not None and not any(
-            item.visible_label in text for text in matching
+            _quote(item.visible_label) in text for text in matching
         ):
             findings.append(f"Description omits visible label for object '{item.id}'")
         for reference in item.reference_numbers:
-            if not any(reference in text for text in matching):
+            if not any(_quote(reference) in text for text in matching):
                 findings.append(
                     f"Description omits reference number '{reference}' for object '{item.id}'"
                 )
@@ -558,7 +603,7 @@ def validate_diagram_description(
             statement.text for statement in statements if item.id in statement.relationship_ids
         ]
         if item.visible_label is not None and not any(
-            item.visible_label in text for text in matching
+            _quote(item.visible_label) in text for text in matching
         ):
             findings.append(f"Description omits visible label for relationship '{item.id}'")
         if item.direction == "unclear" and not any(
@@ -570,16 +615,29 @@ def validate_diagram_description(
         if group.id not in group_coverage:
             findings.append(f"Description omits group '{group.id}'")
         if group.visible_label is not None and not any(
-            group.visible_label in statement.text and group.id in statement.group_ids
+            _quote(group.visible_label) in statement.text
+            and group.id in statement.group_ids
             for statement in statements
         ):
             findings.append(f"Description omits visible label for group '{group.id}'")
+    for annotation in diagram.annotations:
+        if annotation.id not in annotation_coverage:
+            findings.append(f"Description omits annotation '{annotation.id}'")
+        matching = [
+            statement.text
+            for statement in statements
+            if annotation.id in statement.annotation_ids
+        ]
+        if not any(_quote(annotation.visible_text) in text for text in matching):
+            findings.append(
+                f"Description omits visible text for annotation '{annotation.id}'"
+            )
     if legend_coverage != set(range(len(diagram.legends))):
         findings.append("Description does not cover every legend exactly")
     if limitation_coverage != set(range(len(diagram.limitations))):
         findings.append("Description does not cover every limitation exactly")
     if diagram.title is not None and not any(
-        diagram.title in statement.text and statement.section == "identity"
+        _quote(diagram.title) in statement.text and statement.section == "identity"
         for statement in statements
     ):
         findings.append("Description omits the visible diagram title")
@@ -587,7 +645,10 @@ def validate_diagram_description(
         matching = [
             statement.text for statement in statements if index in statement.legend_indices
         ]
-        if not any(legend.symbol in text and legend.meaning in text for text in matching):
+        if not any(
+            _quote(legend.symbol) in text and _quote(legend.meaning) in text
+            for text in matching
+        ):
             findings.append(f"Description does not render legend {index} exactly")
     for index, limitation in enumerate(diagram.limitations):
         matching = [

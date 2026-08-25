@@ -4,11 +4,14 @@ import hashlib
 import json
 from pathlib import Path
 
-from PIL import Image
 import pytest
+from PIL import Image
 
 from visiogen.analysis.models import PreparedCandidate, PreparedDerivative
-from visiogen.analysis.observation import StructuredObservationWorkflow
+from visiogen.analysis.observation import (
+    ObservationWorkflowError,
+    StructuredObservationWorkflow,
+)
 from visiogen.analysis.prompts import (
     build_reconstruction_prompt,
     build_reconstruction_repair_prompt,
@@ -17,8 +20,12 @@ from visiogen.analysis.reconstruction import (
     ReconstructionWorkflowError,
     StructuredReconstructionWorkflow,
 )
-from visiogen.analysis.semantic_pipeline import SemanticAnalysisWorkflow
+from visiogen.analysis.semantic_pipeline import (
+    SemanticAnalysisWorkflow,
+    SemanticAnalysisWorkflowError,
+)
 from visiogen.documents.models import NormalizedBox
+from visiogen.documents.safety import DocumentSafetyLimits
 from visiogen.providers.base import ProviderResponse
 
 
@@ -202,3 +209,58 @@ def test_semantic_pipeline_composes_both_stages_with_bounded_calls(tmp_path: Pat
     assert result.total_model_calls == 2
     assert result.observation.observations.candidate_id == "candidate-0001"
     assert result.reconstruction.diagram.objects[0].visible_label == "Sensor"
+
+
+def test_observation_failure_preserves_both_attempts_and_validation_error(
+    tmp_path: Path,
+) -> None:
+    prepared, bundle = _prepared_bundle(tmp_path)
+
+    with pytest.raises(ObservationWorkflowError) as caught:
+        StructuredObservationWorkflow(
+            FakeImageCall([_observation_response(evidence_id="missing")] * 2)
+        ).observe(prepared, bundle)
+
+    assert len(caught.value.traces) == 2
+    assert "missing" in caught.value.traces[-1].raw_response
+    assert "unknown evidence" in (caught.value.validation_error or "")
+
+
+def test_semantic_pipeline_never_calls_beyond_configured_budget(tmp_path: Path) -> None:
+    prepared, bundle = _prepared_bundle(tmp_path)
+    observation_call = FakeImageCall(
+        [_observation_response(evidence_id="missing"), _observation_response()]
+    )
+    reconstruction_call = FakeImageCall([_diagram_response(label="Invented")])
+    workflow = SemanticAnalysisWorkflow(
+        StructuredObservationWorkflow(observation_call),
+        StructuredReconstructionWorkflow(reconstruction_call),
+        limits=DocumentSafetyLimits(max_model_calls_per_candidate=3),
+    )
+
+    with pytest.raises(SemanticAnalysisWorkflowError) as captured:
+        workflow.analyze(prepared, bundle)
+
+    assert len(observation_call.calls) == 2
+    assert len(reconstruction_call.calls) == 1
+    assert captured.value.stage == "reconstruction"
+    assert len(captured.value.traces) == 3
+
+
+def test_semantic_pipeline_rejects_impossible_budget_before_provider_call(
+    tmp_path: Path,
+) -> None:
+    prepared, bundle = _prepared_bundle(tmp_path)
+    observation_call = FakeImageCall([_observation_response()])
+    reconstruction_call = FakeImageCall([_diagram_response()])
+    workflow = SemanticAnalysisWorkflow(
+        StructuredObservationWorkflow(observation_call),
+        StructuredReconstructionWorkflow(reconstruction_call),
+        limits=DocumentSafetyLimits(max_model_calls_per_candidate=1),
+    )
+
+    with pytest.raises(RuntimeError, match="at least two"):
+        workflow.analyze(prepared, bundle)
+
+    assert observation_call.calls == []
+    assert reconstruction_call.calls == []

@@ -13,7 +13,10 @@ from visiogen.analysis.prompts import (
     build_reconstruction_repair_prompt,
 )
 from visiogen.analysis.semantics import AnalyzedDiagram, ValidatedObservationSet
-from visiogen.analysis.validation import AnalysisValidationError, validate_analyzed_diagram
+from visiogen.analysis.validation import (
+    AnalysisValidationError,
+    validate_analyzed_diagram,
+)
 from visiogen.providers.base import ImageStructuredCall, ProviderResponse
 
 
@@ -51,7 +54,11 @@ class StructuredReconstructionWorkflow:
         prepared: PreparedCandidate,
         observations: ValidatedObservationSet,
         bundle_dir: str | Path,
+        *,
+        max_attempts: int = 2,
     ) -> ReconstructionResult:
+        if max_attempts not in {1, 2}:
+            raise ValueError("Reconstruction max_attempts must be one or two")
         if prepared.candidate_id != observations.candidate_id:
             raise ReconstructionWorkflowError(
                 "Prepared candidate and observations have different IDs"
@@ -64,7 +71,7 @@ class StructuredReconstructionWorkflow:
             f"Validated observations in source-image coordinates:\n{observations_json}"
         )
         traces: list[AnalysisCallTrace] = []
-        for attempt in (1, 2):
+        for attempt in range(1, max_attempts + 1):
             response: ProviderResponse = self._call_model.call_with_images(
                 system_prompt,
                 user_prompt,
@@ -89,9 +96,9 @@ class StructuredReconstructionWorkflow:
                     traces=traces,
                 )
             except (ValidationError, AnalysisValidationError) as error:
-                if attempt == 2:
+                if attempt == max_attempts:
                     raise ReconstructionWorkflowError(
-                        "Semantic reconstruction is invalid after one repair attempt: "
+                        "Semantic reconstruction is invalid within the configured attempt budget: "
                         f"{error}",
                         traces=traces,
                         validation_error=str(error),

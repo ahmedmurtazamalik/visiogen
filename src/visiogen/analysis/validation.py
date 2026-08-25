@@ -7,11 +7,11 @@ import re
 from visiogen.analysis.models import PreparedCandidate
 from visiogen.analysis.semantics import (
     AnalyzedDiagram,
-    RawObservationBatch,
     NormalizedPoint,
+    RawObservationBatch,
     ValidatedObservationSet,
-    VisualObservation,
     VisualEvidence,
+    VisualObservation,
 )
 from visiogen.documents.models import NormalizedBox
 
@@ -177,6 +177,15 @@ def _point_near_box(point: NormalizedPoint, box: NormalizedBox, margin: float = 
     )
 
 
+def _box_contains(outer: NormalizedBox, inner: NormalizedBox, margin: float = 0.01) -> bool:
+    return (
+        outer.left - margin <= inner.left
+        and outer.top - margin <= inner.top
+        and outer.right + margin >= inner.right
+        and outer.bottom + margin >= inner.bottom
+    )
+
+
 def validate_analyzed_diagram(
     diagram: AnalyzedDiagram,
     observations: ValidatedObservationSet,
@@ -189,10 +198,12 @@ def validate_analyzed_diagram(
     object_ids = [item.id for item in diagram.objects]
     relationship_ids = [item.id for item in diagram.relationships]
     group_ids = [item.id for item in diagram.groups]
+    annotation_ids = [item.id for item in diagram.annotations]
     for label, ids in (
         ("object", object_ids),
         ("relationship", relationship_ids),
         ("group", group_ids),
+        ("annotation", annotation_ids),
     ):
         if len(ids) != len(set(ids)):
             findings.append(f"Analyzed {label} IDs must be unique")
@@ -200,7 +211,12 @@ def validate_analyzed_diagram(
     evidence_by_id = {item.id: item for item in observations.evidence}
     known_evidence = set(evidence_by_id)
     text_by_evidence = _text_for_evidence(observations)
+    kinds_by_evidence: dict[str, set[str]] = {}
+    for observation in observations.observations:
+        for evidence_id in observation.evidence_ids:
+            kinds_by_evidence.setdefault(evidence_id, set()).add(observation.kind)
     parents = {item.id: item.parent_id for item in diagram.objects}
+    objects_by_id = {item.id: item for item in diagram.objects}
 
     for evidence_id in diagram.title_evidence_ids:
         if evidence_id not in known_evidence:
@@ -215,6 +231,14 @@ def validate_analyzed_diagram(
     for item in diagram.objects:
         if item.parent_id is not None and item.parent_id not in known_objects:
             findings.append(f"Object '{item.id}' references unknown parent '{item.parent_id}'")
+        elif item.parent_id is not None and not _box_contains(
+            objects_by_id[item.parent_id].bbox,
+            item.bbox,
+        ):
+            findings.append(
+                f"Object '{item.id}' is not geometrically contained by parent "
+                f"'{item.parent_id}'"
+            )
         for evidence_id in item.evidence_ids:
             if evidence_id not in known_evidence:
                 findings.append(f"Object '{item.id}' references unknown evidence '{evidence_id}'")
@@ -265,6 +289,22 @@ def validate_analyzed_diagram(
                 findings.append(
                     f"Relationship '{relationship.id}' references unknown evidence '{evidence_id}'"
                 )
+        if not any(
+            kinds_by_evidence.get(evidence_id, set()) & {"connector", "arrowhead"}
+            for evidence_id in relationship.evidence_ids
+        ):
+            findings.append(
+                f"Relationship '{relationship.id}' cites no connector or arrowhead observation"
+            )
+        if relationship.path and not any(
+            _point_near_box(point, evidence_by_id[evidence_id].source_bbox, margin=0.06)
+            for point in relationship.path
+            for evidence_id in relationship.evidence_ids
+            if evidence_id in evidence_by_id
+        ):
+            findings.append(
+                f"Relationship '{relationship.id}' path is not near its cited evidence"
+            )
         if relationship.visible_label is not None:
             if relationship.normalized_label != normalize_visible_text(
                 relationship.visible_label
@@ -301,6 +341,20 @@ def validate_analyzed_diagram(
         for evidence_id in group.evidence_ids:
             if evidence_id not in known_evidence:
                 findings.append(f"Group '{group.id}' references unknown evidence '{evidence_id}'")
+        if not any(
+            _boxes_intersect(group.bbox, evidence_by_id[evidence_id].source_bbox)
+            for evidence_id in group.evidence_ids
+            if evidence_id in evidence_by_id
+        ):
+            findings.append(f"Group '{group.id}' does not intersect its cited evidence")
+        for object_id in group.object_ids:
+            if object_id in objects_by_id and not _boxes_intersect(
+                group.bbox,
+                objects_by_id[object_id].bbox,
+            ):
+                findings.append(
+                    f"Group '{group.id}' does not intersect member object '{object_id}'"
+                )
         if group.visible_label is not None and not _label_is_observed(
             group.visible_label,
             group.evidence_ids,
@@ -311,6 +365,39 @@ def validate_analyzed_diagram(
         for evidence_id in legend.evidence_ids:
             if evidence_id not in known_evidence:
                 findings.append(f"Legend references unknown evidence '{evidence_id}'")
+        if not _label_is_observed(
+            legend.meaning,
+            legend.evidence_ids,
+            text_by_evidence,
+        ):
+            findings.append("Legend meaning is not present in cited evidence")
+    for annotation in diagram.annotations:
+        for object_id in annotation.attached_object_ids:
+            if object_id not in known_objects:
+                findings.append(
+                    f"Annotation '{annotation.id}' references unknown object '{object_id}'"
+                )
+        for evidence_id in annotation.evidence_ids:
+            if evidence_id not in known_evidence:
+                findings.append(
+                    f"Annotation '{annotation.id}' references unknown evidence '{evidence_id}'"
+                )
+        if not any(
+            _boxes_intersect(annotation.bbox, evidence_by_id[evidence_id].source_bbox)
+            for evidence_id in annotation.evidence_ids
+            if evidence_id in evidence_by_id
+        ):
+            findings.append(
+                f"Annotation '{annotation.id}' does not intersect its cited evidence"
+            )
+        if not _label_is_observed(
+            annotation.visible_text,
+            annotation.evidence_ids,
+            text_by_evidence,
+        ):
+            findings.append(
+                f"Annotation '{annotation.id}' text is not present in cited evidence"
+            )
     if findings:
         raise AnalysisValidationError(findings)
     return diagram

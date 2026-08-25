@@ -6,26 +6,34 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
 
 from PIL import Image
 
 from visiogen.analysis.evaluation import aggregate_semantic_scores, score_semantic_case
 from visiogen.analysis.models import CandidatePreparation
-from visiogen.analysis.observation import StructuredObservationWorkflow
+from visiogen.analysis.observation import (
+    ObservationWorkflowError,
+    StructuredObservationWorkflow,
+)
 from visiogen.analysis.preparation import prepare_diagram_candidates
 from visiogen.analysis.reconstruction import (
     ReconstructionWorkflowError,
     StructuredReconstructionWorkflow,
 )
+from visiogen.analysis.selection import CandidateSelection, discover_diagram_candidates
 from visiogen.analysis.semantic_pipeline import SemanticAnalysisWorkflow
 from visiogen.analysis.semantics import AnalyzedDiagram, RawObservationBatch
-from visiogen.analysis.selection import CandidateSelection, discover_diagram_candidates
 from visiogen.config import Settings
 from visiogen.documents.artifacts import publish_artifact_directory
-from visiogen.documents.models import CoverageReport, DocumentSnapshot, SourceLocation, VisualAsset
+from visiogen.documents.models import (
+    CoverageReport,
+    DocumentSnapshot,
+    SourceLocation,
+    VisualAsset,
+)
 from visiogen.providers.codex_cli import CodexStructuredCaller
 
 _REPOSITORY = Path(__file__).resolve().parents[1]
@@ -177,7 +185,10 @@ def main() -> int:
                     "id": case["id"],
                     "error": f"{type(error).__name__}: {error}",
                 }
-                if isinstance(error, ReconstructionWorkflowError):
+                if isinstance(
+                    error,
+                    (ObservationWorkflowError, ReconstructionWorkflowError),
+                ):
                     failure["attempts"] = len(error.traces)
                     failure["validation_error"] = error.validation_error
                     failure["traces"] = [

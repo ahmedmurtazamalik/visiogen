@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from pydantic import Field
 
-from visiogen.analysis.description import DiagramDescription, validate_diagram_description
+from visiogen.analysis.description import (
+    DiagramDescription,
+    validate_diagram_description,
+)
 from visiogen.analysis.models import AnalysisModel
 from visiogen.analysis.semantics import AnalyzedDiagram
 
@@ -16,6 +19,7 @@ class DescriptionCoverageScore(AnalysisModel):
     object_coverage: float = Field(ge=0, le=1)
     relationship_coverage: float = Field(ge=0, le=1)
     group_coverage: float = Field(ge=0, le=1)
+    annotation_coverage: float = Field(ge=0, le=1)
     legend_coverage: float = Field(ge=0, le=1)
     limitation_coverage: float = Field(ge=0, le=1)
     visible_label_coverage: float = Field(ge=0, le=1)
@@ -39,6 +43,7 @@ def score_description_coverage(
     object_ids = {value for item in statements for value in item.object_ids}
     relationship_ids = {value for item in statements for value in item.relationship_ids}
     group_ids = {value for item in statements for value in item.group_ids}
+    annotation_ids = {value for item in statements for value in item.annotation_ids}
     legend_indices = {value for item in statements for value in item.legend_indices}
     limitation_indices = {value for item in statements for value in item.limitation_indices}
     visible_labels = [
@@ -53,6 +58,9 @@ def score_description_coverage(
         (item.id, item.visible_label, "group")
         for item in diagram.groups
         if item.visible_label is not None
+    ] + [
+        (item.id, item.visible_text, "annotation")
+        for item in diagram.annotations
     ]
     visible_label_matches = sum(
         any(
@@ -61,6 +69,7 @@ def score_description_coverage(
                 (kind == "object" and item_id in statement.object_ids)
                 or (kind == "relationship" and item_id in statement.relationship_ids)
                 or (kind == "group" and item_id in statement.group_ids)
+                or (kind == "annotation" and item_id in statement.annotation_ids)
             )
             for statement in statements
         )
@@ -114,6 +123,11 @@ def score_description_coverage(
             or item.confidence in {"low", "unknown"}
         )
     }
+    ambiguous_annotations = {
+        item.id
+        for item in diagram.annotations
+        if item.alternatives or item.confidence in {"low", "unknown"}
+    }
     ambiguity_statements = [item for item in statements if item.section == "ambiguities"]
     ambiguity_matches = sum(
         any(item_id in statement.object_ids for statement in ambiguity_statements)
@@ -121,13 +135,21 @@ def score_description_coverage(
     ) + sum(
         any(item_id in statement.relationship_ids for statement in ambiguity_statements)
         for item_id in ambiguous_relationships
+    ) + sum(
+        any(item_id in statement.annotation_ids for statement in ambiguity_statements)
+        for item_id in ambiguous_annotations
     )
-    ambiguity_total = len(ambiguous_objects) + len(ambiguous_relationships)
+    ambiguity_total = (
+        len(ambiguous_objects)
+        + len(ambiguous_relationships)
+        + len(ambiguous_annotations)
+    )
     return DescriptionCoverageScore(
         candidate_id=diagram.candidate_id,
         object_coverage=_ratio(len(object_ids), len(diagram.objects)),
         relationship_coverage=_ratio(len(relationship_ids), len(diagram.relationships)),
         group_coverage=_ratio(len(group_ids), len(diagram.groups)),
+        annotation_coverage=_ratio(len(annotation_ids), len(diagram.annotations)),
         legend_coverage=_ratio(len(legend_indices), len(diagram.legends)),
         limitation_coverage=_ratio(len(limitation_indices), len(diagram.limitations)),
         visible_label_coverage=_ratio(visible_label_matches, len(visible_labels)),

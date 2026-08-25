@@ -6,8 +6,8 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-from pathlib import Path
 import subprocess
+from pathlib import Path
 
 from visiogen.analysis.description import (
     compose_diagram_description,
@@ -24,6 +24,7 @@ _METRICS = (
     "object_coverage",
     "relationship_coverage",
     "group_coverage",
+    "annotation_coverage",
     "legend_coverage",
     "limitation_coverage",
     "visible_label_coverage",

@@ -3,7 +3,14 @@
 import pytest
 
 from visiogen.analysis.models import PreparedCandidate, PreparedDerivative
-from visiogen.analysis.semantics import AnalyzedDiagram, RawObservationBatch
+from visiogen.analysis.semantics import (
+    AnalyzedDiagram,
+    AnalyzedGroup,
+    DiagramAnnotation,
+    LegendMapping,
+    NormalizedPoint,
+    RawObservationBatch,
+)
 from visiogen.analysis.validation import (
     AnalysisValidationError,
     validate_analyzed_diagram,
@@ -212,3 +219,134 @@ def test_semantic_validation_rejects_invented_visible_label() -> None:
 
     with pytest.raises(AnalysisValidationError, match="not present in cited evidence"):
         validate_analyzed_diagram(_diagram(first_label="Camera 10"), observations)
+
+
+def test_observation_validation_rejects_duplicate_ids_and_cross_derivative_evidence() -> None:
+    raw = _raw_observations()
+    raw.evidence.append(raw.evidence[0])
+    raw.observations[1].evidence_ids = ["evidence-0001"]
+
+    with pytest.raises(AnalysisValidationError) as captured:
+        validate_observations(raw, _prepared())
+
+    assert "evidence IDs must be unique" in str(captured.value)
+    assert "no evidence on its geometry derivative" in str(captured.value)
+
+
+def test_semantic_validation_rejects_unsupported_references_and_containment() -> None:
+    observations = validate_observations(_raw_observations(), _prepared())
+    diagram = _diagram()
+    first, second = diagram.objects
+    diagram.objects = [
+        first.model_copy(
+            update={"parent_id": second.id, "reference_numbers": ["99"]}
+        ),
+        second.model_copy(update={"parent_id": first.id}),
+    ]
+    diagram.relationships[0] = diagram.relationships[0].model_copy(
+        update={"source_id": "object-9999"}
+    )
+
+    with pytest.raises(AnalysisValidationError) as captured:
+        validate_analyzed_diagram(diagram, observations)
+
+    message = str(captured.value)
+    assert "reference number '99' is not visibly evidenced" in message
+    assert "containment cycle" in message
+    assert "not geometrically contained" in message
+    assert "unknown source object 'object-9999'" in message
+
+
+def test_semantic_validation_requires_connector_geometry_evidence() -> None:
+    observations = validate_observations(_raw_observations(), _prepared())
+    diagram = _diagram()
+    diagram.relationships[0] = diagram.relationships[0].model_copy(
+        update={
+            "evidence_ids": ["evidence-0001"],
+            "path": [
+                NormalizedPoint(x=0.95, y=0.95),
+                NormalizedPoint(x=0.99, y=0.99),
+            ],
+        }
+    )
+
+    with pytest.raises(AnalysisValidationError) as captured:
+        validate_analyzed_diagram(diagram, observations)
+
+    assert "cites no connector or arrowhead observation" in str(captured.value)
+    assert "path is not near its cited evidence" in str(captured.value)
+
+
+def test_semantic_validation_grounding_covers_groups_legends_and_titles() -> None:
+    observations = validate_observations(_raw_observations(), _prepared())
+    diagram = _diagram().model_copy(
+        update={
+            "title": "Invented title",
+            "title_evidence_ids": ["evidence-0001"],
+            "groups": [
+                AnalyzedGroup(
+                    id="group-0001",
+                    kind="zone",
+                    visible_label=None,
+                    object_ids=["object-0001"],
+                    bbox=NormalizedBox(left=0.85, top=0.8, right=0.95, bottom=0.9),
+                    evidence_ids=["evidence-0001"],
+                    confidence="high",
+                )
+            ],
+            "legends": [
+                LegendMapping(
+                    symbol="solid",
+                    meaning="Invented meaning",
+                    evidence_ids=["evidence-0001"],
+                    confidence="high",
+                )
+            ],
+        }
+    )
+
+    with pytest.raises(AnalysisValidationError) as captured:
+        validate_analyzed_diagram(diagram, observations)
+
+    message = str(captured.value)
+    assert "title is not present" in message
+    assert "Group 'group-0001' does not intersect its cited evidence" in message
+    assert "does not intersect member object" in message
+    assert "Legend meaning is not present" in message
+
+
+def test_semantic_validation_preserves_grounded_notes_and_callouts() -> None:
+    observations = validate_observations(_raw_observations(), _prepared())
+    valid = _diagram().model_copy(
+        update={
+            "annotations": [
+                DiagramAnnotation(
+                    id="annotation-0001",
+                    kind="callout",
+                    visible_text="Sensor 10",
+                    attached_object_ids=["object-0001"],
+                    bbox=NormalizedBox(left=0.6, top=0.35, right=0.7, bottom=0.45),
+                    evidence_ids=["evidence-0001"],
+                    confidence="high",
+                )
+            ]
+        }
+    )
+
+    assert validate_analyzed_diagram(valid, observations) == valid
+
+    invalid = valid.model_copy(deep=True)
+    invalid.annotations[0] = invalid.annotations[0].model_copy(
+        update={
+            "visible_text": "Invented callout",
+            "attached_object_ids": ["object-9999"],
+            "bbox": NormalizedBox(left=0.8, top=0.8, right=0.9, bottom=0.9),
+        }
+    )
+    with pytest.raises(AnalysisValidationError) as captured:
+        validate_analyzed_diagram(invalid, observations)
+
+    message = str(captured.value)
+    assert "unknown object 'object-9999'" in message
+    assert "does not intersect its cited evidence" in message
+    assert "text is not present in cited evidence" in message

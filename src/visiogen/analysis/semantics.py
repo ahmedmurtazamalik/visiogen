@@ -227,6 +227,14 @@ class AnalyzedGroup(AnalysisModel):
     evidence_ids: list[str] = Field(min_length=1)
     confidence: Confidence
 
+    @model_validator(mode="after")
+    def validate_references(self) -> AnalyzedGroup:
+        if len(self.object_ids) != len(set(self.object_ids)):
+            raise ValueError("Group object IDs must be unique")
+        if len(self.evidence_ids) != len(set(self.evidence_ids)):
+            raise ValueError("Group evidence IDs must be unique")
+        return self
+
 
 class LegendMapping(AnalysisModel):
     """One visible legend symbol-to-meaning mapping."""
@@ -235,6 +243,33 @@ class LegendMapping(AnalysisModel):
     meaning: str = Field(min_length=1)
     evidence_ids: list[str] = Field(min_length=1)
     confidence: Confidence
+
+    @model_validator(mode="after")
+    def validate_evidence(self) -> LegendMapping:
+        if len(self.evidence_ids) != len(set(self.evidence_ids)):
+            raise ValueError("Legend evidence IDs must be unique")
+        return self
+
+
+class DiagramAnnotation(AnalysisModel):
+    """One visible note or callout retained as first-class diagram evidence."""
+
+    id: str = Field(pattern=r"^annotation-[0-9]{4}$")
+    kind: Literal["note", "callout"]
+    visible_text: str = Field(min_length=1)
+    attached_object_ids: list[str] = Field(default_factory=list)
+    bbox: NormalizedBox
+    evidence_ids: list[str] = Field(min_length=1)
+    confidence: Confidence
+    alternatives: list[InterpretationAlternative] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_references(self) -> DiagramAnnotation:
+        if len(self.attached_object_ids) != len(set(self.attached_object_ids)):
+            raise ValueError("Annotation attached object IDs must be unique")
+        if len(self.evidence_ids) != len(set(self.evidence_ids)):
+            raise ValueError("Annotation evidence IDs must be unique")
+        return self
 
 
 class AnalyzedDiagram(AnalysisModel):
@@ -249,6 +284,7 @@ class AnalyzedDiagram(AnalysisModel):
     relationships: list[AnalyzedRelationship]
     groups: list[AnalyzedGroup] = Field(default_factory=list)
     legends: list[LegendMapping] = Field(default_factory=list)
+    annotations: list[DiagramAnnotation] = Field(default_factory=list)
     limitations: list[str] = Field(default_factory=list)
     confidence: Confidence
 

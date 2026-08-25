@@ -17,3 +17,5 @@ def test_a3_runner_requires_clean_source_metrics_and_exact_evidence() -> None:
     assert '"edge_recall"' in script
     assert '"direction_accuracy"' in script
     assert '"result": result.model_dump' in script
+    assert "ObservationWorkflowError" in script
+    assert 'failure["traces"]' in script

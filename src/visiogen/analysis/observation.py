@@ -7,15 +7,33 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
-from visiogen.analysis.models import AnalysisModel, PreparedCandidate, PreparedDerivative
-from visiogen.analysis.prompts import build_observation_prompt, build_observation_repair_prompt
+from visiogen.analysis.models import (
+    AnalysisModel,
+    PreparedCandidate,
+    PreparedDerivative,
+)
+from visiogen.analysis.prompts import (
+    build_observation_prompt,
+    build_observation_repair_prompt,
+)
 from visiogen.analysis.semantics import RawObservationBatch, ValidatedObservationSet
 from visiogen.analysis.validation import AnalysisValidationError, validate_observations
 from visiogen.providers.base import ImageStructuredCall, ProviderResponse
 
 
 class ObservationWorkflowError(ValueError):
-    """Observation remained invalid after the one permitted repair."""
+    """Observation remained invalid within the configured attempt budget."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        traces: list[AnalysisCallTrace] | None = None,
+        validation_error: str | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.traces = traces or []
+        self.validation_error = validation_error
 
 
 class AnalysisCallTrace(AnalysisModel):
@@ -92,13 +110,17 @@ class StructuredObservationWorkflow:
         self,
         prepared: PreparedCandidate,
         bundle_dir: str | Path,
+        *,
+        max_attempts: int = 2,
     ) -> ObservationResult:
+        if max_attempts not in {1, 2}:
+            raise ValueError("Observation max_attempts must be one or two")
         derivatives, paths, image_hashes = _verified_images(prepared, Path(bundle_dir))
         system_prompt = build_observation_prompt()
         inventory = _inventory(prepared.candidate_id, derivatives)
         traces: list[AnalysisCallTrace] = []
         user_prompt = inventory
-        for attempt in (1, 2):
+        for attempt in range(1, max_attempts + 1):
             response: ProviderResponse = self._call_model.call_with_images(
                 system_prompt,
                 user_prompt,
@@ -123,9 +145,11 @@ class StructuredObservationWorkflow:
                     traces=traces,
                 )
             except (ValidationError, AnalysisValidationError) as error:
-                if attempt == 2:
+                if attempt == max_attempts:
                     raise ObservationWorkflowError(
-                        "Visual observations are invalid after one repair attempt"
+                        "Visual observations are invalid within the configured attempt budget",
+                        traces=traces,
+                        validation_error=str(error),
                     ) from error
                 user_prompt = build_observation_repair_prompt(
                     inventory,

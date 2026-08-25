@@ -13,7 +13,8 @@ from visiogen.analysis.description import (
     validate_diagram_description,
     write_description_bundle,
 )
-from visiogen.analysis.semantics import AnalyzedDiagram
+from visiogen.analysis.description_evaluation import score_description_coverage
+from visiogen.analysis.semantics import AnalyzedDiagram, DiagramAnnotation
 
 _GOLDEN = Path(__file__).parents[1] / "fixtures/analysis/descriptions/accessibility_system.md"
 
@@ -213,3 +214,45 @@ def test_description_calls_out_disconnected_ordinary_objects() -> None:
     assert "Sensor 10” has no modeled relationship connector" in ambiguity_text
     assert "unlabeled object object-0003 has no modeled relationship connector" in ambiguity_text
     assert "Platform” has no modeled relationship connector" not in ambiguity_text
+
+
+def test_description_preserves_annotation_text_attachment_and_uncertainty() -> None:
+    diagram = _diagram()
+    diagram.annotations = [
+        DiagramAnnotation(
+            id="annotation-0001",
+            kind="callout",
+            visible_text="Reset *now*",
+            attached_object_ids=["object-0002"],
+            bbox={"left": 0.2, "top": 0.2, "right": 0.4, "bottom": 0.3},
+            evidence_ids=["evidence-0008"],
+            confidence="low",
+            alternatives=[
+                {
+                    "value": "Reset later",
+                    "reason": "the final word is blurred",
+                    "confidence": "low",
+                }
+            ],
+        )
+    ]
+
+    description = compose_diagram_description(diagram)
+    markdown = render_description_markdown(description)
+    score = score_description_coverage(description, diagram)
+
+    assert "visible callout reads “Reset \\*now\\*”" in markdown
+    assert "attached to “Sensor 10”" in markdown
+    assert "Annotation annotation-0001 has low interpretation confidence" in markdown
+    assert score.annotation_coverage == 1
+    assert score.ambiguity_coverage == 1
+
+
+def test_description_validation_requires_exact_quoted_visible_tokens() -> None:
+    diagram = _diagram()
+    description = compose_diagram_description(diagram)
+    object_statement = description.sections[3].statements[1]
+    object_statement.text = object_statement.text.replace("“10”", "reference 100")
+
+    with pytest.raises(DescriptionValidationError, match="reference number '10'"):
+        validate_diagram_description(description, diagram)

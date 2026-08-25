@@ -29,6 +29,7 @@ def test_descriptions_cover_all_accepted_a3_semantics_deterministically() -> Non
         assert score.object_coverage == 1
         assert score.relationship_coverage == 1
         assert score.group_coverage == 1
+        assert score.annotation_coverage == 1
         assert score.legend_coverage == 1
         assert score.limitation_coverage == 1
         assert score.visible_label_coverage == 1
