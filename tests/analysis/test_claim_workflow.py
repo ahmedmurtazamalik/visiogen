@@ -194,6 +194,37 @@ def test_existence_claims_cannot_store_figure_locator_as_object() -> None:
         DocumentClaimBatch.model_validate(payload)
 
 
+@pytest.mark.parametrize(
+    "predicate",
+    [
+        "alias",
+        "type_or_role",
+        "contains",
+        "connects_to",
+        "direction",
+        "relationship_type",
+        "branch_condition",
+        "cardinality",
+        "reference_mapping",
+        "sequence",
+        "attribute_or_state",
+    ],
+)
+def test_value_and_binary_claims_require_atomic_objects(predicate: str) -> None:
+    payload = json.loads(_response())
+    claim = payload["claims"][0]
+    claim.update(
+        {
+            "predicate": predicate,
+            "object_text": None,
+            "normalized_object": None,
+        }
+    )
+
+    with pytest.raises(ValueError, match="require an atomic object_text"):
+        DocumentClaimBatch.model_validate(payload)
+
+
 def test_alignment_prefers_reference_then_alias_and_retains_unresolved_short_label() -> None:
     batch = DocumentClaimBatch.model_validate_json(_response())
     validated = validate_document_claims(batch, _selection())

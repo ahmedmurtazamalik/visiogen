@@ -55,6 +55,20 @@ AlignmentMethod = Literal[
     "unresolved",
 ]
 
+_OBJECT_REQUIRED_PREDICATES = {
+    "alias",
+    "type_or_role",
+    "contains",
+    "connects_to",
+    "direction",
+    "relationship_type",
+    "branch_condition",
+    "cardinality",
+    "reference_mapping",
+    "sequence",
+    "attribute_or_state",
+}
+
 
 class SelectedTextBlock(AnalysisModel):
     """Exact bounded source block selected mechanically for one candidate."""
@@ -144,6 +158,8 @@ class DocumentClaim(AnalysisModel):
             raise ValueError(
                 "Existence claims must keep figure references in scope, not object_text"
             )
+        if self.predicate in _OBJECT_REQUIRED_PREDICATES and self.object_text is None:
+            raise ValueError(f"{self.predicate} claims require an atomic object_text")
         if len(self.evidence_ids) != len(set(self.evidence_ids)):
             raise ValueError("Claim evidence IDs must be unique")
         return self
