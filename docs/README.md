@@ -11,6 +11,8 @@ organized here by purpose.
 ## Active plans
 
 - [Document-to-diagram analysis](plans/active/DOCUMENT_ANALYSIS.md)
+- [Frozen document-analysis MVP contract](analysis/MVP_CONTRACT.md)
+- [Deterministic PDF/DOCX ingestion](analysis/DOCUMENT_INGESTION.md)
 
 ## Development
 

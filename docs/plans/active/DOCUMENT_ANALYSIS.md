@@ -1,6 +1,6 @@
 # Visiogen Document-to-Diagram Analysis Implementation Plan
 
-**Status:** Proposed architecture and phased implementation plan
+**Status:** Phases A0-A1 complete; Phase A2 next
 
 **Date:** 2026-08-24
 
@@ -1039,6 +1039,9 @@ The phases are ordered as vertical risk reduction, not merely by file type.
 
 ### Phase A0 — Contract decisions and fixture charter
 
+**Status:** Complete. The frozen decisions and fixture charter are recorded in
+[`../../analysis/MVP_CONTRACT.md`](../../analysis/MVP_CONTRACT.md).
+
 **Goal:** Freeze terminology, evidence rules, supported MVP document subset, and
 evaluation method before building provider prompts.
 
@@ -1056,6 +1059,9 @@ Tasks:
 case. Unsupported DOCX/PDF constructs have explicit expected behavior.
 
 ### Phase A1 — Document safety and normalized extraction
+
+**Status:** Complete. The implemented boundary and runtime requirements are recorded
+in [`../../analysis/DOCUMENT_INGESTION.md`](../../analysis/DOCUMENT_INGESTION.md).
 
 **Goal:** Turn PDF and DOCX inputs into a deterministic `DocumentSnapshot` without
 using AI.
