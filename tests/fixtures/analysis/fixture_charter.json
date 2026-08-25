@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "diagram_families": [
+    "linear_flow",
+    "branching_flow",
+    "bidirectional_system",
+    "nested_subsystem",
+    "reference_schematic",
+    "dense_tiled",
+    "crossing_without_junction",
+    "ambiguous_arrowhead"
+  ],
+  "consistency_cases": [
+    {"category": "label", "variants": ["contradiction", "consistent", "ambiguous"]},
+    {"category": "reference_number", "variants": ["contradiction", "consistent", "ambiguous"]},
+    {"category": "object_existence", "variants": ["contradiction", "consistent", "ambiguous"]},
+    {"category": "relationship", "variants": ["contradiction", "consistent", "ambiguous"]},
+    {"category": "direction", "variants": ["contradiction", "consistent", "ambiguous"]},
+    {"category": "relationship_type", "variants": ["contradiction", "consistent", "ambiguous"]},
+    {"category": "containment", "variants": ["contradiction", "consistent", "ambiguous"]},
+    {"category": "sequence", "variants": ["contradiction", "consistent", "ambiguous"]},
+    {"category": "modality", "variants": ["contradiction", "consistent", "ambiguous"]},
+    {"category": "negation", "variants": ["contradiction", "consistent", "ambiguous"]},
+    {"category": "alias", "variants": ["contradiction", "consistent", "ambiguous"]},
+    {"category": "exhaustive_scope", "variants": ["contradiction", "consistent", "ambiguous"]},
+    {"category": "unreadable_evidence", "variants": ["contradiction", "consistent", "ambiguous"]}
+  ],
+  "safety_cases": [
+    "type_mismatch",
+    "truncated_input",
+    "malformed_zip",
+    "posix_traversal",
+    "windows_traversal",
+    "duplicate_member",
+    "encrypted_member",
+    "macro_content",
+    "entry_count_limit",
+    "member_size_limit",
+    "total_expansion_limit",
+    "compression_ratio_limit",
+    "encrypted_pdf",
+    "external_relationship",
+    "decoded_pixel_limit"
+  ]
+}
