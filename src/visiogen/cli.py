@@ -5,7 +5,8 @@ from __future__ import annotations
 import argparse
 from collections.abc import Sequence
 
-from visiogen.analysis.command import register_analysis_command
+from visiogen.analysis.command import AnalysisPipelineFactory, register_analysis_command
+from visiogen.analysis.production import build_codex_analysis_pipeline
 from visiogen.generation.command import PipelineFactory, register_generate_command
 from visiogen.pipeline import build_codex_hybrid_pipeline
 
@@ -13,6 +14,7 @@ from visiogen.pipeline import build_codex_hybrid_pipeline
 def build_parser(
     *,
     pipeline_factory: PipelineFactory = build_codex_hybrid_pipeline,
+    analysis_pipeline_factory: AnalysisPipelineFactory = build_codex_analysis_pipeline,
 ) -> argparse.ArgumentParser:
     """Build the public CLI from workstream-owned command registrations."""
 
@@ -22,7 +24,7 @@ def build_parser(
     )
     commands = parser.add_subparsers(dest="command")
     register_generate_command(commands, pipeline_factory=pipeline_factory)
-    register_analysis_command(commands)
+    register_analysis_command(commands, pipeline_factory=analysis_pipeline_factory)
     return parser
 
 
@@ -30,10 +32,14 @@ def main(
     argv: Sequence[str] | None = None,
     *,
     pipeline_factory: PipelineFactory = build_codex_hybrid_pipeline,
+    analysis_pipeline_factory: AnalysisPipelineFactory = build_codex_analysis_pipeline,
 ) -> int:
     """Parse arguments and invoke the handler owned by the selected workstream."""
 
-    parser = build_parser(pipeline_factory=pipeline_factory)
+    parser = build_parser(
+        pipeline_factory=pipeline_factory,
+        analysis_pipeline_factory=analysis_pipeline_factory,
+    )
     args = parser.parse_args(argv)
     handler = getattr(args, "command_handler", None)
     if handler is None:

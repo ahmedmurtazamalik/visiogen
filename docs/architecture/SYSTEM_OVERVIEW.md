@@ -2,7 +2,10 @@
 
 ## What Visiogen is
 
-Visiogen turns a natural-language description into an editable Microsoft Visio `.vsdx` first draft. It targets flowcharts, system and architecture block diagrams, and abstract component or patent-oriented schematics with containers, connectors, reference numerals, and callouts.
+Visiogen has two independent diagram paths. Generation turns a natural-language
+description into an editable Microsoft Visio `.vsdx` first draft. Document analysis
+inspects diagrams in PDF or DOCX sources, describes their visible semantics, and
+compares independently extracted prose claims with diagram evidence.
 
 The system is not meant to reproduce a physical product accurately from prose or create filing-ready patent drawings. Its purpose is to create a useful, native Visio starting point that communicates the requested structure and can be refined by a person.
 
@@ -15,6 +18,31 @@ Application code remains responsible for hard correctness. It verifies IDs and r
 The authoritative detailed generation contract is
 [`HYBRID_AI.md`](HYBRID_AI.md). Historical implementation plans are archived
 under [`../plans/archive/`](../plans/archive/).
+
+## Document-analysis pipeline
+
+```text
+PDF or DOCX
+→ deterministic safe extraction
+→ visual candidate enumeration and Codex classification
+→ prepared crop, overview, and bounded tiles
+→ evidence-grounded visual observation and semantic reconstruction
+→ deterministic accessible description
+→ independent document-claim extraction and conservative alignment
+→ deterministic consistency findings with bounded semantic adjudication
+→ public report plus private hash-bound evidence bundle
+```
+
+The analysis path does not import or invoke the VSDX renderer, layout system,
+preview exporter, or Microsoft Visio automation. Candidate failures are isolated and
+reported as partial results rather than silently omitted. Exact logical prompts,
+transport prompts, raw responses, validated stage outputs, source and artifact
+hashes, schema hashes, warnings, and failures are retained for review.
+
+The provisional public command is `visiogen analyze`. Production Codex construction
+uses separate strict-output callers for image classification, observation,
+reconstruction, and text-claim extraction. A public Markdown report is kept outside
+the private evidence directory.
 
 ## Runtime pipeline
 

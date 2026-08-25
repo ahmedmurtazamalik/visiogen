@@ -1,4 +1,5 @@
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, cast
 
 import pytest
@@ -171,3 +172,105 @@ def test_generate_reports_pipeline_failures_cleanly(tmp_path: Path, capsys) -> N
 
     assert error.value.code == 2
     assert "Generation failed: Evidence directory must be empty" in capsys.readouterr().err
+
+
+class FakeAnalysisPipeline:
+    def __init__(self, *, status: str = "complete") -> None:
+        self.status = status
+        self.calls = []
+
+    def analyze(self, source, artifact_dir, *, options):
+        artifacts = Path(artifact_dir).resolve()
+        artifacts.mkdir(parents=True)
+        (artifacts / "report.md").write_text("# Analysis\n")
+        self.calls.append((Path(source), Path(artifact_dir), options))
+        return SimpleNamespace(
+            artifact_dir=artifacts,
+            analysis=SimpleNamespace(status=self.status),
+        )
+
+
+def test_analyze_command_publishes_report_and_passes_scoped_options(tmp_path: Path) -> None:
+    source = tmp_path / "design.pdf"
+    source.write_bytes(b"%PDF fixture")
+    output = tmp_path / "report.md"
+    artifacts = tmp_path / "evidence"
+    pipeline = FakeAnalysisPipeline()
+    factory_calls = []
+
+    def factory(settings):
+        factory_calls.append(settings)
+        return pipeline
+
+    exit_code = main(
+        [
+            "analyze",
+            "--input",
+            str(source),
+            "--output",
+            str(output),
+            "--artifact-dir",
+            str(artifacts),
+            "--page",
+            "2",
+            "--max-diagrams",
+            "3",
+            "--strict-coverage",
+            "--no-consistency-check",
+        ],
+        analysis_pipeline_factory=factory,
+    )
+
+    assert exit_code == 0
+    assert output.read_text() == "# Analysis\n"
+    assert factory_calls[0].provider == "codex"
+    assert factory_calls[0].codex_model == "gpt-5.6-sol"
+    options = pipeline.calls[0][2]
+    assert options.page_number == 2
+    assert options.max_diagrams == 3
+    assert options.strict_coverage
+    assert not options.consistency_check
+
+
+def test_analyze_command_returns_distinct_partial_exit_code(tmp_path: Path) -> None:
+    source = tmp_path / "design.docx"
+    source.write_bytes(b"PK fixture")
+    pipeline = FakeAnalysisPipeline(status="partial")
+
+    exit_code = main(
+        [
+            "analyze",
+            "--input",
+            str(source),
+            "--output",
+            str(tmp_path / "report.md"),
+            "--artifact-dir",
+            str(tmp_path / "evidence"),
+        ],
+        analysis_pipeline_factory=lambda settings: pipeline,
+    )
+
+    assert exit_code == 3
+
+
+def test_analyze_refuses_public_report_inside_private_evidence(tmp_path: Path, capsys) -> None:
+    source = tmp_path / "design.pdf"
+    source.write_bytes(b"%PDF fixture")
+    artifacts = tmp_path / "evidence"
+
+    with pytest.raises(SystemExit) as error:
+        main(
+            [
+                "analyze",
+                "--input",
+                str(source),
+                "--output",
+                str(artifacts / "report.md"),
+                "--artifact-dir",
+                str(artifacts),
+            ],
+            analysis_pipeline_factory=lambda settings: pytest.fail("must not build pipeline"),
+        )
+
+    assert error.value.code == 2
+    assert "outside the private artifact directory" in capsys.readouterr().err

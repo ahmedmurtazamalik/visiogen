@@ -33,6 +33,13 @@ from visiogen.analysis.description import (
 from visiogen.analysis.models import CandidateDiscovery, CandidatePreparation
 from visiogen.analysis.observation import StructuredObservationWorkflow
 from visiogen.analysis.preparation import prepare_diagram_candidates
+from visiogen.analysis.production import build_codex_analysis_pipeline
+from visiogen.analysis.pipeline import (
+    AnalysisPipelineOptions,
+    DocumentAnalysis,
+    DocumentAnalysisPipeline,
+    DocumentAnalysisResult,
+)
 from visiogen.analysis.reconstruction import StructuredReconstructionWorkflow
 from visiogen.analysis.semantic_pipeline import SemanticAnalysisWorkflow
 from visiogen.analysis.selection import CandidateSelection, discover_diagram_candidates
@@ -48,6 +55,10 @@ __all__ = [
     "EntityAlignmentSet",
     "ConsistencyAnalysis",
     "ConsistencyFinding",
+    "AnalysisPipelineOptions",
+    "DocumentAnalysis",
+    "DocumentAnalysisPipeline",
+    "DocumentAnalysisResult",
     "SemanticAnalysisWorkflow",
     "StructuredClaimExtractionWorkflow",
     "StructuredAdjudicationWorkflow",
@@ -56,6 +67,7 @@ __all__ = [
     "align_claim_entities",
     "apply_adjudication_decision",
     "build_adjudication_request",
+    "build_codex_analysis_pipeline",
     "compare_diagram_and_claims",
     "compose_diagram_description",
     "discover_diagram_candidates",

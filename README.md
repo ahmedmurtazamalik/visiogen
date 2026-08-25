@@ -118,9 +118,20 @@ ambiguity across all planned categories with evidence-complete findings and stri
 omission safeguards. See
 [`docs/acceptance/A6_CONSISTENCY.md`](docs/acceptance/A6_CONSISTENCY.md).
 
-The intended future interface is `visiogen analyze`; it should not be considered
-available until a tested vertical slice is added to the analysis-owned command
-registration.
+The provisional A7 interface is now registered:
+
+```bash
+uv run visiogen analyze \
+  --input design-spec.pdf \
+  --output artifacts/review/report.md \
+  --artifact-dir artifacts/review/evidence \
+  --model gpt-5.6-sol
+```
+
+It publishes an accessible report separately from the private evidence bundle and
+returns a distinct exit code for partial candidate failure. The command is not yet
+release-accepted: fresh real-provider PDF and DOCX vertical acceptance remains part
+of A7.
 
 ## Development
 
