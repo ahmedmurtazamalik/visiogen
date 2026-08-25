@@ -1,6 +1,6 @@
 # Visiogen Document-to-Diagram Analysis Implementation Plan
 
-**Status:** Phases A0-A4 complete; Phase A5 next
+**Status:** Phases A0-A5 complete; Phase A6 next
 
 **Date:** 2026-08-24
 
@@ -1186,12 +1186,12 @@ introduced.
 
 ### Phase A5 — Text claim extraction and entity alignment
 
-**Status:** In progress. Bounded caption/anchor/proximity/figure-reference/label/reference
+**Status:** Complete. Bounded caption/anchor/proximity/figure-reference/label/reference
 selection, exact block-limit accounting, strict atomic claim and span schemas, hard
 evidence/normalization/modality validation, one bounded repair, and layered
-reference/label/alias/fuzzy/unresolved alignment are implemented. The expanded
-controlled corpus and clean real-provider quality gate remain open. See
-[`../../analysis/TEXT_CLAIMS_AND_ALIGNMENT.md`](../../analysis/TEXT_CLAIMS_AND_ALIGNMENT.md).
+reference/label/alias/fuzzy/unresolved alignment are implemented. The seven-case clean
+real-provider gate passed and its evidence is preserved in
+[`../../acceptance/A5_TEXT_CLAIMS.md`](../../acceptance/A5_TEXT_CLAIMS.md).
 
 **Goal:** Independently turn nearby diagram-related prose into evidence-bound atomic
 claims and align its entities conservatively.

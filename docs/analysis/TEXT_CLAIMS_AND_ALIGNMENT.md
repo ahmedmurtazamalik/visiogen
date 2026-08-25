@@ -1,6 +1,6 @@
 # Text Claims and Entity Alignment
 
-**Status:** Phase A5 in progress; deterministic selection and core workflows implemented
+**Status:** Phase A5 complete; clean real-provider quality gate passed
 
 A5 independently converts bounded document prose into evidence-bound atomic claims,
 then aligns claim entities with A3 diagram objects. Claim extraction does not receive
@@ -44,10 +44,11 @@ Alignment currently applies these layers in order:
 Short labels of three characters or fewer never receive fuzzy matching. Every result
 retains its claim/evidence references, method, score, and alternatives.
 
-## Remaining A5 work
+## Acceptance
 
-- expand controlled modality, negation, exhaustive-scope, alias, and short-label fixtures;
-- add optional evidence-bound model-assisted alignment after deterministic layers;
-- run the clean production claim extractor over the reviewed corpus;
-- preserve exact prompts/responses and score span, modality, scope, and alignment quality;
-- close A5 only after ambiguous entities remain unresolved and all evidence gates pass.
+The clean production-adapter run passed all seven reviewed cases with 1.00 claim recall,
+modality accuracy, exact-span validity, alias alignment, ambiguity safety, and exhaustive
+scope recognition. Exact evidence is recorded in
+[`../acceptance/A5_TEXT_CLAIMS.md`](../acceptance/A5_TEXT_CLAIMS.md). Optional semantic
+alignment remains a future extension rather than an MVP requirement because the accepted
+deterministic layers resolve supported cases and preserve ambiguous alternatives.

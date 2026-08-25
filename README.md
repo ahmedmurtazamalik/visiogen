@@ -11,8 +11,9 @@ directions:
 The generation pipeline is implemented. Document analysis has completed safe
 deterministic PDF/DOCX ingestion, diagram discovery/image preparation, and accepted
 evidence-grounded visual observation, semantic reconstruction, and faithful textual
-description. Document-text claim extraction and entity alignment are the next analysis
-phase. The public `visiogen analyze` command is not implemented yet.
+description, plus bounded document-text claim extraction and conservative entity
+alignment. Consistency findings are the next analysis phase. The public `visiogen
+analyze` command is not implemented yet.
 
 The supported generation targets are flowcharts, system and architecture diagrams,
 and abstract component or patent-oriented schematics. Visiogen produces editable
