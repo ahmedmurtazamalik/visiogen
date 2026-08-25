@@ -20,6 +20,17 @@ from visiogen.providers.base import ImageStructuredCall, ProviderResponse
 class ReconstructionWorkflowError(ValueError):
     """Semantic reconstruction remained invalid after one permitted repair."""
 
+    def __init__(
+        self,
+        message: str,
+        *,
+        traces: list[AnalysisCallTrace] | None = None,
+        validation_error: str | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.traces = traces or []
+        self.validation_error = validation_error
+
 
 class ReconstructionResult(AnalysisModel):
     """Validated semantic model and complete bounded-call provenance."""
@@ -80,7 +91,10 @@ class StructuredReconstructionWorkflow:
             except (ValidationError, AnalysisValidationError) as error:
                 if attempt == 2:
                     raise ReconstructionWorkflowError(
-                        "Semantic reconstruction is invalid after one repair attempt"
+                        "Semantic reconstruction is invalid after one repair attempt: "
+                        f"{error}",
+                        traces=traces,
+                        validation_error=str(error),
                     ) from error
                 user_prompt = build_reconstruction_repair_prompt(
                     prepared.candidate_id,

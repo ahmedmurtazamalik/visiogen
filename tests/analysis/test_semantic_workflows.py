@@ -5,10 +5,14 @@ import json
 from pathlib import Path
 
 from PIL import Image
+import pytest
 
 from visiogen.analysis.models import PreparedCandidate, PreparedDerivative
 from visiogen.analysis.observation import StructuredObservationWorkflow
-from visiogen.analysis.reconstruction import StructuredReconstructionWorkflow
+from visiogen.analysis.reconstruction import (
+    ReconstructionWorkflowError,
+    StructuredReconstructionWorkflow,
+)
 from visiogen.analysis.semantic_pipeline import SemanticAnalysisWorkflow
 from visiogen.documents.models import NormalizedBox
 from visiogen.providers.base import ProviderResponse
@@ -152,6 +156,23 @@ def test_reconstruction_workflow_rejects_invention_then_repairs(tmp_path: Path) 
     assert result.attempts == 2
     assert result.diagram.objects[0].visible_label == "Sensor"
     assert "Do not invent" in reconstruction_call.calls[1][1]
+
+
+def test_reconstruction_failure_preserves_validation_evidence(tmp_path: Path) -> None:
+    prepared, bundle = _prepared_bundle(tmp_path)
+    observations = StructuredObservationWorkflow(
+        FakeImageCall([_observation_response()])
+    ).observe(prepared, bundle).observations
+
+    with pytest.raises(ReconstructionWorkflowError) as caught:
+        StructuredReconstructionWorkflow(
+            FakeImageCall([_diagram_response(label="Invented")] * 2)
+        ).reconstruct(prepared, observations, bundle)
+
+    assert "not present in cited evidence" in str(caught.value)
+    assert "not present in cited evidence" in (caught.value.validation_error or "")
+    assert "Invented" in caught.value.traces[-1].raw_response
+    assert len(caught.value.traces) == 2
 
 
 def test_semantic_pipeline_composes_both_stages_with_bounded_calls(tmp_path: Path) -> None:
