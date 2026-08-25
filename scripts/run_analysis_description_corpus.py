@@ -51,6 +51,12 @@ def _sha256(data: bytes) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--semantic-report",
+        type=Path,
+        default=_A3_REPORT,
+        help="Complete A3 acceptance-report JSON to describe",
+    )
     args = parser.parse_args()
     output = args.output.resolve()
     if output == _REPOSITORY or _REPOSITORY in output.parents:
@@ -58,7 +64,10 @@ def main() -> int:
     if _git("status", "--porcelain"):
         parser.error("Acceptance requires a clean immutable source checkout")
     source_revision = _git("rev-parse", "HEAD")
-    report_bytes = _A3_REPORT.read_bytes()
+    semantic_report = args.semantic_report.resolve()
+    if not semantic_report.is_file():
+        parser.error(f"A3 acceptance report was not found: {semantic_report}")
+    report_bytes = semantic_report.read_bytes()
     a3_report_sha = _sha256(report_bytes)
     a3_report = json.loads(report_bytes)
     if a3_report["status"] != "passed" or not a3_report["complete_corpus"]:

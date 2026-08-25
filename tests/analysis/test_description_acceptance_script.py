@@ -16,4 +16,5 @@ def test_a4_runner_binds_a3_evidence_clean_source_and_exact_metrics() -> None:
     assert '"visible_label_coverage"' in script
     assert '"ambiguity_coverage"' in script
     assert '"annotation_coverage"' in script
+    assert '"--semantic-report"' in script
     assert "write_description_bundle" in script
