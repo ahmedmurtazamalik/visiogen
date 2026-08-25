@@ -27,10 +27,10 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install Graphviz
+      - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install --yes graphviz
+          sudo apt-get install --yes graphviz poppler-utils
 
       - name: Install locked dependencies
         run: uv sync --frozen --extra dev
