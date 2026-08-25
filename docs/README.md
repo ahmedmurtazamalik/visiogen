@@ -24,6 +24,7 @@ organized here by purpose.
 ## Acceptance
 
 - [A2 diagram discovery acceptance](acceptance/A2_DIAGRAM_DISCOVERY.md)
+- [A3 visual semantics acceptance](acceptance/A3_VISUAL_SEMANTICS.md)
 - [Hybrid-AI verification record](acceptance/HYBRID_AI.md)
 - [Windows and native Visio procedure](acceptance/WINDOWS_VISIO.md)
 

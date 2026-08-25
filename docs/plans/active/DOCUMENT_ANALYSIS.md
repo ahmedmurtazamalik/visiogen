@@ -1,6 +1,6 @@
 # Visiogen Document-to-Diagram Analysis Implementation Plan
 
-**Status:** Phases A0-A2 complete; Phase A3 next
+**Status:** Phases A0-A3 complete; Phase A4 next
 
 **Date:** 2026-08-24
 
@@ -1121,12 +1121,12 @@ fixture set, and every accepted/ignored candidate has a recorded reason.
 
 ### Phase A3 — Visual observation and semantic reconstruction
 
-**Status:** In progress. Strict observation and semantic models, deterministic
+**Status:** Complete. Strict observation and semantic models, deterministic
 tile-to-source transforms, hard evidence/reference/anti-invention validation,
 overview-plus-tiles calls, one bounded repair per stage, complete call traces, and
-the four-call candidate budget are implemented. Controlled semantic fixtures and
-real-provider accuracy acceptance remain open. See
-[`../../analysis/VISUAL_SEMANTICS.md`](../../analysis/VISUAL_SEMANTICS.md).
+the four-call candidate budget are implemented. The six-case clean real-provider
+quality gate passed and its evidence is preserved in
+[`../../acceptance/A3_VISUAL_SEMANTICS.md`](../../acceptance/A3_VISUAL_SEMANTICS.md).
 
 **Goal:** Produce a strict, evidence-grounded diagram model from images.
 

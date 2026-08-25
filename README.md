@@ -9,9 +9,10 @@ directions:
    visible semantics, and compare them with related document text.
 
 The generation pipeline is implemented. Document analysis has completed safe
-deterministic PDF/DOCX ingestion and accepted diagram discovery/image preparation;
-visual observation and semantic reconstruction are under development. The public
-`visiogen analyze` command is not implemented yet.
+deterministic PDF/DOCX ingestion, diagram discovery/image preparation, and accepted
+evidence-grounded visual observation and semantic reconstruction. Faithful textual
+description is the next analysis phase. The public `visiogen analyze` command is not
+implemented yet.
 
 The supported generation targets are flowcharts, system and architecture diagrams,
 and abstract component or patent-oriented schematics. Visiogen produces editable
@@ -84,7 +85,7 @@ uv run visiogen generate \
 
 ## Analyze a document
 
-The planned analysis workflow is:
+The analysis workflow is:
 
 ```text
 PDF or DOCX
@@ -100,6 +101,11 @@ This work does not require Microsoft Visio and does not call the generation
 pipeline. The implementation plan, schemas, security model, fixture strategy, and
 acceptance gates are documented in
 [`docs/plans/active/DOCUMENT_ANALYSIS.md`](docs/plans/active/DOCUMENT_ANALYSIS.md).
+
+The A3 visual-semantics core now has a clean real-provider acceptance record covering
+objects, labels, visible reference numerals, relationships, direction, grouping,
+dense tiled images, and explicit ambiguity. See
+[`docs/acceptance/A3_VISUAL_SEMANTICS.md`](docs/acceptance/A3_VISUAL_SEMANTICS.md).
 
 The intended future interface is `visiogen analyze`; it should not be considered
 available until a tested vertical slice is added to the analysis-owned command

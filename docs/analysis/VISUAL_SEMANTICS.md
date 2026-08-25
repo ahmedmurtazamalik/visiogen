@@ -1,6 +1,6 @@
 # Visual Observation and Semantic Reconstruction
 
-**Status:** Phase A3 in progress; contracts and bounded workflows implemented
+**Status:** Phase A3 complete; clean real-provider quality gate passed
 
 A3 converts the model-ready images produced by A2 into two separate validated
 records. The observation stage records literal pixels without document prose. The
@@ -68,13 +68,17 @@ result = workflow.analyze(prepared_candidate, candidate_bundle)
 The observation and reconstruction callers use different strict output schemas even
 when backed by the same provider/model.
 
-## Remaining A3 work
+## Acceptance
 
-- expand the controlled corpus with branching, containment, crossing, reference,
-  dense-tile, and ambiguous-arrow fixtures;
-- add exact accuracy scoring for labels, objects, relationships, direction, and
-  reference numerals;
-- run the clean-source production multimodal adapter and preserve full evidence;
-- tune only against a development subset and retain ambiguous alternatives;
-- close A3 after the real-provider corpus meets the agreed targets with no invented
-  labels or references.
+The reviewed six-case corpus covers branching, containment, connector crossings,
+reference numerals, dense tiling, and an ambiguous damaged arrowhead. On 2026-08-25,
+the clean production-adapter run passed every threshold with 1.00 object precision,
+object recall, edge precision, edge recall, direction accuracy, family accuracy, and
+reference recall. The ambiguous control was retained as uncertain rather than forced
+into a direction.
+
+The exact prompts, raw responses, image hashes, validated outputs, scores, and provider
+identity are preserved in
+[`../acceptance/A3_VISUAL_SEMANTICS.md`](../acceptance/A3_VISUAL_SEMANTICS.md).
+Broader held-out real-document quality remains an A8 concern; Phase A4 can now consume
+the validated semantic model to produce faithful textual descriptions.
