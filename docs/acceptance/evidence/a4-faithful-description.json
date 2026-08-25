@@ -1,0 +1,176 @@
+{
+  "a3_report_sha256": "6c909130ea1667d9dcb7cbd12dee03c22ca6a1f4f1222a7800c7a3c1e4d851c5",
+  "a3_source_revision": "95722f2a846472deef0da818d236ca2f7b45df38",
+  "case_count": 6,
+  "cases": [
+    {
+      "artifacts": {
+        "candidate_id": "candidate-0001",
+        "description_json": "description.json",
+        "description_json_sha256": "7faa411677db1cda95f039009ea9debd1b47639797aec21ad4feb4daad359f78",
+        "description_markdown": "description.md",
+        "description_markdown_sha256": "b556c25bf46d886570acc21ed42b5adc86a0c097c75a61b2a6b55a659991346a"
+      },
+      "candidate_id": "candidate-0001",
+      "id": "branching_flow",
+      "score": {
+        "ambiguity_coverage": 1.0,
+        "candidate_id": "candidate-0001",
+        "canonical_sections": true,
+        "group_coverage": 1.0,
+        "legend_coverage": 1.0,
+        "limitation_coverage": 1.0,
+        "object_coverage": 1.0,
+        "reference_number_coverage": 1.0,
+        "relationship_coverage": 1.0,
+        "visible_label_coverage": 1.0
+      },
+      "stable": true
+    },
+    {
+      "artifacts": {
+        "candidate_id": "candidate-0001",
+        "description_json": "description.json",
+        "description_json_sha256": "41bfd0c3b686cb4f632cb8a8f440654c1e9eb7ded5e35a7445abb7ef81e1f4fa",
+        "description_markdown": "description.md",
+        "description_markdown_sha256": "4b15a382fc49e23c3800e5b687bc731401129c14c269ddccb3a6f8658451ff59"
+      },
+      "candidate_id": "candidate-0001",
+      "id": "contained_system",
+      "score": {
+        "ambiguity_coverage": 1.0,
+        "candidate_id": "candidate-0001",
+        "canonical_sections": true,
+        "group_coverage": 1.0,
+        "legend_coverage": 1.0,
+        "limitation_coverage": 1.0,
+        "object_coverage": 1.0,
+        "reference_number_coverage": 1.0,
+        "relationship_coverage": 1.0,
+        "visible_label_coverage": 1.0
+      },
+      "stable": true
+    },
+    {
+      "artifacts": {
+        "candidate_id": "candidate-0001",
+        "description_json": "description.json",
+        "description_json_sha256": "a9115df0a01cce927db4ada69c27a1b9327cbc581079c1c5588b3a3e09331f0a",
+        "description_markdown": "description.md",
+        "description_markdown_sha256": "8d347a3408ea7ad8cd71a6f7a6d40cce7640b4deead951f0f747e21d29e201b5"
+      },
+      "candidate_id": "candidate-0001",
+      "id": "reference_schematic",
+      "score": {
+        "ambiguity_coverage": 1.0,
+        "candidate_id": "candidate-0001",
+        "canonical_sections": true,
+        "group_coverage": 1.0,
+        "legend_coverage": 1.0,
+        "limitation_coverage": 1.0,
+        "object_coverage": 1.0,
+        "reference_number_coverage": 1.0,
+        "relationship_coverage": 1.0,
+        "visible_label_coverage": 1.0
+      },
+      "stable": true
+    },
+    {
+      "artifacts": {
+        "candidate_id": "candidate-0001",
+        "description_json": "description.json",
+        "description_json_sha256": "b0e7d9540df384b342a034c7d570d0ddaeae53b1cdef88545155122c841319d6",
+        "description_markdown": "description.md",
+        "description_markdown_sha256": "674ba2b6c2fd57b145543256eae236ed0b55b56aca3e9b8e2583fb100ec13afc"
+      },
+      "candidate_id": "candidate-0001",
+      "id": "crossing_without_junction",
+      "score": {
+        "ambiguity_coverage": 1.0,
+        "candidate_id": "candidate-0001",
+        "canonical_sections": true,
+        "group_coverage": 1.0,
+        "legend_coverage": 1.0,
+        "limitation_coverage": 1.0,
+        "object_coverage": 1.0,
+        "reference_number_coverage": 1.0,
+        "relationship_coverage": 1.0,
+        "visible_label_coverage": 1.0
+      },
+      "stable": true
+    },
+    {
+      "artifacts": {
+        "candidate_id": "candidate-0001",
+        "description_json": "description.json",
+        "description_json_sha256": "606a09ece0c5cd10124caeacf52c4439972feaa8868459a49d46207a780076a0",
+        "description_markdown": "description.md",
+        "description_markdown_sha256": "569e9f6c78d13d2da739b7c0e1810f33b356399b49851ce769d308cdb075f617"
+      },
+      "candidate_id": "candidate-0001",
+      "id": "dense_tiled",
+      "score": {
+        "ambiguity_coverage": 1.0,
+        "candidate_id": "candidate-0001",
+        "canonical_sections": true,
+        "group_coverage": 1.0,
+        "legend_coverage": 1.0,
+        "limitation_coverage": 1.0,
+        "object_coverage": 1.0,
+        "reference_number_coverage": 1.0,
+        "relationship_coverage": 1.0,
+        "visible_label_coverage": 1.0
+      },
+      "stable": true
+    },
+    {
+      "artifacts": {
+        "candidate_id": "candidate-0001",
+        "description_json": "description.json",
+        "description_json_sha256": "972d85e55c7648352e2b9a579a5138ff7c6634f6a7013857e51ca207408e1d2e",
+        "description_markdown": "description.md",
+        "description_markdown_sha256": "ed6a4cc2f67c66c80e6e7d621d69e0c533923bf76caa622f1e42ae851bfb0c56"
+      },
+      "candidate_id": "candidate-0001",
+      "id": "ambiguous_arrow",
+      "score": {
+        "ambiguity_coverage": 1.0,
+        "candidate_id": "candidate-0001",
+        "canonical_sections": true,
+        "group_coverage": 1.0,
+        "legend_coverage": 1.0,
+        "limitation_coverage": 1.0,
+        "object_coverage": 1.0,
+        "reference_number_coverage": 1.0,
+        "relationship_coverage": 1.0,
+        "visible_label_coverage": 1.0
+      },
+      "stable": true
+    }
+  ],
+  "generator": "deterministic-a4-description-v1",
+  "metrics": {
+    "ambiguity_coverage": 1.0,
+    "group_coverage": 1.0,
+    "legend_coverage": 1.0,
+    "limitation_coverage": 1.0,
+    "object_coverage": 1.0,
+    "reference_number_coverage": 1.0,
+    "relationship_coverage": 1.0,
+    "visible_label_coverage": 1.0
+  },
+  "source_clean": true,
+  "source_revision": "07352f4b1148ccf2a7ef0724e2f81416ba2252ca",
+  "stable_outputs": true,
+  "status": "passed",
+  "thresholds": {
+    "ambiguity_coverage": 1.0,
+    "group_coverage": 1.0,
+    "legend_coverage": 1.0,
+    "limitation_coverage": 1.0,
+    "object_coverage": 1.0,
+    "reference_number_coverage": 1.0,
+    "relationship_coverage": 1.0,
+    "visible_label_coverage": 1.0
+  }
+}
