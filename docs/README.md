@@ -16,6 +16,7 @@ organized here by purpose.
 - [Diagram discovery and image preparation](analysis/DIAGRAM_DISCOVERY.md)
 - [Visual observation and semantic reconstruction](analysis/VISUAL_SEMANTICS.md)
 - [Faithful textual description](analysis/FAITHFUL_DESCRIPTION.md)
+- [Text claims and entity alignment](analysis/TEXT_CLAIMS_AND_ALIGNMENT.md)
 
 ## Development
 

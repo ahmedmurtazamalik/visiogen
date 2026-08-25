@@ -1186,6 +1186,13 @@ introduced.
 
 ### Phase A5 — Text claim extraction and entity alignment
 
+**Status:** In progress. Bounded caption/anchor/proximity/figure-reference/label/reference
+selection, exact block-limit accounting, strict atomic claim and span schemas, hard
+evidence/normalization/modality validation, one bounded repair, and layered
+reference/label/alias/fuzzy/unresolved alignment are implemented. The expanded
+controlled corpus and clean real-provider quality gate remain open. See
+[`../../analysis/TEXT_CLAIMS_AND_ALIGNMENT.md`](../../analysis/TEXT_CLAIMS_AND_ALIGNMENT.md).
+
 **Goal:** Independently turn nearby diagram-related prose into evidence-bound atomic
 claims and align its entities conservatively.
 
