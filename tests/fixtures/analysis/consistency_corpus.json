@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "provenance": "Locally authored deterministic semantic graphs, claims, alignments, and expected A6 outcomes.",
+  "cases": [
+    {"id": "label_contradiction", "category": "label", "variant": "contradiction", "expected_category": "label", "expected_status": "confirmed_contradiction", "exhaustive_scope": false},
+    {"id": "label_consistent", "category": "label", "variant": "consistent", "expected_category": "label", "expected_status": "no_finding", "exhaustive_scope": false},
+    {"id": "label_ambiguous", "category": "label", "variant": "ambiguous", "expected_category": "object_existence", "expected_status": "unverifiable", "exhaustive_scope": false},
+
+    {"id": "reference_number_contradiction", "category": "reference_number", "variant": "contradiction", "expected_category": "reference_number", "expected_status": "confirmed_contradiction", "exhaustive_scope": false},
+    {"id": "reference_number_consistent", "category": "reference_number", "variant": "consistent", "expected_category": "reference_number", "expected_status": "confirmed_consistent", "exhaustive_scope": false},
+    {"id": "reference_number_ambiguous", "category": "reference_number", "variant": "ambiguous", "expected_category": "reference_number", "expected_status": "unverifiable", "exhaustive_scope": false},
+
+    {"id": "object_existence_contradiction", "category": "object_existence", "variant": "contradiction", "expected_category": "object_existence", "expected_status": "confirmed_contradiction", "exhaustive_scope": false},
+    {"id": "object_existence_consistent", "category": "object_existence", "variant": "consistent", "expected_category": "object_existence", "expected_status": "confirmed_consistent", "exhaustive_scope": false},
+    {"id": "object_existence_ambiguous", "category": "object_existence", "variant": "ambiguous", "expected_category": "object_existence", "expected_status": "unverifiable", "exhaustive_scope": false},
+
+    {"id": "relationship_contradiction", "category": "relationship", "variant": "contradiction", "expected_category": "relationship", "expected_status": "probable_contradiction", "exhaustive_scope": false},
+    {"id": "relationship_consistent", "category": "relationship", "variant": "consistent", "expected_category": "relationship", "expected_status": "confirmed_consistent", "exhaustive_scope": false},
+    {"id": "relationship_ambiguous", "category": "relationship", "variant": "ambiguous", "expected_category": "relationship", "expected_status": "unverifiable", "exhaustive_scope": false},
+
+    {"id": "direction_contradiction", "category": "direction", "variant": "contradiction", "expected_category": "direction", "expected_status": "confirmed_contradiction", "exhaustive_scope": false},
+    {"id": "direction_consistent", "category": "direction", "variant": "consistent", "expected_category": "direction", "expected_status": "confirmed_consistent", "exhaustive_scope": false},
+    {"id": "direction_ambiguous", "category": "direction", "variant": "ambiguous", "expected_category": "direction", "expected_status": "unverifiable", "exhaustive_scope": false},
+
+    {"id": "relationship_type_contradiction", "category": "relationship_type", "variant": "contradiction", "expected_category": "relationship_type", "expected_status": "confirmed_contradiction", "exhaustive_scope": false},
+    {"id": "relationship_type_consistent", "category": "relationship_type", "variant": "consistent", "expected_category": "relationship_type", "expected_status": "confirmed_consistent", "exhaustive_scope": false},
+    {"id": "relationship_type_ambiguous", "category": "relationship_type", "variant": "ambiguous", "expected_category": "relationship_type", "expected_status": "unverifiable", "exhaustive_scope": false},
+
+    {"id": "containment_contradiction", "category": "containment", "variant": "contradiction", "expected_category": "containment", "expected_status": "confirmed_contradiction", "exhaustive_scope": false},
+    {"id": "containment_consistent", "category": "containment", "variant": "consistent", "expected_category": "containment", "expected_status": "confirmed_consistent", "exhaustive_scope": false},
+    {"id": "containment_ambiguous", "category": "containment", "variant": "ambiguous", "expected_category": "containment", "expected_status": "unverifiable", "exhaustive_scope": false},
+
+    {"id": "sequence_contradiction", "category": "sequence", "variant": "contradiction", "expected_category": "sequence", "expected_status": "confirmed_contradiction", "exhaustive_scope": false},
+    {"id": "sequence_consistent", "category": "sequence", "variant": "consistent", "expected_category": "sequence", "expected_status": "confirmed_consistent", "exhaustive_scope": false},
+    {"id": "sequence_ambiguous", "category": "sequence", "variant": "ambiguous", "expected_category": "sequence", "expected_status": "unverifiable", "exhaustive_scope": false},
+
+    {"id": "modality_contradiction", "category": "modality", "variant": "contradiction", "expected_category": "relationship", "expected_status": "probable_contradiction", "exhaustive_scope": false},
+    {"id": "modality_consistent", "category": "modality", "variant": "consistent", "expected_category": "relationship", "expected_status": "confirmed_consistent", "exhaustive_scope": false},
+    {"id": "modality_ambiguous", "category": "modality", "variant": "ambiguous", "expected_category": "unsupported_claim", "expected_status": "unverifiable", "exhaustive_scope": false},
+
+    {"id": "negation_contradiction", "category": "negation", "variant": "contradiction", "expected_category": "negation", "expected_status": "confirmed_contradiction", "exhaustive_scope": false},
+    {"id": "negation_consistent", "category": "negation", "variant": "consistent", "expected_category": "negation", "expected_status": "confirmed_consistent", "exhaustive_scope": false},
+    {"id": "negation_ambiguous", "category": "negation", "variant": "ambiguous", "expected_category": "relationship", "expected_status": "unverifiable", "exhaustive_scope": false},
+
+    {"id": "alias_contradiction", "category": "alias", "variant": "contradiction", "expected_category": "terminology", "expected_status": "unverifiable", "exhaustive_scope": false},
+    {"id": "alias_consistent", "category": "alias", "variant": "consistent", "expected_category": "alias", "expected_status": "confirmed_consistent", "exhaustive_scope": false},
+    {"id": "alias_ambiguous", "category": "alias", "variant": "ambiguous", "expected_category": "terminology", "expected_status": "unverifiable", "exhaustive_scope": false},
+
+    {"id": "exhaustive_scope_contradiction", "category": "exhaustive_scope", "variant": "contradiction", "expected_category": "exhaustive_scope", "expected_status": "possible_omission", "exhaustive_scope": true},
+    {"id": "exhaustive_scope_consistent", "category": "exhaustive_scope", "variant": "consistent", "expected_category": "exhaustive_scope", "expected_status": "no_finding", "exhaustive_scope": true},
+    {"id": "exhaustive_scope_ambiguous", "category": "exhaustive_scope", "variant": "ambiguous", "expected_category": "exhaustive_scope", "expected_status": "no_finding", "exhaustive_scope": false},
+
+    {"id": "unreadable_evidence_contradiction", "category": "unreadable_evidence", "variant": "contradiction", "expected_category": "label", "expected_status": "probable_contradiction", "exhaustive_scope": false},
+    {"id": "unreadable_evidence_consistent", "category": "unreadable_evidence", "variant": "consistent", "expected_category": "object_existence", "expected_status": "confirmed_consistent", "exhaustive_scope": false},
+    {"id": "unreadable_evidence_ambiguous", "category": "unreadable_evidence", "variant": "ambiguous", "expected_category": "object_existence", "expected_status": "unverifiable", "exhaustive_scope": false}
+  ]
+}
