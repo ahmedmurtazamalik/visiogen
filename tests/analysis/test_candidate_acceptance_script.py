@@ -12,6 +12,7 @@ def test_a2_corpus_runner_requires_immutable_source_and_complete_evidence() -> N
     assert "clean immutable source checkout" in script
     assert "outside the source checkout" in script
     assert '"source_revision"' in script
+    assert '"provider_version"' in script
     assert '"corpus_sha256"' in script
     assert '"classification_trace"' in script
     assert '"image_sha256"' in script

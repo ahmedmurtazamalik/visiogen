@@ -122,6 +122,12 @@ def main() -> int:
     if _git("status", "--porcelain"):
         parser.error("Acceptance requires a clean immutable source checkout")
     source_revision = _git("rev-parse", "HEAD")
+    provider_version = subprocess.run(
+        ["codex", "--version"],
+        text=True,
+        capture_output=True,
+        check=True,
+    ).stdout.strip()
     corpus = json.loads(_CORPUS.read_text())
     cases = corpus["cases"]
     sys.path.insert(0, str(_TEST_BUILDERS))
@@ -178,6 +184,7 @@ def main() -> int:
             "source_revision": source_revision,
             "source_clean": True,
             "provider": "codex-cli",
+            "provider_version": provider_version,
             "model": args.model,
             "corpus_version": corpus["version"],
             "corpus_sha256": snapshot.source_sha256,
