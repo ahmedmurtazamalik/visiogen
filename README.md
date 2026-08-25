@@ -12,8 +12,8 @@ The generation pipeline is implemented. Document analysis has completed safe
 deterministic PDF/DOCX ingestion, diagram discovery/image preparation, and accepted
 evidence-grounded visual observation, semantic reconstruction, faithful textual
 description, bounded document-text claim extraction, conservative entity alignment,
-and evidence-backed consistency findings. Public pipeline and CLI integration are the
-next analysis phase; the `visiogen analyze` command is not implemented yet.
+and evidence-backed consistency findings. The public `visiogen analyze` pipeline and
+CLI are implemented and have passed the controlled A7 PDF/DOCX vertical gate.
 
 The supported generation targets are flowcharts, system and architecture diagrams,
 and abstract component or patent-oriented schematics. Visiogen produces editable
@@ -105,7 +105,7 @@ acceptance gates are documented in
 
 The A3 visual-semantics core now has a clean real-provider acceptance record covering
 objects, labels, visible reference numerals, relationships, direction, grouping,
-dense tiled images, and explicit ambiguity. See
+dense tiled images, annotations/callouts, and explicit ambiguity. See
 [`docs/acceptance/A3_VISUAL_SEMANTICS.md`](docs/acceptance/A3_VISUAL_SEMANTICS.md).
 
 A4 deterministically turns that validated semantic model into traceable JSON and
@@ -133,6 +133,12 @@ returns a distinct exit code for partial candidate failure. Fresh PDF and DOCX
 sources have passed the clean-source, real-`gpt-5.6-sol`, hash-bound vertical gate;
 see [`docs/acceptance/A7_VERTICAL_PIPELINE.md`](docs/acceptance/A7_VERTICAL_PIPELINE.md).
 Broader held-out quality and DOCX rendering scope remain Phase A8.
+
+A post-implementation completeness audit removed skipped tests and closed additional
+A0–A7 contract, safety, evidence, scope, and failure-provenance gaps. The exact audit
+scope and distinction between historical provider evidence and new deterministic
+coverage are recorded in
+[`docs/acceptance/A0_A7_COMPLETENESS_AUDIT.md`](docs/acceptance/A0_A7_COMPLETENESS_AUDIT.md).
 
 ## Development
 

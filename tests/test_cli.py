@@ -274,3 +274,29 @@ def test_analyze_refuses_public_report_inside_private_evidence(tmp_path: Path, c
 
     assert error.value.code == 2
     assert "outside the private artifact directory" in capsys.readouterr().err
+
+
+def test_analyze_refuses_private_evidence_nested_under_report_path(
+    tmp_path: Path,
+    capsys,
+) -> None:
+    source = tmp_path / "design.pdf"
+    source.write_bytes(b"%PDF fixture")
+    output = tmp_path / "report.md"
+
+    with pytest.raises(SystemExit) as error:
+        main(
+            [
+                "analyze",
+                "--input",
+                str(source),
+                "--output",
+                str(output),
+                "--artifact-dir",
+                str(output / "evidence"),
+            ],
+            analysis_pipeline_factory=lambda settings: pytest.fail("must not build pipeline"),
+        )
+
+    assert error.value.code == 2
+    assert "must not be nested beneath" in capsys.readouterr().err

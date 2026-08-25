@@ -11,14 +11,13 @@ from typing import Literal, Protocol
 
 from pydantic import Field, model_validator
 
-from visiogen.analysis.alignment import align_claim_entities
 from visiogen.analysis.adjudication import (
     AdjudicationRequest,
     AdjudicationResult,
-    StructuredAdjudicationWorkflow,
     apply_adjudication_decision,
     build_adjudication_request,
 )
+from visiogen.analysis.alignment import align_claim_entities
 from visiogen.analysis.artifacts import (
     AnalysisManifest,
     RuntimeProvenance,
@@ -26,9 +25,16 @@ from visiogen.analysis.artifacts import (
     write_candidate_artifacts,
 )
 from visiogen.analysis.claim_workflow import ClaimExtractionResult
-from visiogen.analysis.claims import DocumentClaimBatch, EntityAlignmentSet, TextSelection
+from visiogen.analysis.claims import (
+    DocumentClaimBatch,
+    EntityAlignmentSet,
+    TextSelection,
+)
 from visiogen.analysis.comparison import ConsistencyAnalysis, compare_diagram_and_claims
-from visiogen.analysis.description import DiagramDescription, compose_diagram_description
+from visiogen.analysis.description import (
+    DiagramDescription,
+    compose_diagram_description,
+)
 from visiogen.analysis.models import (
     AnalysisModel,
     CandidateDiscovery,
@@ -46,22 +52,90 @@ CandidateStatus = Literal["completed", "failed"]
 
 
 class CandidateStageError(RuntimeError):
-    def __init__(self, stage: str, error: Exception) -> None:
+    def __init__(
+        self,
+        stage: str,
+        error: Exception,
+        *,
+        prior_traces=(),
+        prior_model_calls: int = 0,
+    ) -> None:
         self.stage = stage
         self.original = error
+        self.traces = [*prior_traces, *getattr(error, "traces", [])]
+        self.model_calls = prior_model_calls + len(getattr(error, "traces", []))
+        self.validation_error = getattr(error, "validation_error", None)
         super().__init__(str(error) or f"{stage} failed")
 
 
-def _run_candidate_stage(stage: str, operation):
+def _run_candidate_stage(
+    stage: str,
+    operation,
+    *,
+    prior_traces=(),
+    prior_model_calls: int = 0,
+):
     try:
         return operation()
     except Exception as error:
-        raise CandidateStageError(stage, error) from error
+        raise CandidateStageError(
+            stage,
+            error,
+            prior_traces=prior_traces,
+            prior_model_calls=prior_model_calls,
+        ) from error
 
 
 class CandidateAdjudication(AnalysisModel):
     request: AdjudicationRequest
     result: AdjudicationResult
+
+
+class CandidateCallTrace(AnalysisModel):
+    system_prompt: str
+    user_prompt: str
+    transport_prompt: str | None = None
+    raw_response: str
+    elapsed_ms: float = Field(ge=0)
+    image_sha256: dict[str, str] = Field(default_factory=dict)
+
+
+class CandidateCallFailure(AnalysisModel):
+    stage: str = Field(min_length=1)
+    context_id: str | None = None
+    error_type: str = Field(min_length=1)
+    error_message: str = Field(min_length=1)
+    validation_error: str | None = None
+    traces: list[CandidateCallTrace] = Field(default_factory=list)
+
+
+def _call_failure(
+    stage: str,
+    error: Exception,
+    *,
+    context_id: str | None = None,
+) -> CandidateCallFailure:
+    traces = []
+    for trace in getattr(error, "traces", []):
+        traces.append(
+            CandidateCallTrace(
+                system_prompt=trace.system_prompt,
+                user_prompt=trace.user_prompt,
+                transport_prompt=trace.transport_prompt,
+                raw_response=trace.raw_response,
+                elapsed_ms=trace.elapsed_ms,
+                image_sha256=getattr(trace, "image_sha256", {}),
+            )
+        )
+    source_error = error.original if isinstance(error, CandidateStageError) else error
+    return CandidateCallFailure(
+        stage=stage,
+        context_id=context_id,
+        error_type=type(source_error).__name__,
+        error_message=str(source_error) or f"{stage} failed",
+        validation_error=getattr(error, "validation_error", None),
+        traces=traces,
+    )
 
 
 class CandidateAnalysisRecord(AnalysisModel):
@@ -75,6 +149,7 @@ class CandidateAnalysisRecord(AnalysisModel):
     alignments: EntityAlignmentSet | None = None
     consistency: ConsistencyAnalysis | None = None
     adjudications: list[CandidateAdjudication] = Field(default_factory=list)
+    call_failures: list[CandidateCallFailure] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
     model_calls: int = Field(default=0, ge=0)
     elapsed_ms: float = Field(default=0, ge=0)
@@ -95,6 +170,9 @@ class CandidateAnalysisRecord(AnalysisModel):
             (self.failed_stage, self.error_type, self.error_message)
         ):
             raise ValueError("Failed candidates require explicit failure details")
+        traced_calls = sum(len(item.traces) for item in self.call_failures)
+        if self.model_calls < traced_calls:
+            raise ValueError("Candidate model-call count cannot omit retained failure traces")
         return self
 
 
@@ -178,6 +256,8 @@ class AnalysisPipelineOptions:
             raise ValueError("max_diagrams must be positive")
         if self.max_adjudications <= 0:
             raise ValueError("max_adjudications must be positive")
+        if self.page_number is not None and self.candidate_id is not None:
+            raise ValueError("page_number and candidate_id are mutually exclusive")
 
 
 class DocumentAnalysisPipeline:
@@ -223,16 +303,24 @@ class DocumentAnalysisPipeline:
             "semantic_analysis",
             lambda: self._semantic.analyze(prepared, preparation_dir),
         )
+        semantic_traces = [
+            *semantic.observation.traces,
+            *semantic.reconstruction.traces,
+        ]
         diagram = semantic.reconstruction.diagram
         description = _run_candidate_stage(
             "description",
             lambda: compose_diagram_description(diagram),
+            prior_traces=semantic_traces,
+            prior_model_calls=semantic.total_model_calls,
         )
         candidate = _run_candidate_stage(
             "candidate_lookup",
             lambda: next(
                 item for item in discovery.candidates if item.id == prepared.candidate_id
             ),
+            prior_traces=semantic_traces,
+            prior_model_calls=semantic.total_model_calls,
         )
         selection = _run_candidate_stage(
             "text_selection",
@@ -245,11 +333,25 @@ class DocumentAnalysisPipeline:
                 ),
                 candidate_region=candidate.decision.region,
             ),
+            prior_traces=semantic_traces,
+            prior_model_calls=semantic.total_model_calls,
         )
         claim_extraction = (
-            _run_candidate_stage("claim_extraction", lambda: self._claims.extract(selection))
+            _run_candidate_stage(
+                "claim_extraction",
+                lambda: self._claims.extract(selection),
+                prior_traces=semantic_traces,
+                prior_model_calls=semantic.total_model_calls,
+            )
             if selection.blocks
             else None
+        )
+        completed_traces = [
+            *semantic_traces,
+            *(claim_extraction.traces if claim_extraction is not None else []),
+        ]
+        completed_model_calls = semantic.total_model_calls + (
+            claim_extraction.attempts if claim_extraction is not None else 0
         )
         claims = (
             claim_extraction.claims
@@ -259,6 +361,8 @@ class DocumentAnalysisPipeline:
         alignments = _run_candidate_stage(
             "entity_alignment",
             lambda: align_claim_entities(claims, diagram),
+            prior_traces=completed_traces,
+            prior_model_calls=completed_model_calls,
         )
         consistency = (
             _run_candidate_stage(
@@ -269,11 +373,14 @@ class DocumentAnalysisPipeline:
                     alignments,
                     strict_coverage=options.strict_coverage,
                 ),
+                prior_traces=completed_traces,
+                prior_model_calls=completed_model_calls,
             )
             if options.consistency_check
             else None
         )
         adjudications: list[CandidateAdjudication] = []
+        call_failures: list[CandidateCallFailure] = []
         warnings: list[str] = []
         if (
             consistency is not None
@@ -302,6 +409,13 @@ class DocumentAnalysisPipeline:
                         CandidateAdjudication(request=request, result=adjudication)
                     )
                 except Exception as error:
+                    call_failures.append(
+                        _call_failure(
+                            "semantic_adjudication",
+                            error,
+                            context_id=finding.id,
+                        )
+                    )
                     warnings.append(
                         f"Semantic adjudication for {finding.id} failed: "
                         f"{type(error).__name__}: {error}"
@@ -311,6 +425,7 @@ class DocumentAnalysisPipeline:
         if claim_extraction is not None:
             model_calls += claim_extraction.attempts
         model_calls += sum(item.result.attempts for item in adjudications)
+        model_calls += sum(len(item.traces) for item in call_failures)
         return CandidateAnalysisRecord(
             candidate_id=prepared.candidate_id,
             status="completed",
@@ -322,6 +437,7 @@ class DocumentAnalysisPipeline:
             alignments=alignments,
             consistency=consistency,
             adjudications=adjudications,
+            call_failures=call_failures,
             warnings=warnings,
             model_calls=model_calls,
             elapsed_ms=(monotonic() - started) * 1000,
@@ -373,6 +489,10 @@ class DocumentAnalysisPipeline:
                     )
                 except Exception as error:
                     original = error.original if isinstance(error, CandidateStageError) else error
+                    call_failure = _call_failure(
+                        error.stage if isinstance(error, CandidateStageError) else "candidate_analysis",
+                        error,
+                    )
                     record = CandidateAnalysisRecord(
                         candidate_id=prepared.candidate_id,
                         status="failed",
@@ -383,6 +503,12 @@ class DocumentAnalysisPipeline:
                         ),
                         error_type=type(original).__name__,
                         error_message=str(original) or "Candidate analysis failed",
+                        call_failures=[call_failure] if call_failure.traces else [],
+                        model_calls=(
+                            error.model_calls
+                            if isinstance(error, CandidateStageError)
+                            else len(call_failure.traces)
+                        ),
                         elapsed_ms=(monotonic() - candidate_started) * 1000,
                     )
                 records.append(record)

@@ -26,6 +26,7 @@ organized here by purpose.
 
 ## Acceptance
 
+- [A0–A7 completeness audit](acceptance/A0_A7_COMPLETENESS_AUDIT.md)
 - [A2 diagram discovery acceptance](acceptance/A2_DIAGRAM_DISCOVERY.md)
 - [A3 visual semantics acceptance](acceptance/A3_VISUAL_SEMANTICS.md)
 - [A4 faithful description acceptance](acceptance/A4_FAITHFUL_DESCRIPTION.md)

@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import argparse
-from collections.abc import Callable
 import os
-from pathlib import Path
 import tempfile
+from collections.abc import Callable
+from pathlib import Path
 
 from visiogen.analysis.pipeline import AnalysisPipelineOptions, DocumentAnalysisPipeline
 from visiogen.config import Settings
@@ -90,6 +90,11 @@ def _run_analyze(
         raise argparse.ArgumentError(None, "Report output must not overwrite the input document")
     if output_path == artifact_path or output_path.is_relative_to(artifact_path):
         raise argparse.ArgumentError(None, "Report output must remain outside the private artifact directory")
+    if artifact_path.is_relative_to(output_path):
+        raise argparse.ArgumentError(
+            None,
+            "Private artifact directory must not be nested beneath the report path",
+        )
     try:
         options = AnalysisPipelineOptions(
             strict_coverage=args.strict_coverage,

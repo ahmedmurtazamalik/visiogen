@@ -5,11 +5,15 @@ from pathlib import Path
 
 import pytest
 
-from visiogen.analysis.claim_workflow import ClaimExtractionResult
 from visiogen.analysis.adjudication import AdjudicationDecision, AdjudicationResult
 from visiogen.analysis.artifacts import RuntimeProvenance
-from visiogen.analysis.classification import CandidateClassificationTrace
+from visiogen.analysis.claim_workflow import (
+    ClaimCallTrace,
+    ClaimExtractionResult,
+    ClaimExtractionWorkflowError,
+)
 from visiogen.analysis.claims import DocumentClaimBatch
+from visiogen.analysis.classification import CandidateClassificationTrace
 from visiogen.analysis.models import (
     CandidateCoverage,
     CandidateDecision,
@@ -22,10 +26,10 @@ from visiogen.analysis.models import (
 from visiogen.analysis.observation import ObservationResult
 from visiogen.analysis.pipeline import AnalysisPipelineOptions, DocumentAnalysisPipeline
 from visiogen.analysis.production import build_codex_analysis_pipeline
-from visiogen.config import Settings
 from visiogen.analysis.reconstruction import ReconstructionResult
 from visiogen.analysis.semantic_pipeline import SemanticAnalysisResult
 from visiogen.analysis.semantics import AnalyzedDiagram, ValidatedObservationSet
+from visiogen.config import Settings
 from visiogen.documents.errors import UnsafeDocumentError
 from visiogen.documents.models import (
     CoverageReport,
@@ -264,6 +268,26 @@ class FakeTerminologyClaims:
         return ClaimExtractionResult(claims=claims, attempts=1, traces=[])
 
 
+class FailingClaims:
+    def extract(self, selection):
+        del selection
+        traces = [
+            ClaimCallTrace(
+                system_prompt="claim system",
+                user_prompt=f"claim attempt {index}",
+                transport_prompt="isolated",
+                raw_response="{}",
+                elapsed_ms=1,
+            )
+            for index in (1, 2)
+        ]
+        raise ClaimExtractionWorkflowError(
+            "controlled claim failure",
+            traces=traces,
+            validation_error="missing claims",
+        )
+
+
 class FakeAdjudicator:
     def adjudicate(self, request):
         return AdjudicationResult(
@@ -365,6 +389,25 @@ def test_pipeline_marks_one_candidate_failure_as_partial_and_keeps_success(tmp_p
     assert "Sensor" in report
 
 
+def test_pipeline_retains_prior_and_failed_model_call_provenance(tmp_path: Path) -> None:
+    artifacts = tmp_path / "evidence"
+
+    result = _pipeline(tmp_path, claims=FailingClaims()).analyze(
+        tmp_path / "input.pdf",
+        artifacts,
+    )
+
+    candidate = result.analysis.candidates[0]
+    assert candidate.status == "failed"
+    assert candidate.failed_stage == "claim_extraction"
+    assert candidate.model_calls == 4
+    assert len(candidate.call_failures) == 1
+    assert candidate.call_failures[0].validation_error == "missing claims"
+    assert len(candidate.call_failures[0].traces) == 2
+    assert result.manifest.total_model_calls == 5
+    assert len(list((artifacts / "candidate-0001/traces").glob("*-response.json"))) == 2
+
+
 def test_pipeline_can_skip_consistency_without_skipping_description(tmp_path: Path) -> None:
     result = _pipeline(tmp_path).analyze(
         tmp_path / "input.pdf",
@@ -429,3 +472,8 @@ def test_production_factory_requires_codex_and_constructs_all_real_stage_boundar
     assert isinstance(pipeline, DocumentAnalysisPipeline)
     with pytest.raises(ValueError, match="requires Codex"):
         build_codex_analysis_pipeline(Settings(provider="local"))
+
+
+def test_pipeline_options_reject_conflicting_candidate_scope() -> None:
+    with pytest.raises(ValueError, match="mutually exclusive"):
+        AnalysisPipelineOptions(page_number=1, candidate_id="candidate-0001")

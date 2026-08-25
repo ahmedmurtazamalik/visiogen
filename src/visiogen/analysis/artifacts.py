@@ -10,9 +10,9 @@ from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, Field
 
+from visiogen.analysis.comparison import render_findings_markdown
 from visiogen.analysis.description import render_description_markdown
 from visiogen.analysis.models import AnalysisModel
-from visiogen.analysis.comparison import render_findings_markdown
 
 if TYPE_CHECKING:
     from visiogen.analysis.pipeline import CandidateAnalysisRecord, DocumentAnalysis
@@ -97,6 +97,20 @@ def write_candidate_artifacts(root: Path, record: CandidateAnalysisRecord) -> No
     prefix = f"{record.candidate_id}"
     _write_json(root, f"{prefix}/00-result.json", record)
     if record.status == "failed":
+        for failure_index, failure in enumerate(record.call_failures, start=1):
+            for trace_index, trace in enumerate(failure.traces, start=1):
+                trace_prefix = (
+                    f"{prefix}/traces/failed-{failure_index:02d}-{trace_index:02d}"
+                )
+                _write_text(root, f"{trace_prefix}-system.txt", trace.system_prompt)
+                _write_text(root, f"{trace_prefix}-user.txt", trace.user_prompt)
+                if trace.transport_prompt is not None:
+                    _write_text(
+                        root,
+                        f"{trace_prefix}-transport.txt",
+                        trace.transport_prompt,
+                    )
+                _write_text(root, f"{trace_prefix}-response.json", trace.raw_response)
         return
     assert record.semantic is not None
     assert record.description is not None
@@ -134,6 +148,10 @@ def write_candidate_artifacts(root: Path, record: CandidateAnalysisRecord) -> No
                 for adjudication in record.adjudications
                 for trace in adjudication.result.traces
             ],
+        ),
+        (
+            "failed",
+            [trace for failure in record.call_failures for trace in failure.traces],
         ),
     ):
         for index, trace in enumerate(traces, start=1):
