@@ -1,0 +1,310 @@
+{
+  "cases": [
+    {
+      "candidate_id": "candidate-0001",
+      "confidence": "high",
+      "expected": "diagram",
+      "id": "linear_flow",
+      "image_sha256": "b6b1d18487099e7a250da3dc5ac1953febd3e351df040e3ce8d41e153e530572",
+      "predicted": "diagram",
+      "reason": "Clear linear process flow with labeled boxes connected by directional arrows."
+    },
+    {
+      "candidate_id": "candidate-0002",
+      "confidence": "high",
+      "expected": "diagram",
+      "id": "system_architecture",
+      "image_sha256": "e749b07fb79d770d669047994d796a635f8724fed8de8d78f3a48fe3fa6d496c",
+      "predicted": "diagram",
+      "reason": "Clear system architecture showing an enclosing system boundary and connected components."
+    },
+    {
+      "candidate_id": "candidate-0003",
+      "confidence": "high",
+      "expected": "diagram",
+      "id": "component_schematic",
+      "image_sha256": "9e96d4f182cb90f4420b424ec218d1ac4e39bfd847311ae8bda782fa5d632ca8",
+      "predicted": "diagram",
+      "reason": "Clear component schematic with two labeled symbols joined by a connector."
+    },
+    {
+      "candidate_id": "candidate-0004",
+      "confidence": "high",
+      "expected": "non_diagram",
+      "id": "photo_pattern",
+      "image_sha256": "e537acac2284c170b6301ab87d854675a6a65468115e86b49f1f3e7a97b6f0bf",
+      "predicted": "non_diagram",
+      "reason": "Decorative abstract color pattern without relationship-encoding symbols or connectors."
+    },
+    {
+      "candidate_id": "candidate-0005",
+      "confidence": "high",
+      "expected": "non_diagram",
+      "id": "bar_chart",
+      "image_sha256": "d5ebcb4366a881da9559fccfdb7da3eaee672092efa06f7ad27512e24eea8e00",
+      "predicted": "non_diagram",
+      "reason": "Bar chart, which is excluded from the diagram category."
+    },
+    {
+      "candidate_id": "candidate-0006",
+      "confidence": "high",
+      "expected": "non_diagram",
+      "id": "data_table",
+      "image_sha256": "b482f4c841cb5a2f6cb6a2206bede7e72787bf3fbccfd9796c19938963fb85d6",
+      "predicted": "non_diagram",
+      "reason": "Data table, which is excluded from the diagram category."
+    },
+    {
+      "candidate_id": "candidate-0007",
+      "confidence": "high",
+      "expected": "non_diagram",
+      "id": "decorative_logo",
+      "image_sha256": "d4ccbf8d1042d4783953829d88b3185156b8a274e37cae45778ee2c5983da581",
+      "predicted": "non_diagram",
+      "reason": "Decorative logo consisting of a labeled oval without encoded relationships."
+    },
+    {
+      "candidate_id": "candidate-0008",
+      "confidence": "unknown",
+      "expected": "unknown",
+      "id": "blurred_mixed_content",
+      "image_sha256": "d9934d3f9e9ce3213aab5426d99da3cf5057c9ccb24ca8bc4ca4fc6c15a84a06",
+      "predicted": "unknown",
+      "reason": "Content is too blurred and faint for a defensible classification."
+    }
+  ],
+  "classification_trace": {
+    "classifier_identity": "codex-cli:gpt-5.6-sol",
+    "elapsed_ms": 14501.323511998635,
+    "image_sha256": {
+      "candidate-0001": "b6b1d18487099e7a250da3dc5ac1953febd3e351df040e3ce8d41e153e530572",
+      "candidate-0002": "e749b07fb79d770d669047994d796a635f8724fed8de8d78f3a48fe3fa6d496c",
+      "candidate-0003": "9e96d4f182cb90f4420b424ec218d1ac4e39bfd847311ae8bda782fa5d632ca8",
+      "candidate-0004": "e537acac2284c170b6301ab87d854675a6a65468115e86b49f1f3e7a97b6f0bf",
+      "candidate-0005": "d5ebcb4366a881da9559fccfdb7da3eaee672092efa06f7ad27512e24eea8e00",
+      "candidate-0006": "b482f4c841cb5a2f6cb6a2206bede7e72787bf3fbccfd9796c19938963fb85d6",
+      "candidate-0007": "d4ccbf8d1042d4783953829d88b3185156b8a274e37cae45778ee2c5983da581",
+      "candidate-0008": "d9934d3f9e9ce3213aab5426d99da3cf5057c9ccb24ca8bc4ca4fc6c15a84a06"
+    },
+    "raw_response": "{\"decisions\":[{\"candidate_id\":\"candidate-0001\",\"label\":\"diagram\",\"confidence\":\"high\",\"reason\":\"Clear linear process flow with labeled boxes connected by directional arrows.\",\"region\":null},{\"candidate_id\":\"candidate-0002\",\"label\":\"diagram\",\"confidence\":\"high\",\"reason\":\"Clear system architecture showing an enclosing system boundary and connected components.\",\"region\":null},{\"candidate_id\":\"candidate-0003\",\"label\":\"diagram\",\"confidence\":\"high\",\"reason\":\"Clear component schematic with two labeled symbols joined by a connector.\",\"region\":null},{\"candidate_id\":\"candidate-0004\",\"label\":\"non_diagram\",\"confidence\":\"high\",\"reason\":\"Decorative abstract color pattern without relationship-encoding symbols or connectors.\",\"region\":null},{\"candidate_id\":\"candidate-0005\",\"label\":\"non_diagram\",\"confidence\":\"high\",\"reason\":\"Bar chart, which is excluded from the diagram category.\",\"region\":null},{\"candidate_id\":\"candidate-0006\",\"label\":\"non_diagram\",\"confidence\":\"high\",\"reason\":\"Data table, which is excluded from the diagram category.\",\"region\":null},{\"candidate_id\":\"candidate-0007\",\"label\":\"non_diagram\",\"confidence\":\"high\",\"reason\":\"Decorative logo consisting of a labeled oval without encoded relationships.\",\"region\":null},{\"candidate_id\":\"candidate-0008\",\"label\":\"unknown\",\"confidence\":\"unknown\",\"reason\":\"Content is too blurred and faint for a defensible classification.\",\"region\":null}]}",
+    "system_prompt": "Classify each supplied document image independently. A diagram is a flowchart, system or software architecture, process map, network topology, component schematic, or another visual whose boxes, symbols, containers, and connectors encode relationships. Photographs, charts/plots, tables, equations, logos, decorative art, and ordinary UI screenshots are non_diagram. Use unknown when resolution or mixed content prevents a defensible classification. Never infer a diagram solely from nearby prose. For a diagram embedded within a larger page, return its tight normalized top-left-origin region; use null for the full image or when no defensible region exists. Confidence is high only for clear direct visual evidence, medium when a plausible alternative remains, low for tentative classification, and unknown only with label unknown. Return one decision for every listed candidate and do not include unlisted IDs. Return JSON only. The response must satisfy this JSON Schema: {\"$defs\": {\"NormalizedBox\": {\"additionalProperties\": false, \"description\": \"Top-left-origin region in normalized 0..1 source coordinates.\", \"properties\": {\"bottom\": {\"maximum\": 1, \"minimum\": 0, \"title\": \"Bottom\", \"type\": \"number\"}, \"left\": {\"maximum\": 1, \"minimum\": 0, \"title\": \"Left\", \"type\": \"number\"}, \"right\": {\"maximum\": 1, \"minimum\": 0, \"title\": \"Right\", \"type\": \"number\"}, \"top\": {\"maximum\": 1, \"minimum\": 0, \"title\": \"Top\", \"type\": \"number\"}}, \"required\": [\"left\", \"top\", \"right\", \"bottom\"], \"title\": \"NormalizedBox\", \"type\": \"object\"}, \"VisualCandidateDecision\": {\"additionalProperties\": false, \"description\": \"Provider output for one supplied image, before trusted metadata is injected.\", \"properties\": {\"candidate_id\": {\"minLength\": 1, \"title\": \"Candidate Id\", \"type\": \"string\"}, \"confidence\": {\"enum\": [\"high\", \"medium\", \"low\", \"unknown\"], \"title\": \"Confidence\", \"type\": \"string\"}, \"label\": {\"enum\": [\"diagram\", \"non_diagram\", \"unknown\"], \"title\": \"Label\", \"type\": \"string\"}, \"reason\": {\"minLength\": 1, \"title\": \"Reason\", \"type\": \"string\"}, \"region\": {\"anyOf\": [{\"$ref\": \"#/$defs/NormalizedBox\"}, {\"type\": \"null\"}], \"default\": null}}, \"required\": [\"candidate_id\", \"label\", \"confidence\", \"reason\"], \"title\": \"VisualCandidateDecision\", \"type\": \"object\"}}, \"additionalProperties\": false, \"description\": \"Complete structured classification response for one bounded batch.\", \"properties\": {\"decisions\": {\"items\": {\"$ref\": \"#/$defs/VisualCandidateDecision\"}, \"title\": \"Decisions\", \"type\": \"array\"}}, \"required\": [\"decisions\"], \"title\": \"VisualCandidateBatch\", \"type\": \"object\"}",
+    "transport_prompt": "Act only as the requested structured-response engine. Do not inspect unrelated files, run commands, edit anything, or explain outside the final structured response. Classify each supplied document image independently. A diagram is a flowchart, system or software architecture, process map, network topology, component schematic, or another visual whose boxes, symbols, containers, and connectors encode relationships. Photographs, charts/plots, tables, equations, logos, decorative art, and ordinary UI screenshots are non_diagram. Use unknown when resolution or mixed content prevents a defensible classification. Never infer a diagram solely from nearby prose. For a diagram embedded within a larger page, return its tight normalized top-left-origin region; use null for the full image or when no defensible region exists. Confidence is high only for clear direct visual evidence, medium when a plausible alternative remains, low for tentative classification, and unknown only with label unknown. Return one decision for every listed candidate and do not include unlisted IDs. Return JSON only.\n\nRequest:\nImages are attached in this exact order:\n1. candidate-0001 (640x480, page=unknown)\n2. candidate-0002 (640x480, page=unknown)\n3. candidate-0003 (640x480, page=unknown)\n4. candidate-0004 (640x480, page=unknown)\n5. candidate-0005 (640x480, page=unknown)\n6. candidate-0006 (640x480, page=unknown)\n7. candidate-0007 (640x480, page=unknown)\n8. candidate-0008 (640x480, page=unknown)\nReturn only the schema-conforming final response.",
+    "user_prompt": "Images are attached in this exact order:\n1. candidate-0001 (640x480, page=unknown)\n2. candidate-0002 (640x480, page=unknown)\n3. candidate-0003 (640x480, page=unknown)\n4. candidate-0004 (640x480, page=unknown)\n5. candidate-0005 (640x480, page=unknown)\n6. candidate-0006 (640x480, page=unknown)\n7. candidate-0007 (640x480, page=unknown)\n8. candidate-0008 (640x480, page=unknown)"
+  },
+  "corpus_sha256": "9c3d55703452c0291047ce4bb2a30eb025db5b1ff558c5887446405c39fb7cc3",
+  "corpus_version": 1,
+  "discovery": {
+    "candidates": [
+      {
+        "decision": {
+          "candidate_id": "candidate-0001",
+          "classifier": "codex-cli:gpt-5.6-sol",
+          "confidence": "high",
+          "label": "diagram",
+          "reason": "Clear linear process flow with labeled boxes connected by directional arrows.",
+          "region": null
+        },
+        "disposition": "selected",
+        "disposition_reason": "Candidate was classified as a diagram",
+        "duplicate_matches": [],
+        "height_px": 480,
+        "id": "candidate-0001",
+        "page_number": null,
+        "primary_asset_id": "asset-0001",
+        "source_asset_ids": [
+          "asset-0001"
+        ],
+        "width_px": 640
+      },
+      {
+        "decision": {
+          "candidate_id": "candidate-0002",
+          "classifier": "codex-cli:gpt-5.6-sol",
+          "confidence": "high",
+          "label": "diagram",
+          "reason": "Clear system architecture showing an enclosing system boundary and connected components.",
+          "region": null
+        },
+        "disposition": "selected",
+        "disposition_reason": "Candidate was classified as a diagram",
+        "duplicate_matches": [],
+        "height_px": 480,
+        "id": "candidate-0002",
+        "page_number": null,
+        "primary_asset_id": "asset-0002",
+        "source_asset_ids": [
+          "asset-0002"
+        ],
+        "width_px": 640
+      },
+      {
+        "decision": {
+          "candidate_id": "candidate-0003",
+          "classifier": "codex-cli:gpt-5.6-sol",
+          "confidence": "high",
+          "label": "diagram",
+          "reason": "Clear component schematic with two labeled symbols joined by a connector.",
+          "region": null
+        },
+        "disposition": "selected",
+        "disposition_reason": "Candidate was classified as a diagram",
+        "duplicate_matches": [],
+        "height_px": 480,
+        "id": "candidate-0003",
+        "page_number": null,
+        "primary_asset_id": "asset-0003",
+        "source_asset_ids": [
+          "asset-0003"
+        ],
+        "width_px": 640
+      },
+      {
+        "decision": {
+          "candidate_id": "candidate-0004",
+          "classifier": "codex-cli:gpt-5.6-sol",
+          "confidence": "high",
+          "label": "non_diagram",
+          "reason": "Decorative abstract color pattern without relationship-encoding symbols or connectors.",
+          "region": null
+        },
+        "disposition": "ignored_non_diagram",
+        "disposition_reason": "Decorative abstract color pattern without relationship-encoding symbols or connectors.",
+        "duplicate_matches": [],
+        "height_px": 480,
+        "id": "candidate-0004",
+        "page_number": null,
+        "primary_asset_id": "asset-0004",
+        "source_asset_ids": [
+          "asset-0004"
+        ],
+        "width_px": 640
+      },
+      {
+        "decision": {
+          "candidate_id": "candidate-0005",
+          "classifier": "codex-cli:gpt-5.6-sol",
+          "confidence": "high",
+          "label": "non_diagram",
+          "reason": "Bar chart, which is excluded from the diagram category.",
+          "region": null
+        },
+        "disposition": "ignored_non_diagram",
+        "disposition_reason": "Bar chart, which is excluded from the diagram category.",
+        "duplicate_matches": [],
+        "height_px": 480,
+        "id": "candidate-0005",
+        "page_number": null,
+        "primary_asset_id": "asset-0005",
+        "source_asset_ids": [
+          "asset-0005"
+        ],
+        "width_px": 640
+      },
+      {
+        "decision": {
+          "candidate_id": "candidate-0006",
+          "classifier": "codex-cli:gpt-5.6-sol",
+          "confidence": "high",
+          "label": "non_diagram",
+          "reason": "Data table, which is excluded from the diagram category.",
+          "region": null
+        },
+        "disposition": "ignored_non_diagram",
+        "disposition_reason": "Data table, which is excluded from the diagram category.",
+        "duplicate_matches": [],
+        "height_px": 480,
+        "id": "candidate-0006",
+        "page_number": null,
+        "primary_asset_id": "asset-0006",
+        "source_asset_ids": [
+          "asset-0006"
+        ],
+        "width_px": 640
+      },
+      {
+        "decision": {
+          "candidate_id": "candidate-0007",
+          "classifier": "codex-cli:gpt-5.6-sol",
+          "confidence": "high",
+          "label": "non_diagram",
+          "reason": "Decorative logo consisting of a labeled oval without encoded relationships.",
+          "region": null
+        },
+        "disposition": "ignored_non_diagram",
+        "disposition_reason": "Decorative logo consisting of a labeled oval without encoded relationships.",
+        "duplicate_matches": [],
+        "height_px": 480,
+        "id": "candidate-0007",
+        "page_number": null,
+        "primary_asset_id": "asset-0007",
+        "source_asset_ids": [
+          "asset-0007"
+        ],
+        "width_px": 640
+      },
+      {
+        "decision": {
+          "candidate_id": "candidate-0008",
+          "classifier": "codex-cli:gpt-5.6-sol",
+          "confidence": "unknown",
+          "label": "unknown",
+          "reason": "Content is too blurred and faint for a defensible classification.",
+          "region": null
+        },
+        "disposition": "awaiting_classification",
+        "disposition_reason": "Content is too blurred and faint for a defensible classification.",
+        "duplicate_matches": [],
+        "height_px": 480,
+        "id": "candidate-0008",
+        "page_number": null,
+        "primary_asset_id": "asset-0008",
+        "source_asset_ids": [
+          "asset-0008"
+        ],
+        "width_px": 640
+      }
+    ],
+    "coverage": {
+      "awaiting_classification": 1,
+      "duplicate_assets_grouped": 0,
+      "filtered_out": 0,
+      "ignored_non_diagram": 4,
+      "selected": 3,
+      "skipped_limit": 0,
+      "source_assets": 8,
+      "unique_candidates": 8
+    },
+    "source_id": "candidate-corpus:9c3d55703452c0291047ce4bb2a30eb025db5b1ff558c5887446405c39fb7cc3"
+  },
+  "metrics": {
+    "diagram": {
+      "false_negative": 0,
+      "false_positive": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "true_positive": 3
+    },
+    "non_diagram": {
+      "false_negative": 0,
+      "false_positive": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "true_positive": 4
+    },
+    "unknown_correct": 1,
+    "unknown_total": 1
+  },
+  "model": "gpt-5.6-sol",
+  "provider": "codex-cli",
+  "provider_version": "codex-cli 0.146.0",
+  "source_clean": true,
+  "source_revision": "a1245451e47633a1ee6ef6ee9c0dc785ba90aaf6",
+  "status": "passed",
+  "thresholds": {
+    "diagram_precision": 0.9,
+    "diagram_recall": 0.9,
+    "non_diagram_precision": 0.9,
+    "non_diagram_recall": 0.9,
+    "unknown_controls_must_match": true
+  }
+}

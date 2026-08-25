@@ -1,6 +1,6 @@
 # Diagram Discovery and Image Preparation
 
-**Status:** Phase A2 in progress; deterministic foundation implemented
+**Status:** Phase A2 complete
 
 A2 operates only on an admitted `DocumentSnapshot` and its checksum-bound visual
 assets. It does not reconstruct diagram semantics or compare diagrams with prose.
@@ -21,7 +21,7 @@ The current slice provides:
 - a disposition and reason for every enumerated candidate;
 - bounded image decoding with source checksum verification;
 - normalized region cropping, overview resizing, overlapping tiles, and tile limits;
-- checksum-bound PNG derivatives and atomic `candidates.json` publication.
+- checksum-bound PNG derivatives and atomic `candidates.json` publication;
 - a balanced, locally generated candidate corpus with reviewed diagram,
   non-diagram, and ambiguous labels.
 
@@ -56,23 +56,22 @@ The classifier is injected through a narrow protocol. The included structured
 workflow accepts real image files and strict schema-constrained provider output,
 but no provider is silently selected by the library.
 
+## Acceptance
+
+The clean-source `gpt-5.6-sol` acceptance run achieved 1.00 diagram precision and
+recall, 1.00 non-diagram precision and recall, and correctly preserved the ambiguous
+control as `unknown`. Perceptual embedded/page matching passed a positive containment
+fixture and an unrelated-chart false-match control. Exact prompts, responses, hashes,
+metrics, and provider identity are preserved in
+[`../acceptance/A2_DIAGRAM_DISCOVERY.md`](../acceptance/A2_DIAGRAM_DISCOVERY.md).
+
 ## Deliberate limitations
 
-- Deduplication currently proves exact byte identity. Perceptual matching between
-  an embedded original and a page render still needs reviewed image-matching tests.
+- The accepted corpus is deliberately small and synthetic; broader held-out document
+  testing remains a Phase A8 release gate.
 - Caption and alt-text cues can select obvious diagram assets, but image-only
   candidates require the multimodal classifier.
-- The real-provider precision/recall report is not yet complete, so the A2
-  acceptance gate remains open.
 - Public `visiogen analyze` discovery flags arrive with the composed analysis CLI;
   the current interface is library-only.
 - Preparation crops full images unless a validated classifier returns a tighter
   normalized region.
-
-## Remaining A2 acceptance work
-
-1. execute the production multimodal adapter against the immutable corpus;
-2. record candidate precision, recall, unknown rate, and crop adequacy;
-3. add perceptual embedded-image/page-render grouping with false-match controls;
-4. freeze the classifier prompt/model identity and preserve exact run evidence;
-5. close A2 only after every fixture receives a reviewed disposition and reason.
