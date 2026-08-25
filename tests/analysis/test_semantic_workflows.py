@@ -9,6 +9,10 @@ import pytest
 
 from visiogen.analysis.models import PreparedCandidate, PreparedDerivative
 from visiogen.analysis.observation import StructuredObservationWorkflow
+from visiogen.analysis.prompts import (
+    build_reconstruction_prompt,
+    build_reconstruction_repair_prompt,
+)
 from visiogen.analysis.reconstruction import (
     ReconstructionWorkflowError,
     StructuredReconstructionWorkflow,
@@ -173,6 +177,16 @@ def test_reconstruction_failure_preserves_validation_evidence(tmp_path: Path) ->
     assert "not present in cited evidence" in (caught.value.validation_error or "")
     assert "Invented" in caught.value.traces[-1].raw_response
     assert len(caught.value.traces) == 2
+
+
+def test_reconstruction_prompts_distinguish_object_containment_from_groups() -> None:
+    initial = build_reconstruction_prompt()
+    repair = build_reconstruction_repair_prompt("candidate-0001", "{}", "{}", "finding")
+
+    assert "parent_id may name only another analyzed object" in initial
+    assert "never a group ID" in repair
+    assert "groups[].object_ids" in initial
+    assert "groups[].object_ids" in repair
 
 
 def test_semantic_pipeline_composes_both_stages_with_bounded_calls(tmp_path: Path) -> None:

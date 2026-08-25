@@ -161,7 +161,12 @@ class AnalyzedObject(AnalysisModel):
     semantic_type: str = Field(min_length=1)
     visual_shape: str = Field(min_length=1)
     reference_numbers: list[str] = Field(default_factory=list)
-    parent_id: str | None = None
+    parent_id: str | None = Field(
+        default=None,
+        description=(
+            "ID of another analyzed object that visibly contains this object; never a group ID"
+        ),
+    )
     bbox: NormalizedBox
     evidence_ids: list[str] = Field(min_length=1)
     confidence: Confidence
