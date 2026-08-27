@@ -1,9 +1,12 @@
 """A8 held-out release decision contract tests."""
 
+import hashlib
+
 from visiogen.analysis.release_evaluation import (
     CaseReview,
     ReleaseCase,
     evaluate_release,
+    validate_release_corpus,
 )
 
 SHA = "a" * 64
@@ -14,8 +17,10 @@ def _case(**overrides) -> ReleaseCase:
         "id": "held-clean",
         "subset": "held_out",
         "document_kind": "pdf",
+        "source_path": "sources/held-clean.pdf",
         "source_sha256": SHA,
         "clean_input": True,
+        "coverage_tags": ["clean_native_text_pdf"],
     }
     data.update(overrides)
     return ReleaseCase.model_validate(data)
@@ -53,7 +58,12 @@ def _review(**overrides) -> CaseReview:
 
 
 def test_release_passes_complete_held_out_review_and_ignores_development_scores() -> None:
-    development = _case(id="development", subset="development")
+    development = _case(
+        id="development",
+        subset="development",
+        source_path="sources/development.pdf",
+        source_sha256="b" * 64,
+    )
     decision = evaluate_release([development, _case()], [_review()])
 
     assert decision.status == "passed"
@@ -99,7 +109,10 @@ def test_release_enforces_precision_hallucination_ambiguity_and_adversarial_gate
         consistency=consistency,
         provenance_suppressed=True,
     )
-    case = _case(adversarial_prompt_injection=True)
+    case = _case(
+        adversarial_prompt_injection=True,
+        coverage_tags=["clean_native_text_pdf", "prompt_injection"],
+    )
     decision = evaluate_release([case], [review])
 
     assert decision.status == "failed"
@@ -116,6 +129,7 @@ def test_release_requires_every_expected_degradation_to_be_reported() -> None:
     case = _case(
         id="held-docx",
         document_kind="docx",
+        source_path="sources/held-docx.docx",
         docx_mode="portable",
         clean_input=False,
         degraded_modalities_expected=2,
@@ -135,3 +149,65 @@ def test_docx_cases_must_declare_an_inspection_mode() -> None:
         assert "DOCX inspection mode" in str(error)
     else:
         raise AssertionError("DOCX case without a mode was accepted")
+
+
+def test_corpus_validation_binds_sources_and_requires_all_held_out_coverage(tmp_path) -> None:
+    source_dir = tmp_path / "sources"
+    source_dir.mkdir()
+    source = source_dir / "held-clean.pdf"
+    source.write_bytes(b"immutable-real-source")
+    source_hash = hashlib.sha256(source.read_bytes()).hexdigest()
+    case = _case(
+        source_sha256=source_hash,
+        coverage_tags=[
+            "clean_native_text_pdf",
+            "system_architecture_docx",
+            "dense_reference_schematic",
+            "vector_pdf",
+            "low_quality_scan",
+            "mixed_diagram_and_non_diagram",
+            "prompt_injection",
+        ],
+        adversarial_prompt_injection=True,
+    )
+
+    validation = validate_release_corpus([case], tmp_path)
+
+    assert validation.valid
+    assert validation.source_hashes == {"held-clean": source_hash}
+
+
+def test_corpus_validation_rejects_hash_mismatch_missing_coverage_and_split_leakage(
+    tmp_path,
+) -> None:
+    source_dir = tmp_path / "sources"
+    source_dir.mkdir()
+    (source_dir / "held-clean.pdf").write_bytes(b"changed")
+    development = _case(
+        id="development",
+        subset="development",
+        source_path="sources/held-clean.pdf",
+    )
+
+    validation = validate_release_corpus([_case(), development], tmp_path)
+
+    assert not validation.valid
+    assert any("hash mismatch" in failure for failure in validation.failures)
+    assert any("development and held-out" in failure for failure in validation.failures)
+    assert any("missing coverage" in failure for failure in validation.failures)
+
+
+def test_corpus_case_rejects_unsafe_paths_and_inconsistent_adversarial_metadata() -> None:
+    for source_path in ("/absolute.pdf", "sources/../escape.pdf"):
+        try:
+            _case(source_path=source_path)
+        except ValueError as error:
+            assert "relative POSIX paths" in str(error)
+        else:
+            raise AssertionError("Unsafe corpus source path was accepted")
+    try:
+        _case(adversarial_prompt_injection=True)
+    except ValueError as error:
+        assert "adversarial flag" in str(error)
+    else:
+        raise AssertionError("Inconsistent prompt-injection metadata was accepted")

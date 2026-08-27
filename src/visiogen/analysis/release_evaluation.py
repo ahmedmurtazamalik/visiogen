@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from pathlib import Path, PurePosixPath
 from typing import Literal
+import hashlib
 
 from pydantic import Field, model_validator
 
@@ -12,6 +14,27 @@ from visiogen.analysis.models import AnalysisModel
 Subset = Literal["development", "held_out"]
 DocumentKind = Literal["pdf", "docx"]
 DocxMode = Literal["portable", "rendered_word", "rendered_libreoffice"]
+CoverageTag = Literal[
+    "clean_native_text_pdf",
+    "system_architecture_docx",
+    "dense_reference_schematic",
+    "vector_pdf",
+    "low_quality_scan",
+    "mixed_diagram_and_non_diagram",
+    "prompt_injection",
+]
+
+REQUIRED_HELD_OUT_COVERAGE: frozenset[str] = frozenset(
+    {
+        "clean_native_text_pdf",
+        "system_architecture_docx",
+        "dense_reference_schematic",
+        "vector_pdf",
+        "low_quality_scan",
+        "mixed_diagram_and_non_diagram",
+        "prompt_injection",
+    }
+)
 
 
 class ReleaseCase(AnalysisModel):
@@ -20,8 +43,10 @@ class ReleaseCase(AnalysisModel):
     id: str = Field(min_length=1)
     subset: Subset
     document_kind: DocumentKind
+    source_path: str = Field(min_length=1)
     source_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     clean_input: bool
+    coverage_tags: list[CoverageTag] = Field(min_length=1)
     adversarial_prompt_injection: bool = False
     degraded_modalities_expected: int = Field(default=0, ge=0)
     docx_mode: DocxMode | None = None
@@ -30,7 +55,75 @@ class ReleaseCase(AnalysisModel):
     def validate_docx_mode(self) -> ReleaseCase:
         if (self.document_kind == "docx") != (self.docx_mode is not None):
             raise ValueError("Exactly DOCX cases must declare a DOCX inspection mode")
+        path = PurePosixPath(self.source_path)
+        if path.is_absolute() or ".." in path.parts or path.as_posix() != self.source_path:
+            raise ValueError("Corpus source paths must be normalized relative POSIX paths")
+        if len(self.coverage_tags) != len(set(self.coverage_tags)):
+            raise ValueError("Coverage tags must be unique within a case")
+        if self.adversarial_prompt_injection != ("prompt_injection" in self.coverage_tags):
+            raise ValueError("Prompt-injection coverage and adversarial flag must agree")
         return self
+
+
+class CorpusValidation(AnalysisModel):
+    """Result of binding a declared corpus to immutable local source bytes."""
+
+    valid: bool
+    case_count: int
+    held_out_coverage: list[str]
+    source_hashes: dict[str, str]
+    failures: list[str]
+
+
+def validate_release_corpus(cases: list[ReleaseCase], corpus_root: Path) -> CorpusValidation:
+    """Validate source identity, safe paths, split isolation, and held-out coverage."""
+
+    root = corpus_root.resolve()
+    failures: list[str] = []
+    source_hashes: dict[str, str] = {}
+    ids = [case.id for case in cases]
+    if len(ids) != len(set(ids)):
+        failures.append("corpus case IDs must be unique")
+    subset_by_hash: dict[str, set[str]] = defaultdict(set)
+    for case in cases:
+        subset_by_hash[case.source_sha256].add(case.subset)
+        path = root / case.source_path
+        try:
+            resolved = path.resolve(strict=True)
+        except FileNotFoundError:
+            failures.append(f"missing corpus source: {case.id}")
+            continue
+        if root != resolved and root not in resolved.parents:
+            failures.append(f"corpus source escapes root: {case.id}")
+            continue
+        if path.is_symlink() or not resolved.is_file():
+            failures.append(f"corpus source must be a regular non-symlink file: {case.id}")
+            continue
+        actual = hashlib.sha256(resolved.read_bytes()).hexdigest()
+        source_hashes[case.id] = actual
+        if actual != case.source_sha256:
+            failures.append(f"corpus source hash mismatch: {case.id}")
+    for source_hash, subsets in subset_by_hash.items():
+        if len(subsets) > 1:
+            failures.append(
+                f"source hash appears in development and held-out splits: {source_hash}"
+            )
+    held_out_coverage = {
+        tag
+        for case in cases
+        if case.subset == "held_out"
+        for tag in case.coverage_tags
+    }
+    missing = REQUIRED_HELD_OUT_COVERAGE - held_out_coverage
+    if missing:
+        failures.append("held-out corpus missing coverage: " + ", ".join(sorted(missing)))
+    return CorpusValidation(
+        valid=not failures,
+        case_count=len(cases),
+        held_out_coverage=sorted(held_out_coverage),
+        source_hashes=source_hashes,
+        failures=failures,
+    )
 
 
 class DiagramReview(AnalysisModel):

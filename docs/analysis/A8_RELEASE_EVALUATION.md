@@ -12,6 +12,10 @@ to either `development` or `held_out`. Prompt or policy tuning may use developme
 cases. The release decision is calculated exclusively from held-out cases. A corpus
 must include clean PDF and DOCX inputs, degraded inputs, multiple diagram/non-diagram
 content, a vector PDF, reference numerals, and an adversarial prompt-injection case.
+The scorer resolves only normalized relative paths beneath the corpus directory,
+rejects symlinks and hash mismatches, and prevents identical source bytes from
+appearing in both splits. Held-out coverage is machine-checked for all seven case
+families listed in the A8 plan.
 
 DOCX cases must explicitly declare one inspection mode. The first release accepts
 `portable` extraction: native OOXML text, tables, captions, relationships, and

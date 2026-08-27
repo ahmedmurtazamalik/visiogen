@@ -13,6 +13,7 @@ from visiogen.analysis.release_evaluation import (
     ReleaseCase,
     ReleaseThresholds,
     evaluate_release,
+    validate_release_corpus,
 )
 
 
@@ -33,10 +34,19 @@ def main() -> int:
     thresholds = ReleaseThresholds.model_validate(
         corpus_raw.get("thresholds", {})
     )
+    corpus_validation = validate_release_corpus(cases, args.corpus.resolve().parent)
     decision = evaluate_release(cases, reviews, thresholds)
+    if not corpus_validation.valid:
+        decision = decision.model_copy(
+            update={
+                "status": "failed",
+                "failures": decision.failures + corpus_validation.failures,
+            }
+        )
     report = {
         "corpus_sha256": _sha256(args.corpus),
         "reviews_sha256": _sha256(args.reviews),
+        "corpus_validation": corpus_validation.model_dump(mode="json"),
         "decision": decision.model_dump(mode="json"),
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
