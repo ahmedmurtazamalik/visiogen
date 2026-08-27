@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import Field, model_validator
 
@@ -108,6 +108,27 @@ class RawVisualObservation(AnalysisModel):
     evidence_ids: list[str] = Field(min_length=1)
     confidence: Confidence
     alternatives: list[InterpretationAlternative] = Field(default_factory=list)
+
+    @model_validator(mode="before")
+    @classmethod
+    def use_path_for_invalid_line_bbox(cls, data: Any) -> Any:
+        """Represent line marks by their path when endpoint-ordered boxes are invalid."""
+
+        if not isinstance(data, dict) or not data.get("local_path"):
+            return data
+        bbox = data.get("local_bbox")
+        if not isinstance(bbox, dict):
+            return data
+        try:
+            invalid_width = bbox["right"] <= bbox["left"]
+            invalid_height = bbox["bottom"] <= bbox["top"]
+        except (KeyError, TypeError):
+            return data
+        if not (invalid_width or invalid_height):
+            return data
+        sanitized = dict(data)
+        sanitized["local_bbox"] = None
+        return sanitized
 
     @model_validator(mode="after")
     def validate_visible_content(self) -> RawVisualObservation:

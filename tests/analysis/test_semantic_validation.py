@@ -14,6 +14,7 @@ from visiogen.analysis.semantics import (
 from visiogen.analysis.validation import (
     AnalysisValidationError,
     discard_unsupported_legends,
+    downgrade_unsupported_relationship_endpoints,
     validate_analyzed_diagram,
     validate_observations,
 )
@@ -209,6 +210,42 @@ def test_observation_validation_rejects_unknown_derivative_and_evidence() -> Non
     assert "unknown evidence" in str(captured.value)
 
 
+@pytest.mark.parametrize(
+    "bbox",
+    [
+        {"left": 0.3, "top": 0.3, "right": 0.3, "bottom": 0.7},
+        {"left": 0.7, "top": 0.3, "right": 0.3, "bottom": 0.7},
+        {"left": 0.3, "top": 0.7, "right": 0.7, "bottom": 0.3},
+    ],
+)
+def test_invalid_observation_bbox_uses_its_visible_path(
+    bbox: dict[str, float],
+) -> None:
+    payload = _raw_observations().model_dump(mode="json")
+    connector = payload["observations"][2]
+    connector["local_bbox"] = bbox
+
+    batch = RawObservationBatch.model_validate(payload)
+
+    assert batch.observations[2].local_bbox is None
+    assert len(batch.observations[2].local_path) == 2
+
+
+def test_invalid_observation_bbox_without_path_remains_rejected() -> None:
+    payload = _raw_observations().model_dump(mode="json")
+    connector = payload["observations"][2]
+    connector["local_bbox"] = {
+        "left": 0.7,
+        "top": 0.3,
+        "right": 0.3,
+        "bottom": 0.7,
+    }
+    connector["local_path"] = []
+
+    with pytest.raises(ValueError, match="positive width and height"):
+        RawObservationBatch.model_validate(payload)
+
+
 def test_semantic_validation_accepts_grounded_objects_and_relationships() -> None:
     observations = validate_observations(_raw_observations(), _prepared())
 
@@ -297,6 +334,30 @@ def test_semantic_validation_requires_connector_geometry_evidence() -> None:
 
     assert "cites no connector or arrowhead observation" in str(captured.value)
     assert "path is not near its cited evidence" in str(captured.value)
+
+
+def test_unsupported_relationship_endpoints_are_downgraded_to_ambiguous() -> None:
+    observations = validate_observations(_raw_observations(), _prepared())
+    diagram = _diagram()
+    relationship = diagram.relationships[0]
+    diagram.relationships[0] = relationship.model_copy(
+        update={
+            "path": [
+                NormalizedPoint(x=0.3, y=0.3),
+                NormalizedPoint(x=0.4, y=0.3),
+            ]
+        }
+    )
+
+    sanitized = downgrade_unsupported_relationship_endpoints(diagram)
+
+    assert sanitized.relationships[0].source_certainty == "ambiguous"
+    assert sanitized.relationships[0].target_certainty == "ambiguous"
+    assert sanitized.limitations == [
+        "Downgraded 2 relationship endpoints to ambiguous because the reconstructed "
+        "path did not geometrically reach the claimed object."
+    ]
+    assert validate_analyzed_diagram(sanitized, observations) == sanitized
 
 
 def test_semantic_validation_grounding_covers_groups_legends_and_titles() -> None:

@@ -199,6 +199,50 @@ def discard_unsupported_legends(
     )
 
 
+def downgrade_unsupported_relationship_endpoints(
+    diagram: AnalyzedDiagram,
+) -> AnalyzedDiagram:
+    """Preserve geometrically unsupported endpoint claims as explicit ambiguity."""
+
+    objects_by_id = {item.id: item for item in diagram.objects}
+    relationships = []
+    downgraded = 0
+    for relationship in diagram.relationships:
+        updates: dict[str, str] = {}
+        if len(relationship.path) >= 2:
+            source = objects_by_id.get(relationship.source_id or "")
+            if (
+                source is not None
+                and relationship.source_certainty == "known"
+                and not _point_near_box(relationship.path[0], source.bbox)
+            ):
+                updates["source_certainty"] = "ambiguous"
+            target = objects_by_id.get(relationship.target_id or "")
+            if (
+                target is not None
+                and relationship.target_certainty == "known"
+                and not _point_near_box(relationship.path[-1], target.bbox)
+            ):
+                updates["target_certainty"] = "ambiguous"
+        if updates:
+            downgraded += len(updates)
+            relationship = relationship.model_copy(update=updates)
+        relationships.append(relationship)
+    if downgraded == 0:
+        return diagram
+    noun = "endpoint" if downgraded == 1 else "endpoints"
+    limitation = (
+        f"Downgraded {downgraded} relationship {noun} to ambiguous because the "
+        "reconstructed path did not geometrically reach the claimed object."
+    )
+    return diagram.model_copy(
+        update={
+            "relationships": relationships,
+            "limitations": [*diagram.limitations, limitation],
+        }
+    )
+
+
 def _boxes_intersect(first: NormalizedBox, second: NormalizedBox) -> bool:
     return not (
         first.right <= second.left
