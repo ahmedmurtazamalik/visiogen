@@ -1,0 +1,51 @@
+{
+  "executed_at_utc": "2026-08-27T03:49:27.664696+00:00",
+  "pytest_returncode": 0,
+  "python": "3.11.15 (main, Jul 23 2026, 14:43:45) [Clang 22.1.3 ]",
+  "source_clean": true,
+  "source_revision": "2b1f363a621fe3e62a71fad99c8f40e19fa393cb",
+  "status": "passed",
+  "test_file_sha256": {
+    "tests/analysis/test_analysis_pipeline.py": "2d153bf75b87062b1094208ee6e4444955e0457216877ae97fcdbaaafde72273",
+    "tests/analysis/test_claim_workflow.py": "cf1484d917f98f125a96c3a47da2b4e63f7dbdcf6feab15d544fc5a1edbfb5cd",
+    "tests/analysis/test_description.py": "b2d9a7eaf55e5ac4709468b008e1c09be9cb9b2e9f5e1366cc8322c2787030d2",
+    "tests/analysis/test_preparation.py": "9dc3bd169870822e3a43d86e8ca5fe413b8c355d4b0ec565a657c68f72cfce87",
+    "tests/analysis/test_release_execution.py": "944435cbf366ad513e4fdd38e9b676e25d735c1eba18ccfadcab3ad6bba15d49",
+    "tests/documents/test_artifacts.py": "ad1ea870f4db2ccc3b9d995710fa060c0f64b0e5e69a480254ca35a46f2d69d8",
+    "tests/documents/test_image.py": "6dd2120d1e5dbc6bd4aceccaa845a9971aec0f013f037c4e189baddab3437389",
+    "tests/documents/test_pdf_extraction.py": "0a04fc2e1d5aea57ba1269db2fec0f6c8e7bc5f25cfc4e51f4140d8d5f811856",
+    "tests/documents/test_pdf_security.py": "fbda2f75314e4159ce914f3b1f8505869f2de1532566c576b7fa41aca0f8a9ca",
+    "tests/documents/test_safety.py": "4fff475e2c6e1cf775d8ff438faabeef74166f46c09b163250244859bde259f2",
+    "tests/documents/test_sniffing.py": "7020e0865c926727e4758e09cfd1fe3288b3694c7f451cedc2a7921f256b0a71"
+  },
+  "test_groups": {
+    "admission_and_image_limits": [
+      "tests/documents/test_sniffing.py::test_admission_rejects_symlink_and_file_size_limit",
+      "tests/documents/test_image.py::test_raster_header_inspection_rejects_malformed_and_oversized_images",
+      "tests/analysis/test_preparation.py::test_preparation_fails_atomically_when_tile_limit_is_exceeded"
+    ],
+    "artifact_and_failure_safety": [
+      "tests/documents/test_artifacts.py",
+      "tests/analysis/test_analysis_pipeline.py::test_pipeline_marks_one_candidate_failure_as_partial_and_keeps_success",
+      "tests/analysis/test_analysis_pipeline.py::test_pipeline_retains_prior_and_failed_model_call_provenance",
+      "tests/analysis/test_analysis_pipeline.py::test_pipeline_refuses_nonempty_or_symlink_artifact_directory",
+      "tests/analysis/test_analysis_pipeline.py::test_pipeline_refuses_artifact_directory_that_contains_source",
+      "tests/analysis/test_release_execution.py::test_bundle_verification_rejects_tampering_dirty_source_and_vsdx"
+    ],
+    "docx_container_safety": [
+      "tests/documents/test_safety.py::test_docx_inventory_rejects_traversal_and_duplicate_members",
+      "tests/documents/test_safety.py::test_docx_inventory_rejects_macros_and_resource_expansion",
+      "tests/documents/test_safety.py::test_docx_inventory_rejects_encrypted_symlink_and_activex_members",
+      "tests/documents/test_safety.py::test_docx_inventory_enforces_entry_and_expansion_limits"
+    ],
+    "pdf_active_content": [
+      "tests/documents/test_pdf_extraction.py::test_extract_pdf_rejects_javascript_and_malformed_sources",
+      "tests/documents/test_pdf_extraction.py::test_extract_pdf_rejects_active_external_and_encrypted_content",
+      "tests/documents/test_pdf_security.py"
+    ],
+    "prompt_injection_isolation": [
+      "tests/analysis/test_claim_workflow.py::test_claim_workflow_treats_prompt_injection_as_quoted_source_data",
+      "tests/analysis/test_description.py::test_markdown_escapes_source_controlled_markup"
+    ]
+  }
+}

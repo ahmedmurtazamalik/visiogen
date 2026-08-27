@@ -27,6 +27,7 @@ organized here by purpose.
 
 ## Acceptance
 
+- [A8 deterministic hardening acceptance](acceptance/A8_HARDENING.md)
 - [A0–A7 completeness audit](acceptance/A0_A7_COMPLETENESS_AUDIT.md)
 - [A2 diagram discovery acceptance](acceptance/A2_DIAGRAM_DISCOVERY.md)
 - [A3 visual semantics acceptance](acceptance/A3_VISUAL_SEMANTICS.md)

@@ -1294,7 +1294,9 @@ It enforces development/held-out separation, blinded diagram review, the frozen 
 quality thresholds, adversarial provenance checks, degradation visibility, and an
 explicit per-case DOCX inspection mode. Real corpus execution, completed human
 reviews, platform-specific rendered-DOCX acceptance, and the final release decision
-remain open.
+remain open. The deterministic security/resource-limit sub-gate passed at commit
+`2b1f363`; see
+[`../../acceptance/A8_HARDENING.md`](../../acceptance/A8_HARDENING.md).
 
 **Goal:** Establish honest supported scope and measured quality.
 
