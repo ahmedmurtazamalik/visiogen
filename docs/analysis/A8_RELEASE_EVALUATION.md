@@ -34,6 +34,19 @@ Each held-out case has one checksum-bound review record with two passes:
 The release evaluator rejects missing, duplicate, or unblinded held-out reviews.
 Development reviews never contribute to release metrics.
 
+Generate review forms only after the complete corpus execution passes:
+
+```bash
+uv run python scripts/prepare_analysis_release_reviews.py \
+  --corpus /immutable/a8-corpus.json \
+  --execution /immutable/a8-execution/execution-report.json \
+  --output /immutable/a8-reviews.json
+```
+
+The generated packet contains only held-out cases, preserves exact execution-bundle
+hashes, starts every human judgment as `null`, and refuses to overwrite an existing
+review file. Reviewers replace all nulls without editing case IDs or bundle hashes.
+
 ## Corpus execution
 
 Run the admitted corpus from a clean source checkout and publish evidence outside
