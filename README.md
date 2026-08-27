@@ -133,6 +133,9 @@ returns a distinct exit code for partial candidate failure. Fresh PDF and DOCX
 sources have passed the clean-source, real-`gpt-5.6-sol`, hash-bound vertical gate;
 see [`docs/acceptance/A7_VERTICAL_PIPELINE.md`](docs/acceptance/A7_VERTICAL_PIPELINE.md).
 Broader held-out quality and DOCX rendering scope remain Phase A8.
+The current candidate boundary accepts portable DOCX extraction only; rendered Word
+or LibreOffice page modes are not yet supported. See
+[`docs/analysis/A8_SUPPORTED_SCOPE.md`](docs/analysis/A8_SUPPORTED_SCOPE.md).
 
 A post-implementation completeness audit removed skipped tests and closed additional
 A0–A7 contract, safety, evidence, scope, and failure-provenance gaps. The exact audit

@@ -5,6 +5,11 @@
 Phase A8 evaluates only the PDF/DOCX diagram-analysis path. It does not include
 VSDX generation or Microsoft Visio acceptance.
 
+The candidate release boundary and limitations are frozen in
+[`A8_SUPPORTED_SCOPE.md`](A8_SUPPORTED_SCOPE.md). The held-out decision approves an
+exact provider/model and evidence set within that boundary; it does not establish
+reliable understanding of arbitrary documents.
+
 ## Corpus discipline
 
 Every source document is identified by SHA-256 and assigned before model execution

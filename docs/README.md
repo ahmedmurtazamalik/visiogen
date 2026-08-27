@@ -19,6 +19,7 @@ organized here by purpose.
 - [Text claims and entity alignment](analysis/TEXT_CLAIMS_AND_ALIGNMENT.md)
 - [Consistency analysis and findings](analysis/CONSISTENCY_ANALYSIS.md)
 - [A8 held-out release evaluation](analysis/A8_RELEASE_EVALUATION.md)
+- [A8 supported scope and known limitations](analysis/A8_SUPPORTED_SCOPE.md)
 
 ## Development
 
