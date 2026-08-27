@@ -50,6 +50,20 @@ def test_extract_docx_writes_complete_portable_snapshot_bundle(tmp_path: Path) -
     assert second == snapshot
 
 
+def test_extract_docx_allows_non_image_relationship_to_safe_package_root(
+    tmp_path: Path,
+) -> None:
+    source = write_diagram_docx(
+        tmp_path / "custom-xml.docx",
+        package_root_relationship=True,
+    )
+
+    snapshot = extract_document(source, tmp_path / "evidence")
+
+    assert len(snapshot.visual_assets) == 1
+    assert snapshot.visual_assets[0].location.relationship_id == "rId1"
+
+
 @pytest.mark.parametrize(
     ("kwargs", "message"),
     [

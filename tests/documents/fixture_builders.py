@@ -101,6 +101,7 @@ def write_diagram_docx(
     external_relationship: bool = False,
     embedded_object: bool = False,
     unsafe_xml: bool = False,
+    package_root_relationship: bool = False,
 ) -> Path:
     """Write a portable DOCX with native text, caption, alt text, and one PNG."""
 
@@ -137,10 +138,15 @@ def write_diagram_docx(
         if external_relationship
         else '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/diagram.png"/>'
     )
+    root_relationship = (
+        '<Relationship Id="rIdCustom" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/customXml" Target="../customXml/item1.xml"/>'
+        if package_root_relationship
+        else ""
+    )
     rels_xml = (
         '<?xml version="1.0" encoding="UTF-8"?>'
         '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
-        f'{relationship}<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="header1.xml"/>'
+        f'{relationship}<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="header1.xml"/>{root_relationship}'
         '</Relationships>'
     ).encode()
     content_types = b"""<?xml version="1.0" encoding="UTF-8"?>
@@ -169,6 +175,8 @@ def write_diagram_docx(
             b'<w:p><w:r><w:t>Confidential</w:t></w:r></w:p></w:hdr>',
         )
         archive.writestr("word/media/diagram.png", PNG_1X1)
+        if package_root_relationship:
+            archive.writestr("customXml/item1.xml", b"<root/>")
         if embedded_object:
             archive.writestr("word/embeddings/object.bin", b"object")
     return path

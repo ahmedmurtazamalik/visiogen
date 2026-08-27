@@ -49,7 +49,12 @@ def _parse_xml(data: bytes, name: str) -> ET.Element:
         raise DocumentExtractionError(f"DOCX XML is malformed: {name}") from error
 
 
-def _relationships(archive: ZipFile, name: str) -> dict[str, str]:
+def _relationships(
+    archive: ZipFile,
+    name: str,
+    *,
+    relationship_type: str | None = None,
+) -> dict[str, str]:
     if name not in archive.namelist():
         return {}
     root = _parse_xml(archive.read(name), name)
@@ -59,6 +64,8 @@ def _relationships(archive: ZipFile, name: str) -> dict[str, str]:
         target = relation.get("Target")
         if relation.get("TargetMode", "Internal").lower() == "external":
             raise UnsafeDocumentError(f"External DOCX relationship is not supported: {name}")
+        if relationship_type is not None and relation.get("Type") != relationship_type:
+            continue
         if relation_id and target:
             relationships[relation_id] = target
     return relationships
@@ -143,7 +150,11 @@ def extract_docx_snapshot(
         document_root = _parse_xml(archive.read("word/document.xml"), "word/document.xml")
         if any(element.tag == f"{{{_W}}}object" for element in document_root.iter()):
             raise UnsafeDocumentError("Embedded Word objects are not supported")
-        document_relationships = _relationships(archive, "word/_rels/document.xml.rels")
+        document_relationships = _relationships(
+            archive,
+            "word/_rels/document.xml.rels",
+            relationship_type=_REL_IMAGE,
+        )
         relation_targets = {
             relation_id: _resolved_word_target(target)
             for relation_id, target in document_relationships.items()
