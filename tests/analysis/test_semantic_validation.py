@@ -13,6 +13,7 @@ from visiogen.analysis.semantics import (
 )
 from visiogen.analysis.validation import (
     AnalysisValidationError,
+    discard_unsupported_annotations,
     discard_unsupported_legends,
     downgrade_unsupported_relationship_endpoints,
     validate_analyzed_diagram,
@@ -459,3 +460,37 @@ def test_semantic_validation_preserves_grounded_notes_and_callouts() -> None:
     assert "unknown object 'object-9999'" in message
     assert "does not intersect its cited evidence" in message
     assert "text is not present in cited evidence" in message
+
+
+def test_unsupported_annotations_are_discarded_without_weakening_validation() -> None:
+    observations = validate_observations(_raw_observations(), _prepared())
+    grounded = DiagramAnnotation(
+        id="annotation-0001",
+        kind="callout",
+        visible_text="Sensor 10",
+        attached_object_ids=["object-0001"],
+        bbox=NormalizedBox(left=0.6, top=0.35, right=0.7, bottom=0.45),
+        evidence_ids=["evidence-0001"],
+        confidence="high",
+    )
+    invented = grounded.model_copy(
+        update={"id": "annotation-0002", "visible_text": "Invented callout"}
+    )
+    diagram = _diagram().model_copy(
+        update={
+            "annotations": [grounded, invented],
+            "limitations": ["Original limitation"],
+        }
+    )
+
+    sanitized = discard_unsupported_annotations(diagram, observations)
+
+    assert sanitized.annotations == [grounded]
+    assert sanitized.limitations == [
+        "Original limitation",
+        "Omitted 1 annotation whose text was not literally visible in cited evidence.",
+    ]
+    assert validate_analyzed_diagram(sanitized, observations) == sanitized
+
+    with pytest.raises(AnalysisValidationError, match="text is not present"):
+        validate_analyzed_diagram(diagram, observations)

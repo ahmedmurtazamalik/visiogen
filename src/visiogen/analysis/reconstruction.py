@@ -15,6 +15,7 @@ from visiogen.analysis.prompts import (
 from visiogen.analysis.semantics import AnalyzedDiagram, ValidatedObservationSet
 from visiogen.analysis.validation import (
     AnalysisValidationError,
+    discard_unsupported_annotations,
     discard_unsupported_legends,
     downgrade_unsupported_relationship_endpoints,
     validate_analyzed_diagram,
@@ -92,6 +93,7 @@ class StructuredReconstructionWorkflow:
             try:
                 diagram = AnalyzedDiagram.model_validate_json(response.content)
                 diagram = discard_unsupported_legends(diagram, observations)
+                diagram = discard_unsupported_annotations(diagram, observations)
                 diagram = downgrade_unsupported_relationship_endpoints(diagram)
                 diagram = validate_analyzed_diagram(diagram, observations)
                 return ReconstructionResult(

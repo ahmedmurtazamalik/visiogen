@@ -199,6 +199,38 @@ def discard_unsupported_legends(
     )
 
 
+def discard_unsupported_annotations(
+    diagram: AnalyzedDiagram,
+    observations: ValidatedObservationSet,
+) -> AnalyzedDiagram:
+    """Omit annotation text that is not literally grounded in cited observations."""
+
+    text_by_evidence = _text_for_evidence(observations)
+    supported = [
+        annotation
+        for annotation in diagram.annotations
+        if _label_is_observed(
+            annotation.visible_text,
+            annotation.evidence_ids,
+            text_by_evidence,
+        )
+    ]
+    omitted = len(diagram.annotations) - len(supported)
+    if omitted == 0:
+        return diagram
+    noun = "annotation" if omitted == 1 else "annotations"
+    limitation = (
+        f"Omitted {omitted} {noun} whose text was not literally visible in cited "
+        "evidence."
+    )
+    return diagram.model_copy(
+        update={
+            "annotations": supported,
+            "limitations": [*diagram.limitations, limitation],
+        }
+    )
+
+
 def downgrade_unsupported_relationship_endpoints(
     diagram: AnalyzedDiagram,
 ) -> AnalyzedDiagram:

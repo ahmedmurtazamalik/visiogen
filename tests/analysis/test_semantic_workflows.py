@@ -145,6 +145,23 @@ def _diagram_response_with_unsupported_legend() -> str:
     return json.dumps(payload)
 
 
+def _diagram_response_with_unsupported_annotation() -> str:
+    payload = json.loads(_diagram_response())
+    payload["annotations"] = [
+        {
+            "id": "annotation-0001",
+            "kind": "callout",
+            "visible_text": "Invented callout",
+            "attached_object_ids": ["object-0001"],
+            "bbox": {"left": 0.1, "top": 0.1, "right": 0.4, "bottom": 0.3},
+            "evidence_ids": ["evidence-0001"],
+            "confidence": "high",
+            "alternatives": [],
+        }
+    ]
+    return json.dumps(payload)
+
+
 def test_observation_workflow_uses_overview_tiles_and_one_repair(tmp_path: Path) -> None:
     prepared, bundle = _prepared_bundle(tmp_path)
     caller = FakeImageCall(
@@ -218,6 +235,29 @@ def test_reconstruction_discards_unsupported_legend_without_repair_call(
     assert result.diagram.legends == []
     assert result.diagram.limitations == [
         "Omitted 1 legend mapping whose meaning was not literally visible in cited evidence."
+    ]
+    assert len(caller.calls) == 1
+
+
+def test_reconstruction_discards_unsupported_annotation_without_repair_call(
+    tmp_path: Path,
+) -> None:
+    prepared, bundle = _prepared_bundle(tmp_path)
+    observations = StructuredObservationWorkflow(
+        FakeImageCall([_observation_response()])
+    ).observe(prepared, bundle).observations
+    caller = FakeImageCall([_diagram_response_with_unsupported_annotation()])
+
+    result = StructuredReconstructionWorkflow(caller).reconstruct(
+        prepared,
+        observations,
+        bundle,
+    )
+
+    assert result.attempts == 1
+    assert result.diagram.annotations == []
+    assert result.diagram.limitations == [
+        "Omitted 1 annotation whose text was not literally visible in cited evidence."
     ]
     assert len(caller.calls) == 1
 
