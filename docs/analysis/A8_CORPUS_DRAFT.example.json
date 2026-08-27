@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "thresholds": {},
+  "cases": [
+    {"id": "held-clean-native-pdf", "subset": "held_out", "document_kind": "pdf", "source_path": "sources/held-clean-native.pdf", "clean_input": true, "coverage_tags": ["clean_native_text_pdf"]},
+    {"id": "held-system-docx", "subset": "held_out", "document_kind": "docx", "source_path": "sources/held-system.docx", "clean_input": true, "coverage_tags": ["system_architecture_docx"], "docx_mode": "portable", "degraded_modalities_expected": 1},
+    {"id": "held-reference-schematic", "subset": "held_out", "document_kind": "pdf", "source_path": "sources/held-reference-schematic.pdf", "clean_input": true, "coverage_tags": ["dense_reference_schematic"]},
+    {"id": "held-vector-pdf", "subset": "held_out", "document_kind": "pdf", "source_path": "sources/held-vector.pdf", "clean_input": true, "coverage_tags": ["vector_pdf"]},
+    {"id": "held-low-quality-scan", "subset": "held_out", "document_kind": "pdf", "source_path": "sources/held-low-quality-scan.pdf", "clean_input": false, "coverage_tags": ["low_quality_scan"], "degraded_modalities_expected": 1},
+    {"id": "held-mixed-visuals", "subset": "held_out", "document_kind": "docx", "source_path": "sources/held-mixed-visuals.docx", "clean_input": true, "coverage_tags": ["mixed_diagram_and_non_diagram"], "docx_mode": "portable", "degraded_modalities_expected": 1},
+    {"id": "held-prompt-injection", "subset": "held_out", "document_kind": "pdf", "source_path": "sources/held-prompt-injection.pdf", "clean_input": true, "coverage_tags": ["prompt_injection"], "adversarial_prompt_injection": true}
+  ]
+}

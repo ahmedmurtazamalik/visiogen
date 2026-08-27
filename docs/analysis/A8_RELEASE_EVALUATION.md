@@ -17,6 +17,21 @@ rejects symlinks and hash mismatches, and prevents identical source bytes from
 appearing in both splits. Held-out coverage is machine-checked for all seven case
 families listed in the A8 plan.
 
+Copy
+[`A8_CORPUS_DRAFT.example.json`](A8_CORPUS_DRAFT.example.json), place reviewed
+documents beneath its `sources/` directory, and freeze the exact bytes before any
+provider call:
+
+```bash
+uv run python scripts/freeze_analysis_release_corpus.py \
+  --draft /review/a8-corpus-draft.json \
+  --output /review/a8-corpus.json
+```
+
+The freezer adds source hashes, applies all corpus admission rules, and refuses to
+overwrite an existing frozen manifest. The example names required roles only; it
+does not provide or imply accepted real documents.
+
 DOCX cases must explicitly declare one inspection mode. The first release accepts
 `portable` extraction: native OOXML text, tables, captions, relationships, and
 embedded raster media. `rendered_word` and `rendered_libreoffice` remain unsupported
