@@ -165,6 +165,12 @@ def _diagram_response_with_unsupported_annotation() -> str:
     return json.dumps(payload)
 
 
+def _diagram_response_with_unknown_evidence() -> str:
+    payload = json.loads(_diagram_response())
+    payload["objects"][0]["evidence_ids"] = ["missing"]
+    return json.dumps(payload)
+
+
 def test_observation_workflow_uses_overview_tiles_and_one_repair(tmp_path: Path) -> None:
     prepared, bundle = _prepared_bundle(tmp_path)
     caller = FakeImageCall(
@@ -210,13 +216,37 @@ def test_reconstruction_failure_preserves_validation_evidence(tmp_path: Path) ->
 
     with pytest.raises(ReconstructionWorkflowError) as caught:
         StructuredReconstructionWorkflow(
-            FakeImageCall([_diagram_response(label="Invented")] * 2)
+            FakeImageCall([_diagram_response_with_unknown_evidence()] * 2)
         ).reconstruct(prepared, observations, bundle)
 
-    assert "not present in cited evidence" in str(caught.value)
-    assert "not present in cited evidence" in (caught.value.validation_error or "")
-    assert "Invented" in caught.value.traces[-1].raw_response
+    assert "unknown evidence" in str(caught.value)
+    assert "unknown evidence" in (caught.value.validation_error or "")
+    assert "missing" in caught.value.traces[-1].raw_response
     assert len(caught.value.traces) == 2
+
+
+def test_reconstruction_omits_final_unsupported_object_label(
+    tmp_path: Path,
+) -> None:
+    prepared, bundle = _prepared_bundle(tmp_path)
+    observations = StructuredObservationWorkflow(
+        FakeImageCall([_observation_response()])
+    ).observe(prepared, bundle).observations
+    caller = FakeImageCall([_diagram_response(label="Invented")] * 2)
+
+    result = StructuredReconstructionWorkflow(caller).reconstruct(
+        prepared,
+        observations,
+        bundle,
+    )
+
+    assert result.attempts == 2
+    assert result.diagram.objects[0].visible_label is None
+    assert result.diagram.objects[0].normalized_label is None
+    assert result.diagram.limitations == [
+        "Omitted 1 object label not literally visible in observation evidence."
+    ]
+    assert len(caller.calls) == 2
 
 
 def test_reconstruction_discards_unsupported_legend_without_repair_call(
@@ -310,7 +340,7 @@ def test_semantic_pipeline_never_calls_beyond_configured_budget(tmp_path: Path) 
     observation_call = FakeImageCall(
         [_observation_response(evidence_id="missing"), _observation_response()]
     )
-    reconstruction_call = FakeImageCall([_diagram_response(label="Invented")])
+    reconstruction_call = FakeImageCall([_diagram_response_with_unknown_evidence()])
     workflow = SemanticAnalysisWorkflow(
         StructuredObservationWorkflow(observation_call),
         StructuredReconstructionWorkflow(reconstruction_call),

@@ -16,6 +16,7 @@ from visiogen.analysis.validation import (
     discard_unsupported_annotations,
     discard_unsupported_legends,
     downgrade_unsupported_relationship_endpoints,
+    sanitize_object_grounding,
     validate_analyzed_diagram,
     validate_observations,
 )
@@ -279,6 +280,68 @@ def test_semantic_validation_accepts_multiline_label_split_across_observations()
     assert validate_analyzed_diagram(diagram, observations).objects[0].visible_label == (
         "Sensor\n10"
     )
+
+
+def test_object_label_citation_is_regrounded_to_exact_observation_evidence() -> None:
+    observations = validate_observations(_raw_observations(), _prepared())
+    diagram = _diagram()
+    diagram.objects[0] = diagram.objects[0].model_copy(
+        update={"evidence_ids": ["evidence-0002"]}
+    )
+
+    sanitized = sanitize_object_grounding(diagram, observations)
+
+    assert sanitized.objects[0].evidence_ids == ["evidence-0002", "evidence-0001"]
+    assert sanitized.limitations == [
+        "Re-grounded 1 object label to exact visible-text evidence."
+    ]
+    assert validate_analyzed_diagram(sanitized, observations) == sanitized
+
+
+def test_final_object_sanitization_omits_only_unsupported_text() -> None:
+    observations = validate_observations(_raw_observations(), _prepared())
+    diagram = _diagram(first_label="Invented 99")
+    diagram.objects[0] = diagram.objects[0].model_copy(
+        update={"reference_numbers": ["99"]}
+    )
+
+    first_attempt = sanitize_object_grounding(diagram, observations)
+    assert first_attempt == diagram
+    with pytest.raises(AnalysisValidationError, match="not present in cited evidence"):
+        validate_analyzed_diagram(first_attempt, observations)
+
+    final_attempt = sanitize_object_grounding(
+        diagram,
+        observations,
+        omit_unsupported=True,
+    )
+    assert final_attempt.objects[0].visible_label is None
+    assert final_attempt.objects[0].normalized_label is None
+    assert final_attempt.objects[0].reference_numbers == []
+    assert final_attempt.limitations == [
+        "Omitted 1 object label not literally visible in observation evidence.",
+        "Omitted 1 object reference number not visibly evidenced.",
+    ]
+    assert validate_analyzed_diagram(final_attempt, observations) == final_attempt
+
+
+def test_numeric_reference_accepts_attached_unicode_subscript_run() -> None:
+    raw = _raw_observations()
+    raw.observations[0].visible_text = "SP₆"
+    observations = validate_observations(raw, _prepared())
+    diagram = _diagram(first_label="SP₆")
+    diagram.objects[0] = diagram.objects[0].model_copy(
+        update={"normalized_label": "sp₆", "reference_numbers": ["₆"]}
+    )
+
+    assert validate_analyzed_diagram(diagram, observations) == diagram
+
+    invalid = diagram.model_copy(deep=True)
+    invalid.objects[0] = invalid.objects[0].model_copy(
+        update={"reference_numbers": ["₆", "P"]}
+    )
+    with pytest.raises(AnalysisValidationError, match="reference number 'P'"):
+        validate_analyzed_diagram(invalid, observations)
 
 
 def test_observation_validation_rejects_duplicate_ids_and_cross_derivative_evidence() -> None:

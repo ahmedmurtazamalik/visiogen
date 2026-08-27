@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 
 from visiogen.analysis.models import PreparedCandidate
 from visiogen.analysis.semantics import (
@@ -169,6 +170,105 @@ def _label_is_observed(
             if value not in cited_text:
                 cited_text.append(value)
     return normalize_visible_text(" ".join(cited_text)) == normalized_label
+
+
+def _reference_is_observed(reference: str, cited_text: str) -> bool:
+    if reference and all(unicodedata.category(char).startswith("N") for char in reference):
+        start = 0
+        while (index := cited_text.find(reference, start)) >= 0:
+            before = cited_text[index - 1] if index > 0 else None
+            after_index = index + len(reference)
+            after = cited_text[after_index] if after_index < len(cited_text) else None
+            if not (
+                before is not None
+                and unicodedata.category(before).startswith("N")
+            ) and not (
+                after is not None
+                and unicodedata.category(after).startswith("N")
+            ):
+                return True
+            start = index + 1
+        return False
+    return re.search(rf"(?<!\w){re.escape(reference)}(?!\w)", cited_text) is not None
+
+
+def sanitize_object_grounding(
+    diagram: AnalyzedDiagram,
+    observations: ValidatedObservationSet,
+    *,
+    omit_unsupported: bool = False,
+) -> AnalyzedDiagram:
+    """Repair exact object-label citations and optionally omit unsupported object text."""
+
+    text_by_evidence = _text_for_evidence(observations)
+    objects = []
+    regrounded_labels = 0
+    omitted_labels = 0
+    omitted_references = 0
+    for item in diagram.objects:
+        updates: dict[str, object] = {}
+        evidence_ids = list(item.evidence_ids)
+        if item.visible_label is not None and not _label_is_observed(
+            item.visible_label,
+            evidence_ids,
+            text_by_evidence,
+        ):
+            matching_evidence = [
+                evidence_id
+                for evidence_id in text_by_evidence
+                if _label_is_observed(
+                    item.visible_label,
+                    [evidence_id],
+                    text_by_evidence,
+                )
+            ]
+            if matching_evidence:
+                evidence_ids.extend(
+                    evidence_id
+                    for evidence_id in matching_evidence
+                    if evidence_id not in evidence_ids
+                )
+                updates["evidence_ids"] = evidence_ids
+                regrounded_labels += 1
+            elif omit_unsupported:
+                updates["visible_label"] = None
+                updates["normalized_label"] = None
+                omitted_labels += 1
+        if omit_unsupported and item.reference_numbers:
+            cited_text = " ".join(
+                text
+                for evidence_id in evidence_ids
+                for text in text_by_evidence.get(evidence_id, [])
+            )
+            supported_references = [
+                reference
+                for reference in item.reference_numbers
+                if _reference_is_observed(reference, cited_text)
+            ]
+            omitted_references += len(item.reference_numbers) - len(supported_references)
+            if supported_references != item.reference_numbers:
+                updates["reference_numbers"] = supported_references
+        objects.append(item.model_copy(update=updates) if updates else item)
+    limitations = list(diagram.limitations)
+    if regrounded_labels:
+        noun = "label" if regrounded_labels == 1 else "labels"
+        limitations.append(
+            f"Re-grounded {regrounded_labels} object {noun} to exact visible-text evidence."
+        )
+    if omitted_labels:
+        noun = "label" if omitted_labels == 1 else "labels"
+        limitations.append(
+            f"Omitted {omitted_labels} object {noun} not literally visible in observation "
+            "evidence."
+        )
+    if omitted_references:
+        noun = "number" if omitted_references == 1 else "numbers"
+        limitations.append(
+            f"Omitted {omitted_references} object reference {noun} not visibly evidenced."
+        )
+    if objects == diagram.objects and limitations == diagram.limitations:
+        return diagram
+    return diagram.model_copy(update={"objects": objects, "limitations": limitations})
 
 
 def discard_unsupported_legends(
@@ -373,7 +473,7 @@ def validate_analyzed_diagram(
             for text in text_by_evidence.get(evidence_id, set())
         )
         for reference in item.reference_numbers:
-            if re.search(rf"(?<!\w){re.escape(reference)}(?!\w)", cited_text) is None:
+            if not _reference_is_observed(reference, cited_text):
                 findings.append(
                     f"Object '{item.id}' reference number '{reference}' is not visibly evidenced"
                 )

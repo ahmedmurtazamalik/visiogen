@@ -18,6 +18,7 @@ from visiogen.analysis.validation import (
     discard_unsupported_annotations,
     discard_unsupported_legends,
     downgrade_unsupported_relationship_endpoints,
+    sanitize_object_grounding,
     validate_analyzed_diagram,
 )
 from visiogen.providers.base import (
@@ -117,6 +118,11 @@ class StructuredReconstructionWorkflow:
             )
             try:
                 diagram = AnalyzedDiagram.model_validate_json(response.content)
+                diagram = sanitize_object_grounding(
+                    diagram,
+                    observations,
+                    omit_unsupported=attempt == max_attempts,
+                )
                 diagram = discard_unsupported_legends(diagram, observations)
                 diagram = discard_unsupported_annotations(diagram, observations)
                 diagram = downgrade_unsupported_relationship_endpoints(diagram)
