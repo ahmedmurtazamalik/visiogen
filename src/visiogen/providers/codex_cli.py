@@ -18,7 +18,7 @@ from pydantic import BaseModel
 from visiogen.config import Settings
 from visiogen.extractor import ExtractedDiagramGraph, StructuredExtractionWorkflow
 from visiogen.models import DiagramGraph
-from visiogen.providers.base import ProviderError, ProviderResponse
+from visiogen.providers.base import ProviderError, ProviderResponse, ProviderTimeoutError
 
 ProcessRunner = Callable[..., subprocess.CompletedProcess[str]]
 _SCHEMA_PROMPT_MARKER = " The response must satisfy this JSON Schema:"
@@ -159,7 +159,11 @@ class CodexStructuredCaller:
             except FileNotFoundError as error:
                 raise ProviderError("Codex CLI executable was not found") from error
             except subprocess.TimeoutExpired as error:
-                raise ProviderError("Codex CLI request timed out") from error
+                raise ProviderTimeoutError(
+                    "Codex CLI request timed out",
+                    elapsed_ms=(monotonic() - started) * 1000,
+                    transport_prompt=prompt,
+                ) from error
             except OSError as error:
                 raise ProviderError("Codex CLI process could not be started") from error
 

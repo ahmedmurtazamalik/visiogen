@@ -8,7 +8,11 @@ from pydantic import BaseModel
 
 from visiogen.config import Settings
 from visiogen.extractor import ExtractedDiagramGraph
-from visiogen.providers.base import ExtractionValidationError, ProviderError
+from visiogen.providers.base import (
+    ExtractionValidationError,
+    ProviderError,
+    ProviderTimeoutError,
+)
 from visiogen.providers.codex_cli import CodexCLIExtractor, CodexStructuredCaller
 
 EXPECTED = Path(__file__).parents[1] / "fixtures" / "graphs" / "expected"
@@ -147,6 +151,18 @@ def test_codex_cli_invalid_output_fails_after_one_repair() -> None:
 
     assert len(runner.calls) == 2
     assert ExtractedDiagramGraph.model_json_schema() != runner.schemas[0]
+
+
+def test_codex_cli_timeout_preserves_safe_attempt_metadata() -> None:
+    runner = FakeRunner([subprocess.TimeoutExpired("codex", 25)])
+    caller = CodexStructuredCaller(codex_settings(), SmallOutput, runner=runner)
+
+    with pytest.raises(ProviderTimeoutError) as captured:
+        caller("system", "user")
+
+    assert captured.value.elapsed_ms >= 0
+    assert captured.value.transport_prompt == runner.calls[0]["input"]
+    assert "user" in (captured.value.transport_prompt or "")
 
 
 class SmallOutput(BaseModel):

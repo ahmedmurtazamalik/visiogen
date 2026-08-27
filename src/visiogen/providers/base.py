@@ -14,6 +14,21 @@ class ProviderError(RuntimeError):
     """Raised when a model provider cannot return a usable response."""
 
 
+class ProviderTimeoutError(ProviderError):
+    """Transient provider timeout with safe attempt metadata for bounded retry."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        elapsed_ms: float,
+        transport_prompt: str | None = None,
+    ) -> None:
+        self.elapsed_ms = elapsed_ms
+        self.transport_prompt = transport_prompt
+        super().__init__(message)
+
+
 class ExtractionValidationError(ValueError):
     """Raised when provider output remains invalid after schema repair."""
 
