@@ -52,6 +52,23 @@ and VSDX artifacts, and hashes each complete bundle for subsequent human review.
 Selecting individual `--case` values produces exploratory evidence and can never
 pass the complete-corpus gate.
 
+## Deterministic hardening gate
+
+Security and resource-limit evidence is published separately from model-quality
+evidence so a provider rerun cannot obscure a deterministic regression:
+
+```bash
+uv run python scripts/run_analysis_hardening_acceptance.py \
+  --output /immutable/a8-hardening
+```
+
+The curated gate covers obfuscated PDF active content, encrypted and external PDF
+content, unsafe DOCX ZIP/XML constructs, macro/ActiveX and expansion limits, input
+and decoded-pixel ceilings, tile budgets, prompt-injection quoting, source-controlled
+Markdown escaping, atomic artifact publication, partial-result preservation, failed
+call provenance, and analysis-only bundle enforcement. The report binds the exact
+test files and source revision and retains JUnit plus captured process output.
+
 ## Release gates
 
 The evaluator implements the frozen A0 thresholds: complete schema/reference and
