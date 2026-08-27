@@ -37,6 +37,15 @@ The freezer adds source hashes, applies all corpus admission rules, and refuses 
 overwrite an existing frozen manifest. The example names required roles only; it
 does not provide or imply accepted real documents.
 
+The maintained corpus sourcing strategy uses four provenance buckets: U.S.
+government technical reports, published patent records, redistributable open
+research/open-source material, and locally authored controlled/adversarial
+documents. Controlled documents exercise containers and security behavior but do
+not count as independent evidence of arbitrary-document quality. The local control
+builder is `scripts/build_analysis_release_controls.py`; every concrete corpus must
+record upstream URLs, hashes, transformations, and licensing/reuse status beside the
+frozen manifest.
+
 DOCX cases must explicitly declare one inspection mode. The first release accepts
 `portable` extraction: native OOXML text, tables, captions, relationships, and
 embedded raster media. `rendered_word` and `rendered_libreoffice` remain unsupported
