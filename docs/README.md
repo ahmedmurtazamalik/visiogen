@@ -18,6 +18,7 @@ organized here by purpose.
 - [Faithful textual description](analysis/FAITHFUL_DESCRIPTION.md)
 - [Text claims and entity alignment](analysis/TEXT_CLAIMS_AND_ALIGNMENT.md)
 - [Consistency analysis and findings](analysis/CONSISTENCY_ANALYSIS.md)
+- [A8 held-out release evaluation](analysis/A8_RELEASE_EVALUATION.md)
 
 ## Development
 

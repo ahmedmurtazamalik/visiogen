@@ -1287,6 +1287,15 @@ hash-bound, reviewable bundles without invoking any VSDX generation code.
 
 ### Phase A8 — Real acceptance, hardening, and release decision
 
+**Implementation status (2026-08-27):** In progress. The strict checksum-bound
+held-out review and release-scoring contract is implemented in
+[`../../analysis/A8_RELEASE_EVALUATION.md`](../../analysis/A8_RELEASE_EVALUATION.md).
+It enforces development/held-out separation, blinded diagram review, the frozen A0
+quality thresholds, adversarial provenance checks, degradation visibility, and an
+explicit per-case DOCX inspection mode. Real corpus execution, completed human
+reviews, platform-specific rendered-DOCX acceptance, and the final release decision
+remain open.
+
 **Goal:** Establish honest supported scope and measured quality.
 
 Tasks:
