@@ -7,6 +7,7 @@ import pytest
 from visiogen.analysis.alignment import align_claim_entities
 from visiogen.analysis.claim_validation import (
     ClaimValidationError,
+    sanitize_document_claims,
     validate_document_claims,
 )
 from visiogen.analysis.claim_workflow import (
@@ -139,14 +140,15 @@ def _diagram() -> AnalyzedDiagram:
 
 
 def test_claim_workflow_repairs_bad_span_without_diagram_context() -> None:
-    caller = FakeCall([_response(bad_span=True), _response()])
+    caller = FakeCall([_response(bad_span=True)])
 
     result = StructuredClaimExtractionWorkflow(caller).extract(_selection())
 
-    assert result.attempts == 2
-    assert "Hard validation findings" in caller.calls[1][1]
+    assert result.attempts == 1
     assert "AnalyzedDiagram" not in caller.calls[0][1]
     assert result.claims.claims[1].modality == "required"
+    assert result.claims.evidence[0].start == 0
+    assert result.claims.evidence[0].end == len(result.claims.evidence[0].exact_text)
 
 
 def test_claim_workflow_treats_prompt_injection_as_quoted_source_data() -> None:
@@ -192,7 +194,10 @@ def test_claim_workflow_treats_prompt_injection_as_quoted_source_data() -> None:
 
 
 def test_claim_workflow_retains_both_failed_call_traces() -> None:
-    caller = FakeCall([_response(bad_span=True), _response(bad_span=True)])
+    payload = json.loads(_response(bad_span=True))
+    payload["evidence"][0]["exact_text"] = "Invented quote"
+    invalid = json.dumps(payload)
+    caller = FakeCall([invalid, invalid])
 
     with pytest.raises(ClaimExtractionWorkflowError) as captured:
         StructuredClaimExtractionWorkflow(caller).extract(_selection())
@@ -200,6 +205,50 @@ def test_claim_workflow_retains_both_failed_call_traces() -> None:
     assert len(captured.value.traces) == 2
     assert captured.value.validation_error
     assert "exact source span" in captured.value.validation_error
+
+
+def test_claim_sanitization_repairs_only_unique_exact_source_spans() -> None:
+    batch = DocumentClaimBatch.model_validate_json(_response(bad_span=True))
+
+    sanitized = sanitize_document_claims(batch, _selection())
+
+    assert sanitized.evidence[0].start == 0
+    assert sanitized.evidence[0].end == len(sanitized.evidence[0].exact_text)
+    assert validate_document_claims(sanitized, _selection()) == sanitized
+
+    repeated = _selection().model_copy(deep=True)
+    repeated.blocks[0].text += " " + batch.evidence[0].exact_text
+    ambiguous = sanitize_document_claims(batch, repeated)
+    with pytest.raises(ClaimValidationError, match="exact source span"):
+        validate_document_claims(ambiguous, repeated)
+
+
+def test_claim_sanitization_omits_paraphrased_entities_with_audit_warning() -> None:
+    payload = json.loads(_response())
+    payload["claims"][1]["subject_text"] = "the probe device"
+    payload["claims"][1]["normalized_subject"] = "the probe device"
+    batch = DocumentClaimBatch.model_validate(payload)
+
+    sanitized = sanitize_document_claims(batch, _selection())
+
+    assert [claim.id for claim in sanitized.claims] == ["claim-0001"]
+    assert sanitized.warnings == [
+        "Omitted 1 claim whose subject or object was not literally present in cited evidence."
+    ]
+    assert validate_document_claims(sanitized, _selection()) == sanitized
+
+
+def test_claim_workflow_repairs_before_omitting_paraphrased_claim() -> None:
+    invalid = json.loads(_response())
+    invalid["claims"][1]["subject_text"] = "the probe device"
+    invalid["claims"][1]["normalized_subject"] = "the probe device"
+    caller = FakeCall([json.dumps(invalid), json.dumps(invalid)])
+
+    result = StructuredClaimExtractionWorkflow(caller).extract(_selection())
+
+    assert result.attempts == 2
+    assert "subject is absent" in caller.calls[1][1]
+    assert [claim.id for claim in result.claims.claims] == ["claim-0001"]
 
 
 def test_claim_validation_rejects_unselected_or_inexact_evidence() -> None:

@@ -10,6 +10,7 @@ from visiogen.analysis.claim_prompts import (
 )
 from visiogen.analysis.claim_validation import (
     ClaimValidationError,
+    sanitize_document_claims,
     validate_document_claims,
 )
 from visiogen.analysis.claims import DocumentClaimBatch, TextSelection
@@ -75,6 +76,11 @@ class StructuredClaimExtractionWorkflow:
             )
             try:
                 batch = DocumentClaimBatch.model_validate_json(response.content)
+                batch = sanitize_document_claims(
+                    batch,
+                    selection,
+                    omit_unsupported=attempt == 2,
+                )
                 batch = validate_document_claims(batch, selection)
                 return ClaimExtractionResult(claims=batch, attempts=attempt, traces=traces)
             except (ValidationError, ClaimValidationError) as error:

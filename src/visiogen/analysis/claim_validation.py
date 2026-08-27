@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
-from visiogen.analysis.claims import DocumentClaimBatch, TextSelection
+from visiogen.analysis.claims import (
+    DocumentClaim,
+    DocumentClaimBatch,
+    TextClaimEvidence,
+    TextSelection,
+)
 
 
 class ClaimValidationError(ValueError):
@@ -31,6 +36,63 @@ def _contains_entity(evidence_text: str, entity_text: str) -> bool:
             return True
         start = evidence.find(entity, start + 1)
     return False
+
+
+def sanitize_document_claims(
+    batch: DocumentClaimBatch,
+    selection: TextSelection,
+    *,
+    omit_unsupported: bool = True,
+) -> DocumentClaimBatch:
+    """Repair uniquely recoverable spans and omit claims with paraphrased entities."""
+
+    blocks = {item.block_id: item for item in selection.blocks}
+    evidence: list[TextClaimEvidence] = []
+    for item in batch.evidence:
+        block = blocks.get(item.block_id)
+        if block is None:
+            evidence.append(item)
+            continue
+        start = block.text.find(item.exact_text)
+        unique = start >= 0 and block.text.find(item.exact_text, start + 1) < 0
+        if unique:
+            item = item.model_copy(
+                update={"start": start, "end": start + len(item.exact_text)}
+            )
+        evidence.append(item)
+
+    evidence_by_id = {item.id: item for item in evidence}
+    claims: list[DocumentClaim] = []
+    omitted = 0
+    for claim in batch.claims:
+        cited_text = " ".join(
+            evidence_by_id[evidence_id].exact_text
+            for evidence_id in claim.evidence_ids
+            if evidence_id in evidence_by_id
+        )
+        unsupported = bool(cited_text) and (
+            not _contains_entity(cited_text, claim.subject_text)
+            or (
+                claim.object_text is not None
+                and not _contains_entity(cited_text, claim.object_text)
+            )
+        )
+        if unsupported and omit_unsupported:
+            omitted += 1
+        else:
+            claims.append(claim)
+    if omitted == 0 and evidence == batch.evidence:
+        return batch
+    warnings = list(batch.warnings)
+    if omitted:
+        noun = "claim" if omitted == 1 else "claims"
+        warnings.append(
+            f"Omitted {omitted} {noun} whose subject or object was not literally present "
+            "in cited evidence."
+        )
+    return batch.model_copy(
+        update={"evidence": evidence, "claims": claims, "warnings": warnings}
+    )
 
 
 def validate_document_claims(
@@ -97,5 +159,6 @@ def validate_document_claims(
 __all__ = [
     "ClaimValidationError",
     "normalize_claim_text",
+    "sanitize_document_claims",
     "validate_document_claims",
 ]
