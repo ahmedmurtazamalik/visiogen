@@ -34,6 +34,24 @@ Each held-out case has one checksum-bound review record with two passes:
 The release evaluator rejects missing, duplicate, or unblinded held-out reviews.
 Development reviews never contribute to release metrics.
 
+## Corpus execution
+
+Run the admitted corpus from a clean source checkout and publish evidence outside
+the repository:
+
+```bash
+uv run python scripts/run_analysis_release_corpus.py \
+  --corpus /immutable/a8-corpus.json \
+  --output /immutable/a8-execution \
+  --model gpt-5.6-sol
+```
+
+The runner uses the production pipeline, isolates every case, preserves raised and
+partial failures, verifies manifest artifact hashes, rejects dirty-source provenance
+and VSDX artifacts, and hashes each complete bundle for subsequent human review.
+Selecting individual `--case` values produces exploratory evidence and can never
+pass the complete-corpus gate.
+
 ## Release gates
 
 The evaluator implements the frozen A0 thresholds: complete schema/reference and
