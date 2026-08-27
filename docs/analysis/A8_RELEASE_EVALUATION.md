@@ -84,10 +84,16 @@ Run the scorer after corpus execution and review:
 uv run python scripts/evaluate_analysis_release.py \
   --corpus /immutable/a8-corpus.json \
   --reviews /immutable/a8-reviews.json \
+  --execution /immutable/a8-execution/execution-report.json \
+  --hardening /immutable/a8-hardening/acceptance-report.json \
   --output /immutable/a8-release-decision.json
 ```
 
-The output binds the decision to the exact corpus and review files. A passing score
+The output binds the decision to the exact corpus, review, execution, and hardening
+files. Reviews must cite the exact executed bundle hash, the diagram and consistency
+passes must have distinct reviewer identities, every corpus case must have completed,
+and execution plus deterministic hardening must come from the same clean source
+revision. A passing score
 is necessary but not sufficient for release: security/resource-limit tests, source
 immutability, exact provider/model identity, complete evidence bundles, and known
 limitations must also be included in the final acceptance record.

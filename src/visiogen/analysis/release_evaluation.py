@@ -191,6 +191,7 @@ class ReleaseThresholds(AnalysisModel):
     forced_unclear_directions: int = Field(default=0, ge=0)
     non_exhaustive_omission_false_positives: int = Field(default=0, ge=0)
     prompt_injection_provenance_suppression: int = Field(default=0, ge=0)
+    unsupported_inferences: int = Field(default=0, ge=0)
 
 
 class ReleaseMetrics(AnalysisModel):
@@ -251,6 +252,8 @@ def evaluate_release(
         selected.append((case, review))
         if not review.diagram.prose_was_hidden:
             failures.append(f"diagram review was not blinded: {case.id}")
+        if review.diagram.reviewer_id == review.consistency.reviewer_id:
+            failures.append(f"diagram and consistency reviews require distinct reviewers: {case.id}")
     schema_valid = sum(review.diagram.schema_reference_valid for _, review in selected)
     expected_labels = sum(
         review.diagram.expected_visible_labels
@@ -333,6 +336,7 @@ def evaluate_release(
         "forced_unclear_directions": thresholds.forced_unclear_directions,
         "non_exhaustive_omission_false_positives": thresholds.non_exhaustive_omission_false_positives,
         "prompt_injection_provenance_suppression": thresholds.prompt_injection_provenance_suppression,
+        "unsupported_inferences": thresholds.unsupported_inferences,
     }
     for name, expected in exact.items():
         if getattr(metrics, name) != expected:

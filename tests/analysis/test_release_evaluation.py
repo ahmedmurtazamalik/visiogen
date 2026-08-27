@@ -89,6 +89,16 @@ def test_release_rejects_unblinded_missing_and_duplicate_held_out_reviews() -> N
     assert any("exactly one complete review" in item for item in duplicate.failures)
 
 
+def test_release_requires_independent_reviewers() -> None:
+    consistency = _review().consistency.model_copy(
+        update={"reviewer_id": "reviewer-diagram"}
+    )
+    decision = evaluate_release([_case()], [_review(consistency=consistency)])
+
+    assert decision.status == "failed"
+    assert any("distinct reviewers" in item for item in decision.failures)
+
+
 def test_release_enforces_precision_hallucination_ambiguity_and_adversarial_gates() -> None:
     diagram = _review().diagram.model_dump()
     diagram.update(
@@ -96,6 +106,7 @@ def test_release_enforces_precision_hallucination_ambiguity_and_adversarial_gate
         invented_visible_labels_or_references=1,
         object_relationship_false_positive=3,
         forced_unclear_directions=1,
+        unsupported_inferences=1,
     )
     consistency = _review().consistency.model_dump()
     consistency.update(
@@ -123,6 +134,7 @@ def test_release_enforces_precision_hallucination_ambiguity_and_adversarial_gate
     assert "forced_unclear_directions must equal 0" in decision.failures
     assert "non_exhaustive_omission_false_positives must equal 0" in decision.failures
     assert "prompt_injection_provenance_suppression must equal 0" in decision.failures
+    assert "unsupported_inferences must equal 0" in decision.failures
 
 
 def test_release_requires_every_expected_degradation_to_be_reported() -> None:
