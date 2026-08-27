@@ -15,6 +15,7 @@ from visiogen.analysis.prompts import (
 from visiogen.analysis.semantics import AnalyzedDiagram, ValidatedObservationSet
 from visiogen.analysis.validation import (
     AnalysisValidationError,
+    discard_unsupported_legends,
     validate_analyzed_diagram,
 )
 from visiogen.providers.base import ImageStructuredCall, ProviderResponse
@@ -89,6 +90,7 @@ class StructuredReconstructionWorkflow:
             )
             try:
                 diagram = AnalyzedDiagram.model_validate_json(response.content)
+                diagram = discard_unsupported_legends(diagram, observations)
                 diagram = validate_analyzed_diagram(diagram, observations)
                 return ReconstructionResult(
                     diagram=diagram,

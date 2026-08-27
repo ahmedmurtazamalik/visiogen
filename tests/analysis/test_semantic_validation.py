@@ -13,6 +13,7 @@ from visiogen.analysis.semantics import (
 )
 from visiogen.analysis.validation import (
     AnalysisValidationError,
+    discard_unsupported_legends,
     validate_analyzed_diagram,
     validate_observations,
 )
@@ -221,6 +222,27 @@ def test_semantic_validation_rejects_invented_visible_label() -> None:
         validate_analyzed_diagram(_diagram(first_label="Camera 10"), observations)
 
 
+def test_semantic_validation_accepts_multiline_label_split_across_observations() -> None:
+    raw = _raw_observations()
+    raw.observations[0].visible_text = "Sensor"
+    raw.observations.insert(
+        1,
+        raw.observations[0].model_copy(
+            update={"id": "observation-0004", "visible_text": "10"}
+        ),
+    )
+    observations = validate_observations(raw, _prepared())
+
+    diagram = _diagram(first_label="Sensor\n10")
+    diagram.objects[0] = diagram.objects[0].model_copy(
+        update={"normalized_label": "sensor 10"}
+    )
+
+    assert validate_analyzed_diagram(diagram, observations).objects[0].visible_label == (
+        "Sensor\n10"
+    )
+
+
 def test_observation_validation_rejects_duplicate_ids_and_cross_derivative_evidence() -> None:
     raw = _raw_observations()
     raw.evidence.append(raw.evidence[0])
@@ -313,6 +335,32 @@ def test_semantic_validation_grounding_covers_groups_legends_and_titles() -> Non
     assert "Group 'group-0001' does not intersect its cited evidence" in message
     assert "does not intersect member object" in message
     assert "Legend meaning is not present" in message
+
+
+def test_unsupported_legend_meanings_are_discarded_without_weakening_validation() -> None:
+    observations = validate_observations(_raw_observations(), _prepared())
+    diagram = _diagram().model_copy(
+        update={
+            "legends": [
+                LegendMapping(
+                    symbol="solid",
+                    meaning="Invented meaning",
+                    evidence_ids=["evidence-0001"],
+                    confidence="high",
+                )
+            ],
+            "limitations": ["Original limitation"],
+        }
+    )
+
+    sanitized = discard_unsupported_legends(diagram, observations)
+
+    assert sanitized.legends == []
+    assert sanitized.limitations == [
+        "Original limitation",
+        "Omitted 1 legend mapping whose meaning was not literally visible in cited evidence.",
+    ]
+    assert validate_analyzed_diagram(sanitized, observations) == sanitized
 
 
 def test_semantic_validation_preserves_grounded_notes_and_callouts() -> None:

@@ -132,6 +132,19 @@ def _diagram_response(*, label: str = "Sensor") -> str:
     )
 
 
+def _diagram_response_with_unsupported_legend() -> str:
+    payload = json.loads(_diagram_response())
+    payload["legends"] = [
+        {
+            "symbol": "solid",
+            "meaning": "Invented meaning",
+            "evidence_ids": ["evidence-0001"],
+            "confidence": "high",
+        }
+    ]
+    return json.dumps(payload)
+
+
 def test_observation_workflow_uses_overview_tiles_and_one_repair(tmp_path: Path) -> None:
     prepared, bundle = _prepared_bundle(tmp_path)
     caller = FakeImageCall(
@@ -184,6 +197,29 @@ def test_reconstruction_failure_preserves_validation_evidence(tmp_path: Path) ->
     assert "not present in cited evidence" in (caught.value.validation_error or "")
     assert "Invented" in caught.value.traces[-1].raw_response
     assert len(caught.value.traces) == 2
+
+
+def test_reconstruction_discards_unsupported_legend_without_repair_call(
+    tmp_path: Path,
+) -> None:
+    prepared, bundle = _prepared_bundle(tmp_path)
+    observations = StructuredObservationWorkflow(
+        FakeImageCall([_observation_response()])
+    ).observe(prepared, bundle).observations
+    caller = FakeImageCall([_diagram_response_with_unsupported_legend()])
+
+    result = StructuredReconstructionWorkflow(caller).reconstruct(
+        prepared,
+        observations,
+        bundle,
+    )
+
+    assert result.attempts == 1
+    assert result.diagram.legends == []
+    assert result.diagram.limitations == [
+        "Omitted 1 legend mapping whose meaning was not literally visible in cited evidence."
+    ]
+    assert len(caller.calls) == 1
 
 
 def test_reconstruction_prompts_distinguish_object_containment_from_groups() -> None:

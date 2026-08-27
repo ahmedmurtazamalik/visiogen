@@ -143,22 +143,60 @@ def validate_observations(
 
 def _text_for_evidence(
     observations: ValidatedObservationSet,
-) -> dict[str, set[str]]:
-    values: dict[str, set[str]] = {}
+) -> dict[str, list[str]]:
+    values: dict[str, list[str]] = {}
     for observation in observations.observations:
         if observation.visible_text is None:
             continue
         for evidence_id in observation.evidence_ids:
-            values.setdefault(evidence_id, set()).add(observation.visible_text)
+            evidence_text = values.setdefault(evidence_id, [])
+            if observation.visible_text not in evidence_text:
+                evidence_text.append(observation.visible_text)
     return values
 
 
 def _label_is_observed(
     label: str,
     evidence_ids: list[str],
-    text_by_evidence: dict[str, set[str]],
+    text_by_evidence: dict[str, list[str]],
 ) -> bool:
-    return any(label in text_by_evidence.get(evidence_id, set()) for evidence_id in evidence_ids)
+    normalized_label = normalize_visible_text(label)
+    cited_text: list[str] = []
+    for evidence_id in evidence_ids:
+        for value in text_by_evidence.get(evidence_id, []):
+            if normalize_visible_text(value) == normalized_label:
+                return True
+            if value not in cited_text:
+                cited_text.append(value)
+    return normalize_visible_text(" ".join(cited_text)) == normalized_label
+
+
+def discard_unsupported_legends(
+    diagram: AnalyzedDiagram,
+    observations: ValidatedObservationSet,
+) -> AnalyzedDiagram:
+    """Omit inferred legend mappings while preserving an explicit audit limitation."""
+
+    text_by_evidence = _text_for_evidence(observations)
+    supported = [
+        legend
+        for legend in diagram.legends
+        if _label_is_observed(legend.meaning, legend.evidence_ids, text_by_evidence)
+    ]
+    omitted = len(diagram.legends) - len(supported)
+    if omitted == 0:
+        return diagram
+    noun = "mapping" if omitted == 1 else "mappings"
+    limitation = (
+        f"Omitted {omitted} legend {noun} whose meaning was not literally visible "
+        "in cited evidence."
+    )
+    return diagram.model_copy(
+        update={
+            "legends": supported,
+            "limitations": [*diagram.limitations, limitation],
+        }
+    )
 
 
 def _boxes_intersect(first: NormalizedBox, second: NormalizedBox) -> bool:
