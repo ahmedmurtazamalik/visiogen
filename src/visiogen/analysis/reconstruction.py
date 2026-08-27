@@ -20,7 +20,11 @@ from visiogen.analysis.validation import (
     downgrade_unsupported_relationship_endpoints,
     validate_analyzed_diagram,
 )
-from visiogen.providers.base import ImageStructuredCall, ProviderResponse
+from visiogen.providers.base import (
+    ImageStructuredCall,
+    ProviderResponse,
+    ProviderTimeoutError,
+)
 
 
 class ReconstructionWorkflowError(ValueError):
@@ -75,11 +79,32 @@ class StructuredReconstructionWorkflow:
         )
         traces: list[AnalysisCallTrace] = []
         for attempt in range(1, max_attempts + 1):
-            response: ProviderResponse = self._call_model.call_with_images(
-                system_prompt,
-                user_prompt,
-                paths,
-            )
+            try:
+                response: ProviderResponse = self._call_model.call_with_images(
+                    system_prompt,
+                    user_prompt,
+                    paths,
+                )
+            except ProviderTimeoutError as error:
+                traces.append(
+                    AnalysisCallTrace(
+                        system_prompt=system_prompt,
+                        user_prompt=user_prompt,
+                        transport_prompt=error.transport_prompt,
+                        raw_response="",
+                        elapsed_ms=error.elapsed_ms,
+                        image_sha256=image_hashes,
+                        error_type=type(error).__name__,
+                        error_message=str(error),
+                    )
+                )
+                if attempt == max_attempts:
+                    raise ReconstructionWorkflowError(
+                        "Semantic reconstruction provider timed out within the configured "
+                        "attempt budget",
+                        traces=traces,
+                    ) from error
+                continue
             traces.append(
                 AnalysisCallTrace(
                     system_prompt=system_prompt,

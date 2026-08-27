@@ -15,7 +15,11 @@ from visiogen.analysis.claim_validation import (
 )
 from visiogen.analysis.claims import DocumentClaimBatch, TextSelection
 from visiogen.analysis.models import AnalysisModel
-from visiogen.providers.base import ProviderResponse, StructuredModelCall
+from visiogen.providers.base import (
+    ProviderResponse,
+    ProviderTimeoutError,
+    StructuredModelCall,
+)
 
 
 class ClaimCallTrace(AnalysisModel):
@@ -24,6 +28,8 @@ class ClaimCallTrace(AnalysisModel):
     transport_prompt: str | None = None
     raw_response: str
     elapsed_ms: float = Field(ge=0)
+    error_type: str | None = None
+    error_message: str | None = None
 
 
 class ClaimExtractionResult(AnalysisModel):
@@ -64,7 +70,26 @@ class StructuredClaimExtractionWorkflow:
         )
         traces: list[ClaimCallTrace] = []
         for attempt in (1, 2):
-            response: ProviderResponse = self._call_model(system_prompt, user_prompt)
+            try:
+                response: ProviderResponse = self._call_model(system_prompt, user_prompt)
+            except ProviderTimeoutError as error:
+                traces.append(
+                    ClaimCallTrace(
+                        system_prompt=system_prompt,
+                        user_prompt=user_prompt,
+                        transport_prompt=error.transport_prompt,
+                        raw_response="",
+                        elapsed_ms=error.elapsed_ms,
+                        error_type=type(error).__name__,
+                        error_message=str(error),
+                    )
+                )
+                if attempt == 2:
+                    raise ClaimExtractionWorkflowError(
+                        "Document claim provider timed out within the configured attempt budget",
+                        traces=traces,
+                    ) from error
+                continue
             traces.append(
                 ClaimCallTrace(
                     system_prompt=system_prompt,

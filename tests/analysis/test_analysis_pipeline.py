@@ -268,6 +268,30 @@ class FakeTerminologyClaims:
         return ClaimExtractionResult(claims=claims, attempts=1, traces=[])
 
 
+class TimeoutThenSuccessfulClaims(FakeClaims):
+    def extract(self, selection):
+        result = super().extract(selection)
+        traces = [
+            ClaimCallTrace(
+                system_prompt="claim system",
+                user_prompt="claim request",
+                transport_prompt="isolated",
+                raw_response="",
+                elapsed_ms=25,
+                error_type="ProviderTimeoutError",
+                error_message="temporary timeout",
+            ),
+            ClaimCallTrace(
+                system_prompt="claim system",
+                user_prompt="claim request",
+                transport_prompt="isolated",
+                raw_response=result.claims.model_dump_json(),
+                elapsed_ms=5,
+            ),
+        ]
+        return result.model_copy(update={"attempts": 2, "traces": traces})
+
+
 class FailingClaims:
     def extract(self, selection):
         del selection
@@ -369,6 +393,25 @@ def test_pipeline_composes_all_stages_and_publishes_hash_manifest(tmp_path: Path
     assert result.manifest.completed_at_utc.endswith("+00:00")
     assert result.manifest.total_model_calls == 4
     assert result.manifest.classification_elapsed_ms == 1
+
+
+def test_pipeline_publishes_timeout_attempt_error_metadata(tmp_path: Path) -> None:
+    artifacts = tmp_path / "evidence"
+
+    result = _pipeline(tmp_path, claims=TimeoutThenSuccessfulClaims()).analyze(
+        tmp_path / "input.pdf",
+        artifacts,
+    )
+
+    candidate = result.analysis.candidates[0]
+    assert candidate.status == "completed"
+    assert candidate.model_calls == 4
+    error_path = artifacts / "candidate-0001/traces/claims-01-error.json"
+    assert error_path.read_text() == (
+        '{\n  "error_message": "temporary timeout",\n'
+        '  "error_type": "ProviderTimeoutError"\n}\n'
+    )
+    assert (artifacts / "candidate-0001/traces/claims-02-response.json").is_file()
 
 
 def test_pipeline_marks_one_candidate_failure_as_partial_and_keeps_success(tmp_path: Path) -> None:

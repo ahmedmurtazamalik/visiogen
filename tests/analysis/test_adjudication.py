@@ -14,17 +14,20 @@ from visiogen.analysis.adjudication import (
 from visiogen.analysis.claims import DocumentClaimBatch
 from visiogen.analysis.comparison import ConsistencyFinding
 from visiogen.analysis.semantics import AnalyzedDiagram
-from visiogen.providers.base import ProviderResponse
+from visiogen.providers.base import ProviderResponse, ProviderTimeoutError
 
 
 class FakeCall:
-    def __init__(self, responses: list[str]) -> None:
+    def __init__(self, responses: list[str | BaseException]) -> None:
         self.responses = iter(responses)
         self.calls = []
 
     def __call__(self, system_prompt, user_prompt):
         self.calls.append((system_prompt, user_prompt))
-        return ProviderResponse(content=next(self.responses), elapsed_ms=4)
+        response = next(self.responses)
+        if isinstance(response, BaseException):
+            raise response
+        return ProviderResponse(content=response, elapsed_ms=4)
 
 
 def _sources() -> tuple[ConsistencyFinding, AnalyzedDiagram, DocumentClaimBatch]:
@@ -149,6 +152,26 @@ def test_workflow_never_permits_model_confirmed_contradiction() -> None:
 
     assert len(captured.value.traces) == 2
     assert captured.value.validation_error
+
+
+def test_workflow_retries_one_timeout_without_exceeding_attempt_budget() -> None:
+    finding, diagram, batch = _sources()
+    request = build_adjudication_request(finding, diagram, batch)
+    timeout = ProviderTimeoutError(
+        "temporary timeout",
+        elapsed_ms=25,
+        transport_prompt="timed-out-transport",
+    )
+    caller = FakeCall([timeout, _decision()])
+
+    result = StructuredAdjudicationWorkflow(caller).adjudicate(request)
+
+    assert result.attempts == 2
+    assert len(result.traces) == 2
+    assert result.traces[0].error_type == "ProviderTimeoutError"
+    assert result.traces[0].transport_prompt == "timed-out-transport"
+    assert result.traces[0].raw_response == ""
+    assert caller.calls[0] == caller.calls[1]
 
 
 def test_decision_updates_only_review_fields_and_preserves_evidence() -> None:

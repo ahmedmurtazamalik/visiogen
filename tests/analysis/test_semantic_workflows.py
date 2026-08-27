@@ -26,18 +26,21 @@ from visiogen.analysis.semantic_pipeline import (
 )
 from visiogen.documents.models import NormalizedBox
 from visiogen.documents.safety import DocumentSafetyLimits
-from visiogen.providers.base import ProviderResponse
+from visiogen.providers.base import ProviderError, ProviderResponse, ProviderTimeoutError
 
 
 class FakeImageCall:
-    def __init__(self, responses: list[str]) -> None:
+    def __init__(self, responses: list[str | BaseException]) -> None:
         self.responses = iter(responses)
         self.calls = []
 
     def call_with_images(self, system_prompt, user_prompt, images):
         self.calls.append((system_prompt, user_prompt, list(images)))
+        response = next(self.responses)
+        if isinstance(response, BaseException):
+            raise response
         return ProviderResponse(
-            content=next(self.responses),
+            content=response,
             elapsed_ms=10,
             transport_prompt="transport",
         )
@@ -321,6 +324,99 @@ def test_semantic_pipeline_never_calls_beyond_configured_budget(tmp_path: Path) 
     assert len(reconstruction_call.calls) == 1
     assert captured.value.stage == "reconstruction"
     assert len(captured.value.traces) == 3
+
+
+def test_semantic_pipeline_retries_timeout_within_total_call_budget(
+    tmp_path: Path,
+) -> None:
+    prepared, bundle = _prepared_bundle(tmp_path)
+    timeout = ProviderTimeoutError(
+        "temporary timeout",
+        elapsed_ms=25,
+        transport_prompt="timed-out-transport",
+    )
+    observation_call = FakeImageCall([timeout, _observation_response()])
+    reconstruction_call = FakeImageCall([_diagram_response()])
+    workflow = SemanticAnalysisWorkflow(
+        StructuredObservationWorkflow(observation_call),
+        StructuredReconstructionWorkflow(reconstruction_call),
+        limits=DocumentSafetyLimits(max_model_calls_per_candidate=3),
+    )
+
+    result = workflow.analyze(prepared, bundle)
+
+    assert result.total_model_calls == 3
+    assert result.observation.attempts == 2
+    assert len(result.observation.traces) == 2
+    assert result.observation.traces[0].error_type == "ProviderTimeoutError"
+    assert result.observation.traces[0].raw_response == ""
+    assert result.observation.traces[0].transport_prompt == "timed-out-transport"
+    assert observation_call.calls[0][1] == observation_call.calls[1][1]
+    assert len(reconstruction_call.calls) == 1
+
+
+def test_semantic_pipeline_retries_reconstruction_timeout_within_budget(
+    tmp_path: Path,
+) -> None:
+    prepared, bundle = _prepared_bundle(tmp_path)
+    observation_call = FakeImageCall([_observation_response()])
+    reconstruction_call = FakeImageCall(
+        [
+            ProviderTimeoutError("temporary timeout", elapsed_ms=25),
+            _diagram_response(),
+        ]
+    )
+    workflow = SemanticAnalysisWorkflow(
+        StructuredObservationWorkflow(observation_call),
+        StructuredReconstructionWorkflow(reconstruction_call),
+        limits=DocumentSafetyLimits(max_model_calls_per_candidate=3),
+    )
+
+    result = workflow.analyze(prepared, bundle)
+
+    assert result.total_model_calls == 3
+    assert result.reconstruction.attempts == 2
+    assert len(result.reconstruction.traces) == 2
+    assert result.reconstruction.traces[0].error_type == "ProviderTimeoutError"
+    assert reconstruction_call.calls[0][1] == reconstruction_call.calls[1][1]
+
+
+def test_observation_workflow_does_not_retry_non_timeout_provider_errors(
+    tmp_path: Path,
+) -> None:
+    prepared, bundle = _prepared_bundle(tmp_path)
+    caller = FakeImageCall([ProviderError("permanent provider failure")])
+
+    with pytest.raises(ProviderError, match="permanent provider failure"):
+        StructuredObservationWorkflow(caller).observe(prepared, bundle)
+
+    assert len(caller.calls) == 1
+
+
+def test_semantic_pipeline_stops_when_timeouts_exhaust_observation_allowance(
+    tmp_path: Path,
+) -> None:
+    prepared, bundle = _prepared_bundle(tmp_path)
+    timeouts = [
+        ProviderTimeoutError("temporary timeout", elapsed_ms=25),
+        ProviderTimeoutError("temporary timeout", elapsed_ms=25),
+    ]
+    observation_call = FakeImageCall(timeouts)
+    reconstruction_call = FakeImageCall([_diagram_response()])
+    workflow = SemanticAnalysisWorkflow(
+        StructuredObservationWorkflow(observation_call),
+        StructuredReconstructionWorkflow(reconstruction_call),
+        limits=DocumentSafetyLimits(max_model_calls_per_candidate=3),
+    )
+
+    with pytest.raises(SemanticAnalysisWorkflowError) as captured:
+        workflow.analyze(prepared, bundle)
+
+    assert captured.value.stage == "observation"
+    assert len(captured.value.traces) == 2
+    assert all(trace.error_type == "ProviderTimeoutError" for trace in captured.value.traces)
+    assert len(observation_call.calls) == 2
+    assert reconstruction_call.calls == []
 
 
 def test_semantic_pipeline_rejects_impossible_budget_before_provider_call(

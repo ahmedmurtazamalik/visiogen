@@ -98,6 +98,8 @@ class CandidateCallTrace(AnalysisModel):
     raw_response: str
     elapsed_ms: float = Field(ge=0)
     image_sha256: dict[str, str] = Field(default_factory=dict)
+    error_type: str | None = None
+    error_message: str | None = None
 
 
 class CandidateCallFailure(AnalysisModel):
@@ -125,6 +127,8 @@ def _call_failure(
                 raw_response=trace.raw_response,
                 elapsed_ms=trace.elapsed_ms,
                 image_sha256=getattr(trace, "image_sha256", {}),
+                error_type=getattr(trace, "error_type", None),
+                error_message=getattr(trace, "error_message", None),
             )
         )
     source_error = error.original if isinstance(error, CandidateStageError) else error

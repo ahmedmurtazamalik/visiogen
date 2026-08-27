@@ -18,7 +18,11 @@ from visiogen.analysis.prompts import (
 )
 from visiogen.analysis.semantics import RawObservationBatch, ValidatedObservationSet
 from visiogen.analysis.validation import AnalysisValidationError, validate_observations
-from visiogen.providers.base import ImageStructuredCall, ProviderResponse
+from visiogen.providers.base import (
+    ImageStructuredCall,
+    ProviderResponse,
+    ProviderTimeoutError,
+)
 
 
 class ObservationWorkflowError(ValueError):
@@ -45,6 +49,8 @@ class AnalysisCallTrace(AnalysisModel):
     raw_response: str
     elapsed_ms: float
     image_sha256: dict[str, str]
+    error_type: str | None = None
+    error_message: str | None = None
 
 
 class ObservationResult(AnalysisModel):
@@ -121,11 +127,32 @@ class StructuredObservationWorkflow:
         traces: list[AnalysisCallTrace] = []
         user_prompt = inventory
         for attempt in range(1, max_attempts + 1):
-            response: ProviderResponse = self._call_model.call_with_images(
-                system_prompt,
-                user_prompt,
-                paths,
-            )
+            try:
+                response: ProviderResponse = self._call_model.call_with_images(
+                    system_prompt,
+                    user_prompt,
+                    paths,
+                )
+            except ProviderTimeoutError as error:
+                traces.append(
+                    AnalysisCallTrace(
+                        system_prompt=system_prompt,
+                        user_prompt=user_prompt,
+                        transport_prompt=error.transport_prompt,
+                        raw_response="",
+                        elapsed_ms=error.elapsed_ms,
+                        image_sha256=image_hashes,
+                        error_type=type(error).__name__,
+                        error_message=str(error),
+                    )
+                )
+                if attempt == max_attempts:
+                    raise ObservationWorkflowError(
+                        "Visual observation provider timed out within the configured attempt "
+                        "budget",
+                        traces=traces,
+                    ) from error
+                continue
             traces.append(
                 AnalysisCallTrace(
                     system_prompt=system_prompt,

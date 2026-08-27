@@ -111,6 +111,15 @@ def write_candidate_artifacts(root: Path, record: CandidateAnalysisRecord) -> No
                         trace.transport_prompt,
                     )
                 _write_text(root, f"{trace_prefix}-response.json", trace.raw_response)
+                if trace.error_type is not None:
+                    _write_json(
+                        root,
+                        f"{trace_prefix}-error.json",
+                        {
+                            "error_type": trace.error_type,
+                            "error_message": trace.error_message,
+                        },
+                    )
         return
     assert record.semantic is not None
     assert record.description is not None
@@ -161,6 +170,15 @@ def write_candidate_artifacts(root: Path, record: CandidateAnalysisRecord) -> No
             if trace.transport_prompt is not None:
                 _write_text(root, f"{trace_prefix}-transport.txt", trace.transport_prompt)
             _write_text(root, f"{trace_prefix}-response.json", trace.raw_response)
+            if getattr(trace, "error_type", None) is not None:
+                _write_json(
+                    root,
+                    f"{trace_prefix}-error.json",
+                    {
+                        "error_type": trace.error_type,
+                        "error_message": trace.error_message,
+                    },
+                )
 
 
 def render_document_report(analysis: DocumentAnalysis) -> str:

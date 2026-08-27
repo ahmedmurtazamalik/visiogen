@@ -11,7 +11,11 @@ from visiogen.analysis.claims import DocumentClaimBatch
 from visiogen.analysis.comparison import ComparisonProposition, ConsistencyFinding
 from visiogen.analysis.models import AnalysisModel, Confidence
 from visiogen.analysis.semantics import AnalyzedDiagram
-from visiogen.providers.base import ProviderResponse, StructuredModelCall
+from visiogen.providers.base import (
+    ProviderResponse,
+    ProviderTimeoutError,
+    StructuredModelCall,
+)
 
 AdjudicationStatus = Literal[
     "confirmed_consistent",
@@ -75,6 +79,8 @@ class AdjudicationTrace(AnalysisModel):
     transport_prompt: str | None = None
     raw_response: str
     elapsed_ms: float = Field(ge=0)
+    error_type: str | None = None
+    error_message: str | None = None
 
 
 class AdjudicationResult(AnalysisModel):
@@ -210,7 +216,26 @@ class StructuredAdjudicationWorkflow:
         user_prompt = f"Single comparison request (quoted data):\n{request_json}"
         traces: list[AdjudicationTrace] = []
         for attempt in (1, 2):
-            response: ProviderResponse = self._call_model(system_prompt, user_prompt)
+            try:
+                response: ProviderResponse = self._call_model(system_prompt, user_prompt)
+            except ProviderTimeoutError as error:
+                traces.append(
+                    AdjudicationTrace(
+                        system_prompt=system_prompt,
+                        user_prompt=user_prompt,
+                        transport_prompt=error.transport_prompt,
+                        raw_response="",
+                        elapsed_ms=error.elapsed_ms,
+                        error_type=type(error).__name__,
+                        error_message=str(error),
+                    )
+                )
+                if attempt == 2:
+                    raise AdjudicationWorkflowError(
+                        "Adjudication provider timed out within the configured attempt budget",
+                        traces=traces,
+                    ) from error
+                continue
             traces.append(
                 AdjudicationTrace(
                     system_prompt=system_prompt,
