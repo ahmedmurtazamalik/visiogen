@@ -331,6 +331,119 @@ def discard_unsupported_annotations(
     )
 
 
+def downgrade_degraded_visible_labels(
+    diagram: AnalyzedDiagram,
+    observations: ValidatedObservationSet,
+) -> AnalyzedDiagram:
+    """Omit exact object text when a degraded source lacks high-confidence OCR."""
+
+    degraded_terms = ("degraded", "poor quality", "low quality", "low legibility")
+    if not any(
+        term in warning.casefold()
+        for warning in observations.warnings
+        for term in degraded_terms
+    ):
+        return diagram
+    confidence_by_text: dict[str, set[str]] = {}
+    for observation in observations.observations:
+        if observation.visible_text is None:
+            continue
+        confidence_by_text.setdefault(
+            normalize_visible_text(observation.visible_text), set()
+        ).add(observation.confidence)
+    objects = []
+    omitted = 0
+    for item in diagram.objects:
+        if item.visible_label is None:
+            objects.append(item)
+            continue
+        confidences = confidence_by_text.get(normalize_visible_text(item.visible_label), set())
+        if "high" in confidences:
+            objects.append(item)
+            continue
+        omitted += 1
+        objects.append(
+            item.model_copy(
+                update={
+                    "visible_label": None,
+                    "normalized_label": None,
+                    "reference_numbers": [],
+                }
+            )
+        )
+    if omitted == 0:
+        return diagram
+    noun = "label" if omitted == 1 else "labels"
+    limitation = (
+        f"Omitted {omitted} exact object {noun} from degraded source text because no "
+        "matching high-confidence visible-text observation was available."
+    )
+    return diagram.model_copy(
+        update={
+            "objects": objects,
+            "limitations": [*diagram.limitations, limitation],
+        }
+    )
+
+
+def downgrade_unsupported_relationship_claims(
+    diagram: AnalyzedDiagram,
+    observations: ValidatedObservationSet,
+) -> AnalyzedDiagram:
+    """Make connector type and direction neutral unless literal pixels support them."""
+
+    kinds_by_evidence: dict[str, set[str]] = {}
+    for observation in observations.observations:
+        for evidence_id in observation.evidence_ids:
+            kinds_by_evidence.setdefault(evidence_id, set()).add(observation.kind)
+    visible_legend_meanings = {
+        normalize_visible_text(legend.meaning) for legend in diagram.legends
+    }
+    relationships = []
+    downgraded_types = 0
+    downgraded_directions = 0
+    for relationship in diagram.relationships:
+        updates: dict[str, object] = {}
+        if (
+            relationship.relation != "unknown"
+            and relationship.visible_label is None
+            and normalize_visible_text(relationship.relation) not in visible_legend_meanings
+        ):
+            updates["relation"] = "unknown"
+            downgraded_types += 1
+        directional = relationship.direction in {"forward", "reverse", "bidirectional"}
+        has_arrowhead = any(
+            "arrowhead" in kinds_by_evidence.get(evidence_id, set())
+            for evidence_id in relationship.evidence_ids
+        )
+        if directional and not has_arrowhead:
+            updates["direction"] = "unclear"
+            if relationship.confidence == "high":
+                updates["confidence"] = "medium"
+            downgraded_directions += 1
+        relationships.append(
+            relationship.model_copy(update=updates) if updates else relationship
+        )
+    if not downgraded_types and not downgraded_directions:
+        return diagram
+    limitations = list(diagram.limitations)
+    if downgraded_types:
+        noun = "connector" if downgraded_types == 1 else "connectors"
+        limitations.append(
+            f"Set the semantic type of {downgraded_types} unlabeled {noun} to unknown "
+            "because no visible legend established a meaning."
+        )
+    if downgraded_directions:
+        noun = "connector" if downgraded_directions == 1 else "connectors"
+        limitations.append(
+            f"Set the direction of {downgraded_directions} {noun} to unclear because "
+            "their cited evidence contained no explicit arrowhead observation."
+        )
+    return diagram.model_copy(
+        update={"relationships": relationships, "limitations": limitations}
+    )
+
+
 def downgrade_unsupported_relationship_endpoints(
     diagram: AnalyzedDiagram,
 ) -> AnalyzedDiagram:

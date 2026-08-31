@@ -17,6 +17,8 @@ from visiogen.analysis.validation import (
     AnalysisValidationError,
     discard_unsupported_annotations,
     discard_unsupported_legends,
+    downgrade_degraded_visible_labels,
+    downgrade_unsupported_relationship_claims,
     downgrade_unsupported_relationship_endpoints,
     sanitize_object_grounding,
     validate_analyzed_diagram,
@@ -125,6 +127,8 @@ class StructuredReconstructionWorkflow:
                 )
                 diagram = discard_unsupported_legends(diagram, observations)
                 diagram = discard_unsupported_annotations(diagram, observations)
+                diagram = downgrade_degraded_visible_labels(diagram, observations)
+                diagram = downgrade_unsupported_relationship_claims(diagram, observations)
                 diagram = downgrade_unsupported_relationship_endpoints(diagram)
                 diagram = validate_analyzed_diagram(diagram, observations)
                 return ReconstructionResult(

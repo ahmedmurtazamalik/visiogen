@@ -15,6 +15,8 @@ from visiogen.analysis.validation import (
     AnalysisValidationError,
     discard_unsupported_annotations,
     discard_unsupported_legends,
+    downgrade_degraded_visible_labels,
+    downgrade_unsupported_relationship_claims,
     downgrade_unsupported_relationship_endpoints,
     sanitize_object_grounding,
     validate_analyzed_diagram,
@@ -422,6 +424,34 @@ def test_unsupported_relationship_endpoints_are_downgraded_to_ambiguous() -> Non
         "path did not geometrically reach the claimed object."
     ]
     assert validate_analyzed_diagram(sanitized, observations) == sanitized
+
+
+def test_unlabeled_relationship_type_requires_visible_legend_support() -> None:
+    observations = validate_observations(_raw_observations(), _prepared())
+    diagram = _diagram()
+
+    sanitized = downgrade_unsupported_relationship_claims(diagram, observations)
+
+    assert sanitized.relationships[0].relation == "unknown"
+    assert sanitized.relationships[0].direction == "unclear"
+    assert sanitized.relationships[0].confidence == "medium"
+    assert "semantic type" in sanitized.limitations[0]
+    assert "direction" in sanitized.limitations[1]
+
+
+def test_degraded_non_high_confidence_visible_labels_are_omitted() -> None:
+    raw = _raw_observations()
+    raw.observations[0] = raw.observations[0].model_copy(update={"confidence": "medium"})
+    raw.warnings = ["The source page is of poor quality and small text is degraded."]
+    observations = validate_observations(raw, _prepared())
+    diagram = _diagram()
+
+    sanitized = downgrade_degraded_visible_labels(diagram, observations)
+
+    assert sanitized.objects[0].visible_label is None
+    assert sanitized.objects[0].normalized_label is None
+    assert sanitized.objects[1].visible_label == "Processor 20"
+    assert "degraded source" in sanitized.limitations[-1]
 
 
 def test_semantic_validation_grounding_covers_groups_legends_and_titles() -> None:

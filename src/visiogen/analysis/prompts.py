@@ -63,7 +63,11 @@ def build_reconstruction_prompt() -> str:
         "attached object IDs. Use null "
         "endpoints, unclear direction, unknown relation/family, limitations, and alternatives "
         "when pixels do not "
-        "support a definitive interpretation. Do not use document captions or explanatory prose. "
+        "support a definitive interpretation. An unlabeled connector has relation=unknown unless "
+        "a visibly grounded legend explicitly defines its meaning. A connector direction is "
+        "unclear unless an arrowhead or equivalent direction mark is visibly observed and cited. "
+        "On degraded source text, preserve uncertain readings as alternatives instead of exact "
+        "visible labels. Do not use document captions or explanatory prose. "
         "Return JSON only. "
         f"The response must satisfy this JSON Schema: {schema}"
     )

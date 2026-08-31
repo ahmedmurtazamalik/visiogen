@@ -328,6 +328,18 @@ def test_unclear_sequence_direction_remains_unverifiable() -> None:
     assert finding.status == "unverifiable"
 
 
+def test_spatial_left_claim_is_not_compared_to_connector_direction() -> None:
+    diagram = _diagram(direction="forward")
+    claim = _claim(predicate="direction", object_value="left")
+    batch, alignments = _inputs(diagram, claim)
+
+    result = compare_diagram_and_claims(diagram, batch, alignments)
+
+    finding = next(item for item in result.findings if item.category == "direction")
+    assert finding.status == "unverifiable"
+    assert "not a supported connector-direction value" in finding.explanation
+
+
 def test_wrong_relationship_type_is_a_confirmed_contradiction() -> None:
     diagram = _diagram(relation="control")
     claim = _claim(predicate="relationship_type", object_value="data")

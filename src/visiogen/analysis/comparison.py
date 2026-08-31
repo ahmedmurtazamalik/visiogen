@@ -752,6 +752,22 @@ def _compare_relationship_attribute(
         if relationship.direction == "unclear":
             _unverifiable(builder, claim, diagram, "direction", "Connector direction is visibly unclear.")
             return
+        supported_direction_values = {
+            "forward",
+            "reverse",
+            "bidirectional",
+            "none",
+            "unclear",
+        }
+        if claim.normalized_object not in supported_direction_values:
+            _unverifiable(
+                builder,
+                claim,
+                diagram,
+                "direction",
+                f"{claim.normalized_object!r} is not a supported connector-direction value.",
+            )
+            return
         actual = normalize_claim_text(relationship.direction)
         expected = claim.normalized_object
     consistent = actual == expected
