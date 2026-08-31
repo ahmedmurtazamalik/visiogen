@@ -18,6 +18,7 @@ from visiogen.analysis.validation import (
     downgrade_degraded_visible_labels,
     downgrade_unsupported_relationship_claims,
     downgrade_unsupported_relationship_endpoints,
+    normalize_duplicate_relationship_ids,
     sanitize_object_grounding,
     validate_analyzed_diagram,
     validate_observations,
@@ -356,6 +357,22 @@ def test_observation_validation_rejects_duplicate_ids_and_cross_derivative_evide
 
     assert "evidence IDs must be unique" in str(captured.value)
     assert "no evidence on its geometry derivative" in str(captured.value)
+
+
+def test_duplicate_relationship_ids_are_renumbered_without_semantic_changes() -> None:
+    diagram = _diagram()
+    duplicate = diagram.relationships[0].model_copy(deep=True)
+    diagram.relationships.append(duplicate)
+
+    normalized = normalize_duplicate_relationship_ids(diagram)
+
+    assert [item.id for item in normalized.relationships] == [
+        "relationship-0001",
+        "relationship-0002",
+    ]
+    assert normalized.relationships[1].model_copy(
+        update={"id": duplicate.id}
+    ) == duplicate
 
 
 def test_semantic_validation_rejects_unsupported_references_and_containment() -> None:

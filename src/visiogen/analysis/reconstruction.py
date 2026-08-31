@@ -20,6 +20,7 @@ from visiogen.analysis.validation import (
     downgrade_degraded_visible_labels,
     downgrade_unsupported_relationship_claims,
     downgrade_unsupported_relationship_endpoints,
+    normalize_duplicate_relationship_ids,
     sanitize_object_grounding,
     validate_analyzed_diagram,
 )
@@ -120,6 +121,7 @@ class StructuredReconstructionWorkflow:
             )
             try:
                 diagram = AnalyzedDiagram.model_validate_json(response.content)
+                diagram = normalize_duplicate_relationship_ids(diagram)
                 diagram = sanitize_object_grounding(
                     diagram,
                     observations,

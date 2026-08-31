@@ -728,3 +728,32 @@ def validate_analyzed_diagram(
     if findings:
         raise AnalysisValidationError(findings)
     return diagram
+
+
+def normalize_duplicate_relationship_ids(diagram: AnalyzedDiagram) -> AnalyzedDiagram:
+    """Renumber duplicate relationship IDs without changing relationship meaning.
+
+    Relationship IDs are local mechanical identifiers and are not referenced by other
+    semantic records.  A structured model response can therefore be repaired safely by
+    assigning duplicate occurrences the next unused canonical ID.  Object, group, and
+    annotation IDs are deliberately left alone because other records can refer to them.
+    """
+
+    used: set[str] = set()
+    next_number = 1
+    relationships = []
+    changed = False
+    for relationship in diagram.relationships:
+        relationship_id = relationship.id
+        if relationship_id in used:
+            while f"relationship-{next_number:04d}" in used:
+                next_number += 1
+            relationship_id = f"relationship-{next_number:04d}"
+            next_number += 1
+            relationship = relationship.model_copy(update={"id": relationship_id})
+            changed = True
+        used.add(relationship_id)
+        relationships.append(relationship)
+    if not changed:
+        return diagram
+    return diagram.model_copy(update={"relationships": relationships})
