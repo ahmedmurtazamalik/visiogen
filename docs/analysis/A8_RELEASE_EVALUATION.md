@@ -78,6 +78,22 @@ review file. Reviewers replace all nulls without editing case IDs or bundle hash
 
 ## Corpus execution
 
+First run the provider preflight. It requires one quick structured text response
+followed by two consecutive complete executions of the clean native-PDF case. It
+reports `READY` only when the text call takes at most 30 seconds and no production
+model call takes more than 240 seconds:
+
+```bash
+uv run python scripts/run_analysis_provider_preflight.py \
+  --corpus /immutable/a8-corpus.json \
+  --output /immutable/a8-provider-preflight \
+  --model gpt-5.6-sol \
+  --timeout 300
+```
+
+Do not start the full corpus unless `preflight-report.json` has `status: "ready"`.
+A non-ready result is operational evidence, not an analysis-quality failure.
+
 Run the admitted corpus from a clean source checkout and publish evidence outside
 the repository:
 
