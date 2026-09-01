@@ -21,6 +21,7 @@ from visiogen.analysis.validation import (
     downgrade_unsupported_relationship_claims,
     downgrade_unsupported_relationship_endpoints,
     normalize_duplicate_relationship_ids,
+    reground_visible_text_geometry,
     sanitize_object_grounding,
     validate_analyzed_diagram,
 )
@@ -129,6 +130,7 @@ class StructuredReconstructionWorkflow:
                 )
                 diagram = discard_unsupported_legends(diagram, observations)
                 diagram = discard_unsupported_annotations(diagram, observations)
+                diagram = reground_visible_text_geometry(diagram, observations)
                 diagram = downgrade_degraded_visible_labels(diagram, observations)
                 diagram = downgrade_unsupported_relationship_claims(diagram, observations)
                 diagram = downgrade_unsupported_relationship_endpoints(diagram)

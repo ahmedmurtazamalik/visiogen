@@ -165,6 +165,29 @@ def _diagram_response_with_unsupported_annotation() -> str:
     return json.dumps(payload)
 
 
+def _diagram_response_with_misplaced_grounded_text() -> str:
+    payload = json.loads(_diagram_response())
+    payload["objects"][0]["bbox"] = {
+        "left": 0.8,
+        "top": 0.8,
+        "right": 0.9,
+        "bottom": 0.9,
+    }
+    payload["annotations"] = [
+        {
+            "id": "annotation-0001",
+            "kind": "callout",
+            "visible_text": "Sensor",
+            "attached_object_ids": ["object-0001"],
+            "bbox": {"left": 0.8, "top": 0.8, "right": 0.9, "bottom": 0.9},
+            "evidence_ids": ["evidence-0001"],
+            "confidence": "high",
+            "alternatives": [],
+        }
+    ]
+    return json.dumps(payload)
+
+
 def _diagram_response_with_unknown_evidence() -> str:
     payload = json.loads(_diagram_response())
     payload["objects"][0]["evidence_ids"] = ["missing"]
@@ -292,6 +315,29 @@ def test_reconstruction_discards_unsupported_annotation_without_repair_call(
     assert result.diagram.limitations == [
         "Omitted 1 annotation whose text was not literally visible in cited evidence."
     ]
+    assert len(caller.calls) == 1
+
+
+def test_reconstruction_regrounds_exact_visible_text_geometry_without_repair_call(
+    tmp_path: Path,
+) -> None:
+    prepared, bundle = _prepared_bundle(tmp_path)
+    observations = StructuredObservationWorkflow(
+        FakeImageCall([_observation_response()])
+    ).observe(prepared, bundle).observations
+    caller = FakeImageCall([_diagram_response_with_misplaced_grounded_text()])
+
+    result = StructuredReconstructionWorkflow(caller).reconstruct(
+        prepared,
+        observations,
+        bundle,
+    )
+
+    observed_box = observations.observations[0].source_bbox
+    assert observed_box is not None
+    assert result.diagram.objects[0].bbox == observed_box
+    assert result.diagram.annotations[0].bbox == observed_box
+    assert result.attempts == 1
     assert len(caller.calls) == 1
 
 

@@ -172,6 +172,26 @@ def _label_is_observed(
     return normalize_visible_text(" ".join(cited_text)) == normalized_label
 
 
+def _box_intersects_exact_text_observation(
+    bbox: NormalizedBox,
+    text: str,
+    evidence_ids: list[str],
+    observations: ValidatedObservationSet,
+) -> bool:
+    """Accept geometry anchored to an exact literal mark sharing cited evidence."""
+
+    normalized = normalize_visible_text(text)
+    cited = set(evidence_ids)
+    return any(
+        observation.source_bbox is not None
+        and observation.visible_text is not None
+        and normalize_visible_text(observation.visible_text) == normalized
+        and cited.intersection(observation.evidence_ids)
+        and _boxes_intersect(bbox, observation.source_bbox)
+        for observation in observations.observations
+    )
+
+
 def _reference_is_observed(reference: str, cited_text: str) -> bool:
     if reference and all(unicodedata.category(char).startswith("N") for char in reference):
         start = 0
@@ -326,6 +346,89 @@ def discard_unsupported_annotations(
     return diagram.model_copy(
         update={
             "annotations": supported,
+            "limitations": [*diagram.limitations, limitation],
+        }
+    )
+
+
+def reground_visible_text_geometry(
+    diagram: AnalyzedDiagram,
+    observations: ValidatedObservationSet,
+) -> AnalyzedDiagram:
+    """Anchor invalid model geometry to unique exact-text observations.
+
+    Reconstruction geometry is interpretive, while observation geometry has already
+    been transformed deterministically from an attached image into source-image
+    coordinates.  When a labeled object or annotation cites the same evidence as one
+    unique exact visible-text observation but its model-proposed box misses that
+    evidence, the literal observation is the safer geometric authority.
+
+    Ambiguous repeated text, missing observation boxes, and records without shared
+    evidence remain untouched so hard validation can still reject them.
+    """
+
+    evidence_by_id = {item.id: item for item in observations.evidence}
+
+    def intersects_cited_evidence(
+        bbox: NormalizedBox,
+        evidence_ids: list[str],
+    ) -> bool:
+        return any(
+            _boxes_intersect(bbox, evidence_by_id[evidence_id].source_bbox)
+            for evidence_id in evidence_ids
+            if evidence_id in evidence_by_id
+        )
+
+    def exact_text_box(text: str, evidence_ids: list[str]) -> NormalizedBox | None:
+        normalized = normalize_visible_text(text)
+        shared_evidence = set(evidence_ids)
+        matches = [
+            observation.source_bbox
+            for observation in observations.observations
+            if observation.source_bbox is not None
+            and observation.visible_text is not None
+            and normalize_visible_text(observation.visible_text) == normalized
+            and shared_evidence.intersection(observation.evidence_ids)
+        ]
+        return matches[0] if len(matches) == 1 else None
+
+    objects = []
+    regrounded_objects = 0
+    for item in diagram.objects:
+        replacement = None
+        if item.visible_label is not None and not intersects_cited_evidence(
+            item.bbox,
+            item.evidence_ids,
+        ):
+            replacement = exact_text_box(item.visible_label, item.evidence_ids)
+        if replacement is None:
+            objects.append(item)
+        else:
+            objects.append(item.model_copy(update={"bbox": replacement}))
+            regrounded_objects += 1
+
+    annotations = []
+    regrounded_annotations = 0
+    for item in diagram.annotations:
+        replacement = None
+        if not intersects_cited_evidence(item.bbox, item.evidence_ids):
+            replacement = exact_text_box(item.visible_text, item.evidence_ids)
+        if replacement is None:
+            annotations.append(item)
+        else:
+            annotations.append(item.model_copy(update={"bbox": replacement}))
+            regrounded_annotations += 1
+
+    if regrounded_objects == 0 and regrounded_annotations == 0:
+        return diagram
+    limitation = (
+        "Re-grounded invalid visible-text geometry to validated observations "
+        f"({regrounded_objects} objects, {regrounded_annotations} annotations)."
+    )
+    return diagram.model_copy(
+        update={
+            "objects": objects,
+            "annotations": annotations,
             "limitations": [*diagram.limitations, limitation],
         }
     )
@@ -569,11 +672,21 @@ def validate_analyzed_diagram(
         for evidence_id in item.evidence_ids:
             if evidence_id not in known_evidence:
                 findings.append(f"Object '{item.id}' references unknown evidence '{evidence_id}'")
-        if not any(
+        intersects_evidence = any(
             _boxes_intersect(item.bbox, evidence_by_id[evidence_id].source_bbox)
             for evidence_id in item.evidence_ids
             if evidence_id in evidence_by_id
-        ):
+        )
+        intersects_exact_text = (
+            item.visible_label is not None
+            and _box_intersects_exact_text_observation(
+                item.bbox,
+                item.visible_label,
+                item.evidence_ids,
+                observations,
+            )
+        )
+        if not intersects_evidence and not intersects_exact_text:
             findings.append(f"Object '{item.id}' does not intersect its cited evidence")
         if item.visible_label is not None:
             if item.normalized_label != normalize_visible_text(item.visible_label):
@@ -713,6 +826,11 @@ def validate_analyzed_diagram(
             _boxes_intersect(annotation.bbox, evidence_by_id[evidence_id].source_bbox)
             for evidence_id in annotation.evidence_ids
             if evidence_id in evidence_by_id
+        ) and not _box_intersects_exact_text_observation(
+            annotation.bbox,
+            annotation.visible_text,
+            annotation.evidence_ids,
+            observations,
         ):
             findings.append(
                 f"Annotation '{annotation.id}' does not intersect its cited evidence"

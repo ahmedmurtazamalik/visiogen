@@ -1,5 +1,9 @@
 # Visiogen
 
+**Current release line:** `0.1.0` experimental release candidate. See the
+[`0.1.0 experimental release record`](docs/releases/0.1.0-experimental.md) for the
+supported boundary, measured evidence, and outstanding external acceptance gates.
+
 Visiogen is an AI-assisted diagram toolkit with two independent product
 directions:
 
@@ -152,6 +156,11 @@ uv build
 ```
 
 Fake provider runners are used only for low-level schema, process, retry, and orchestration tests. They are not AI-quality evidence. Real-provider acceptance artifacts must come through the production adapter and retain their prompts and responses.
+
+Every release-quality analysis change starts from a named clean Git checkpoint and
+produces a new immutable preflight, corpus, hardening, review, and decision lineage.
+The repeatable procedure is documented in
+[`docs/development/RELEASE_CHECKPOINTS.md`](docs/development/RELEASE_CHECKPOINTS.md).
 
 The repository is divided into generation-owned and analysis-owned paths so two
 contributors can work concurrently. See

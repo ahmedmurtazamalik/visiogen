@@ -24,7 +24,12 @@ organized here by purpose.
 ## Development
 
 - [Parallel workstream boundaries](development/WORKSTREAMS.md)
+- [Release checkpoints and repeatable A8 reruns](development/RELEASE_CHECKPOINTS.md)
 - [Visio template catalog](../templates/TEMPLATE.md)
+
+## Releases
+
+- [Visiogen 0.1.0 experimental release candidate](releases/0.1.0-experimental.md)
 
 ## Acceptance
 

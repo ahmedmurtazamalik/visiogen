@@ -14,6 +14,7 @@ from visiogen.analysis.semantics import (
 from visiogen.analysis.validation import (
     AnalysisValidationError,
     discard_unsupported_annotations,
+    reground_visible_text_geometry,
     discard_unsupported_legends,
     downgrade_degraded_visible_labels,
     downgrade_unsupported_relationship_claims,
@@ -604,3 +605,54 @@ def test_unsupported_annotations_are_discarded_without_weakening_validation() ->
 
     with pytest.raises(AnalysisValidationError, match="text is not present"):
         validate_analyzed_diagram(diagram, observations)
+
+
+def test_exact_visible_text_geometry_is_regrounded_without_weakening_validation() -> None:
+    observations = validate_observations(_raw_observations(), _prepared())
+    invalid_box = NormalizedBox(left=0.8, top=0.8, right=0.9, bottom=0.9)
+    object_item = _diagram().objects[0].model_copy(update={"bbox": invalid_box})
+    annotation = DiagramAnnotation(
+        id="annotation-0001",
+        kind="callout",
+        visible_text="Sensor 10",
+        attached_object_ids=["object-0001"],
+        bbox=invalid_box,
+        evidence_ids=["evidence-0001"],
+        confidence="high",
+    )
+    base = _diagram()
+    diagram = base.model_copy(
+        update={"objects": [object_item, *base.objects[1:]], "annotations": [annotation]}
+    )
+
+    sanitized = reground_visible_text_geometry(diagram, observations)
+
+    expected = next(
+        item.source_bbox
+        for item in observations.observations
+        if item.visible_text == "Sensor 10"
+    )
+    assert expected is not None
+    assert sanitized.objects[0].bbox == expected
+    assert sanitized.annotations[0].bbox == expected
+    assert sanitized.limitations[-1] == (
+        "Re-grounded invalid visible-text geometry to validated observations "
+        "(1 objects, 1 annotations)."
+    )
+    assert validate_analyzed_diagram(sanitized, observations) == sanitized
+
+
+def test_ambiguous_repeated_visible_text_geometry_is_not_regrounded() -> None:
+    observations = validate_observations(_raw_observations(), _prepared())
+    repeated = observations.observations[0].model_copy(
+        update={"id": "observation-0002"}
+    )
+    observations = observations.model_copy(
+        update={"observations": [*observations.observations, repeated]}
+    )
+    invalid_box = NormalizedBox(left=0.8, top=0.8, right=0.9, bottom=0.9)
+    diagram = _diagram().model_copy(
+        update={"objects": [_diagram().objects[0].model_copy(update={"bbox": invalid_box})]}
+    )
+
+    assert reground_visible_text_geometry(diagram, observations) == diagram
