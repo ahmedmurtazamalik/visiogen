@@ -4,11 +4,17 @@ from __future__ import annotations
 
 import argparse
 import os
+import sys
 import tempfile
 from collections.abc import Callable
 from pathlib import Path
+from time import monotonic
 
-from visiogen.analysis.pipeline import AnalysisPipelineOptions, DocumentAnalysisPipeline
+from visiogen.analysis.pipeline import (
+    AnalysisPipelineOptions,
+    AnalysisProgress,
+    DocumentAnalysisPipeline,
+)
 from visiogen.config import Settings
 from visiogen.documents.errors import DocumentError
 from visiogen.providers.base import ProviderError
@@ -41,6 +47,11 @@ def register_analysis_command(
     filters.add_argument("--page", type=int, help="Analyze candidates on one page")
     filters.add_argument("--candidate", help="Analyze one candidate ID")
     analyze.add_argument("--max-diagrams", type=int, default=8)
+    analyze.add_argument(
+        "--quiet",
+        action="store_true",
+        help="Suppress progress updates (final output is still printed)",
+    )
     analyze.add_argument("--strict-coverage", action="store_true")
     analyze.add_argument(
         "--no-consistency-check",
@@ -96,6 +107,25 @@ def _run_analyze(
             "Private artifact directory must not be nested beneath the report path",
         )
     try:
+        progress_started = monotonic()
+
+        def show_progress(event: AnalysisProgress) -> None:
+            elapsed_seconds = int(monotonic() - progress_started)
+            elapsed = f"{elapsed_seconds // 60:02d}:{elapsed_seconds % 60:02d}"
+            candidate = ""
+            if event.candidate_id is not None:
+                position = (
+                    f" {event.candidate_index}/{event.candidate_total}"
+                    if event.candidate_index is not None and event.candidate_total is not None
+                    else ""
+                )
+                candidate = f" [{event.candidate_id}{position}]"
+            print(
+                f"[visiogen {elapsed}]{candidate} {event.message}",
+                file=sys.stderr,
+                flush=True,
+            )
+
         options = AnalysisPipelineOptions(
             strict_coverage=args.strict_coverage,
             consistency_check=not args.no_consistency_check,
@@ -110,7 +140,12 @@ def _run_analyze(
             timeout_seconds=args.timeout,
         )
         pipeline = pipeline_factory(settings)
-        result = pipeline.analyze(args.input, args.artifact_dir, options=options)
+        result = pipeline.analyze(
+            args.input,
+            args.artifact_dir,
+            options=options,
+            progress=None if args.quiet else show_progress,
+        )
         _publish_report(result.artifact_dir / "report.md", args.output)
     except (DocumentError, ProviderError, OSError, RuntimeError, ValueError) as error:
         raise argparse.ArgumentError(None, f"Analysis failed: {error}") from error

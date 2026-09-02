@@ -179,18 +179,33 @@ class FakeAnalysisPipeline:
         self.status = status
         self.calls = []
 
-    def analyze(self, source, artifact_dir, *, options):
+    def analyze(self, source, artifact_dir, *, options, progress=None):
         artifacts = Path(artifact_dir).resolve()
         artifacts.mkdir(parents=True)
         (artifacts / "report.md").write_text("# Analysis\n")
         self.calls.append((Path(source), Path(artifact_dir), options))
+        if progress is not None:
+            from visiogen.analysis.pipeline import AnalysisProgress
+
+            progress(
+                AnalysisProgress(
+                    stage="candidate_start",
+                    message="starting candidate analysis",
+                    candidate_id="candidate-0001",
+                    candidate_index=1,
+                    candidate_total=1,
+                )
+            )
         return SimpleNamespace(
             artifact_dir=artifacts,
             analysis=SimpleNamespace(status=self.status),
         )
 
 
-def test_analyze_command_publishes_report_and_passes_scoped_options(tmp_path: Path) -> None:
+def test_analyze_command_publishes_report_and_passes_scoped_options(
+    tmp_path: Path,
+    capsys,
+) -> None:
     source = tmp_path / "design.pdf"
     source.write_bytes(b"%PDF fixture")
     output = tmp_path / "report.md"
@@ -230,6 +245,30 @@ def test_analyze_command_publishes_report_and_passes_scoped_options(tmp_path: Pa
     assert options.max_diagrams == 3
     assert options.strict_coverage
     assert not options.consistency_check
+    assert "[candidate-0001 1/1] starting candidate analysis" in capsys.readouterr().err
+
+
+def test_analyze_command_quiet_suppresses_progress(tmp_path: Path, capsys) -> None:
+    source = tmp_path / "design.pdf"
+    source.write_bytes(b"%PDF fixture")
+    pipeline = FakeAnalysisPipeline()
+
+    exit_code = main(
+        [
+            "analyze",
+            "--input",
+            str(source),
+            "--output",
+            str(tmp_path / "report.md"),
+            "--artifact-dir",
+            str(tmp_path / "evidence"),
+            "--quiet",
+        ],
+        analysis_pipeline_factory=lambda settings: pipeline,
+    )
+
+    assert exit_code == 0
+    assert "[visiogen" not in capsys.readouterr().err
 
 
 def test_analyze_command_returns_distinct_partial_exit_code(tmp_path: Path) -> None:

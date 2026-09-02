@@ -20,6 +20,8 @@ revisions because AI-backed output is non-deterministic.
 - Passed A8 analysis release decision for the frozen seven-case RC1 corpus under
   the documented autonomous AI-assisted review policy.
 - Explicit partial-result behavior and complete provider/prompt/artifact provenance.
+- Elapsed-time analysis CLI progress for document stages, per-candidate processing,
+  model-call totals, failures, and artifact publication, with a `--quiet` option.
 
 ### Hardened
 

@@ -134,6 +134,12 @@ uv run visiogen analyze \
   --model gpt-5.6-sol
 ```
 
+The command prints elapsed-time progress to stderr while it extracts the document,
+discovers and prepares candidates, runs semantic and claim stages, checks
+consistency, and publishes artifacts. Each selected diagram is shown with its
+candidate number and completed model-call count. Use `--quiet` to suppress progress
+updates in scripts.
+
 It publishes an accessible report separately from the private evidence bundle and
 returns a distinct exit code for partial candidate failure. Fresh PDF and DOCX
 sources have passed the clean-source, real-`gpt-5.6-sol`, hash-bound vertical gate;

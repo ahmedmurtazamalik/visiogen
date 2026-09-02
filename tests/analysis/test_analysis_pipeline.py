@@ -395,6 +395,38 @@ def test_pipeline_composes_all_stages_and_publishes_hash_manifest(tmp_path: Path
     assert result.manifest.classification_elapsed_ms == 1
 
 
+def test_pipeline_reports_stage_and_candidate_progress(tmp_path: Path) -> None:
+    events = []
+
+    _pipeline(tmp_path).analyze(
+        tmp_path / "input.pdf",
+        tmp_path / "evidence",
+        progress=events.append,
+    )
+
+    stages = [event.stage for event in events]
+    assert stages == [
+        "analysis_start",
+        "document_extraction",
+        "diagram_discovery",
+        "candidate_preparation",
+        "candidate_start",
+        "semantic_analysis",
+        "description",
+        "text_selection",
+        "claim_extraction",
+        "entity_alignment",
+        "consistency_analysis",
+        "candidate_complete",
+        "artifact_publication",
+        "analysis_complete",
+    ]
+    candidate = next(event for event in events if event.stage == "candidate_start")
+    assert candidate.candidate_id == "candidate-0001"
+    assert candidate.candidate_index == 1
+    assert candidate.candidate_total == 1
+
+
 def test_pipeline_publishes_timeout_attempt_error_metadata(tmp_path: Path) -> None:
     artifacts = tmp_path / "evidence"
 

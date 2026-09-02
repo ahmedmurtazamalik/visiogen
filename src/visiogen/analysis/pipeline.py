@@ -49,6 +49,18 @@ from visiogen.documents.models import DocumentSnapshot
 
 AnalysisStatus = Literal["complete", "partial"]
 CandidateStatus = Literal["completed", "failed"]
+ProgressReporter = Callable[["AnalysisProgress"], None]
+
+
+@dataclass(frozen=True, slots=True)
+class AnalysisProgress:
+    """One user-facing analysis stage transition."""
+
+    stage: str
+    message: str
+    candidate_id: str | None = None
+    candidate_index: int | None = None
+    candidate_total: int | None = None
 
 
 class CandidateStageError(RuntimeError):
@@ -301,8 +313,24 @@ class DocumentAnalysisPipeline:
         snapshot: DocumentSnapshot,
         discovery: CandidateDiscovery,
         options: AnalysisPipelineOptions,
+        progress: ProgressReporter | None = None,
+        candidate_index: int | None = None,
+        candidate_total: int | None = None,
     ) -> CandidateAnalysisRecord:
+        def report(stage: str, message: str) -> None:
+            if progress is not None:
+                progress(
+                    AnalysisProgress(
+                        stage=stage,
+                        message=message,
+                        candidate_id=prepared.candidate_id,
+                        candidate_index=candidate_index,
+                        candidate_total=candidate_total,
+                    )
+                )
+
         started = monotonic()
+        report("semantic_analysis", "reading visible objects, labels, and connectors")
         semantic = _run_candidate_stage(
             "semantic_analysis",
             lambda: self._semantic.analyze(prepared, preparation_dir),
@@ -312,6 +340,7 @@ class DocumentAnalysisPipeline:
             *semantic.reconstruction.traces,
         ]
         diagram = semantic.reconstruction.diagram
+        report("description", "composing the diagram description")
         description = _run_candidate_stage(
             "description",
             lambda: compose_diagram_description(diagram),
@@ -326,6 +355,7 @@ class DocumentAnalysisPipeline:
             prior_traces=semantic_traces,
             prior_model_calls=semantic.total_model_calls,
         )
+        report("text_selection", "selecting related document passages")
         selection = _run_candidate_stage(
             "text_selection",
             lambda: select_relevant_text(
@@ -340,6 +370,10 @@ class DocumentAnalysisPipeline:
             prior_traces=semantic_traces,
             prior_model_calls=semantic.total_model_calls,
         )
+        if selection.blocks:
+            report("claim_extraction", "extracting claims from related document passages")
+        else:
+            report("claim_extraction", "no related prose requires claim extraction")
         claim_extraction = (
             _run_candidate_stage(
                 "claim_extraction",
@@ -362,12 +396,17 @@ class DocumentAnalysisPipeline:
             if claim_extraction is not None
             else DocumentClaimBatch(candidate_id=prepared.candidate_id, evidence=[], claims=[])
         )
+        report("entity_alignment", "aligning prose entities with diagram objects")
         alignments = _run_candidate_stage(
             "entity_alignment",
             lambda: align_claim_entities(claims, diagram),
             prior_traces=completed_traces,
             prior_model_calls=completed_model_calls,
         )
+        if options.consistency_check:
+            report("consistency_analysis", "checking diagram and prose consistency")
+        else:
+            report("consistency_analysis", "consistency checking is disabled")
         consistency = (
             _run_candidate_stage(
                 "consistency_analysis",
@@ -402,6 +441,10 @@ class DocumentAnalysisPipeline:
                 and finding.text_evidence_ids
             ][: options.max_adjudications]
             for index, finding in eligible:
+                report(
+                    "semantic_adjudication",
+                    f"adjudicating uncertain finding {finding.id}",
+                )
                 request = build_adjudication_request(finding, diagram, claims)
                 try:
                     adjudication = self._adjudicator.adjudicate(request)
@@ -430,6 +473,7 @@ class DocumentAnalysisPipeline:
             model_calls += claim_extraction.attempts
         model_calls += sum(item.result.attempts for item in adjudications)
         model_calls += sum(len(item.traces) for item in call_failures)
+        report("candidate_complete", f"completed with {model_calls} model calls")
         return CandidateAnalysisRecord(
             candidate_id=prepared.candidate_id,
             status="completed",
@@ -453,6 +497,7 @@ class DocumentAnalysisPipeline:
         artifact_dir: str | Path,
         *,
         options: AnalysisPipelineOptions = AnalysisPipelineOptions(),
+        progress: ProgressReporter | None = None,
     ) -> DocumentAnalysisResult:
         """Run one document atomically while retaining explicit per-candidate failures."""
 
@@ -465,12 +510,19 @@ class DocumentAnalysisPipeline:
         if source_path == destination_path or source_path.is_relative_to(destination_path):
             raise UnsafeDocumentError("Artifact directory must not contain the source document")
 
+        def report(stage: str, message: str) -> None:
+            if progress is not None:
+                progress(AnalysisProgress(stage=stage, message=message))
+
         def build(stage: Path) -> tuple[DocumentAnalysis, AnalysisManifest]:
             snapshot_dir = stage / "document"
+            report("document_extraction", "extracting document text and visual assets")
             snapshot = self._extract(source, snapshot_dir)
+            report("diagram_discovery", "classifying and selecting diagram candidates")
             discovery = self._discover(snapshot, snapshot_dir, options)
             classification_trace = getattr(self._discover, "last_trace", None)
             preparation_dir = stage / "prepared"
+            report("candidate_preparation", "preparing selected diagram images")
             preparation = self._prepare(
                 snapshot,
                 discovery,
@@ -481,8 +533,22 @@ class DocumentAnalysisPipeline:
             warnings = [item.message for item in snapshot.warnings]
             if not preparation.prepared_candidates:
                 warnings.append("No diagram candidates were selected for analysis")
-            for prepared in preparation.prepared_candidates:
+            candidate_total = len(preparation.prepared_candidates)
+            for candidate_index, prepared in enumerate(
+                preparation.prepared_candidates,
+                start=1,
+            ):
                 candidate_started = monotonic()
+                if progress is not None:
+                    progress(
+                        AnalysisProgress(
+                            stage="candidate_start",
+                            message="starting candidate analysis",
+                            candidate_id=prepared.candidate_id,
+                            candidate_index=candidate_index,
+                            candidate_total=candidate_total,
+                        )
+                    )
                 try:
                     record = self._analyze_candidate(
                         prepared,
@@ -490,6 +556,9 @@ class DocumentAnalysisPipeline:
                         snapshot,
                         discovery,
                         options,
+                        progress,
+                        candidate_index,
+                        candidate_total,
                     )
                 except Exception as error:
                     original = error.original if isinstance(error, CandidateStageError) else error
@@ -515,6 +584,19 @@ class DocumentAnalysisPipeline:
                         ),
                         elapsed_ms=(monotonic() - candidate_started) * 1000,
                     )
+                    if progress is not None:
+                        progress(
+                            AnalysisProgress(
+                                stage="candidate_failed",
+                                message=(
+                                    f"failed during {record.failed_stage}: "
+                                    f"{record.error_type}"
+                                ),
+                                candidate_id=prepared.candidate_id,
+                                candidate_index=candidate_index,
+                                candidate_total=candidate_total,
+                            )
+                        )
                 records.append(record)
                 write_candidate_artifacts(stage, record)
             analysis = DocumentAnalysis(
@@ -524,6 +606,7 @@ class DocumentAnalysisPipeline:
                 candidates=records,
                 warnings=warnings,
             )
+            report("artifact_publication", "writing the report and evidence bundle")
             manifest = write_analysis_bundle(
                 stage,
                 snapshot,
@@ -547,7 +630,12 @@ class DocumentAnalysisPipeline:
             )
             return analysis, manifest
 
+        report("analysis_start", f"analyzing {source_path.name}")
         analysis, manifest = publish_artifact_directory(destination, build)
+        report(
+            "analysis_complete",
+            f"finished with status {analysis.status} and {manifest.total_model_calls} model calls",
+        )
         return DocumentAnalysisResult(
             analysis=analysis,
             manifest=manifest,
