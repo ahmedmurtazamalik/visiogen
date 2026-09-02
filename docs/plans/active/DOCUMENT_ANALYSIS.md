@@ -1,6 +1,11 @@
 # Visiogen Document-to-Diagram Analysis Implementation Plan
 
-**Status:** Phases A0-A7 complete; Phase A8 next
+**Status:** Phases A0-A8 complete for the frozen 0.1.0 RC1 scope
+
+**Completion record:** The seven-case held-out corpus, deterministic hardening,
+and final release evaluator passed at revision `2c62e05` under the documented
+autonomous AI-assisted review policy. See
+[`../../acceptance/A8_AI_ASSISTED_ACCEPTANCE.md`](../../acceptance/A8_AI_ASSISTED_ACCEPTANCE.md).
 
 **Date:** 2026-08-24
 

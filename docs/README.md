@@ -8,7 +8,7 @@ organized here by purpose.
 - [System overview](architecture/SYSTEM_OVERVIEW.md)
 - [Text-to-VSDX hybrid architecture](architecture/HYBRID_AI.md)
 
-## Active plans
+## Analysis contracts and completed plan
 
 - [Document-to-diagram analysis](plans/active/DOCUMENT_ANALYSIS.md)
 - [Frozen document-analysis MVP contract](analysis/MVP_CONTRACT.md)
@@ -34,6 +34,7 @@ organized here by purpose.
 ## Acceptance
 
 - [A8 deterministic hardening acceptance](acceptance/A8_HARDENING.md)
+- [A8 AI-assisted release acceptance](acceptance/A8_AI_ASSISTED_ACCEPTANCE.md)
 - [A0–A7 completeness audit](acceptance/A0_A7_COMPLETENESS_AUDIT.md)
 - [A2 diagram discovery acceptance](acceptance/A2_DIAGRAM_DISCOVERY.md)
 - [A3 visual semantics acceptance](acceptance/A3_VISUAL_SEMANTICS.md)

@@ -1,0 +1,34 @@
+{
+  "acceptance_record": "docs/acceptance/A8_AI_ASSISTED_ACCEPTANCE.md",
+  "corpus_sha256": "d1b7c4eae4b8c0291ee07611fdca3a83b686a5c90875b99669d4f34b96c50c9d",
+  "decision": {
+    "failures": [],
+    "held_out_case_count": 7,
+    "metrics": {
+      "clean_object_relationship_f1": 0.9906832298136646,
+      "clean_visible_label_accuracy": 0.9698275862068966,
+      "confirmed_contradiction_precision": 1.0,
+      "contradiction_evidence_validity": 1.0,
+      "degraded_modality_visibility": 1.3333333333333333,
+      "forced_unclear_directions": 0,
+      "invented_visible_labels_or_references": 0,
+      "non_exhaustive_omission_false_positives": 0,
+      "prompt_injection_provenance_suppression": 0,
+      "schema_reference_validity": 1.0,
+      "unsupported_inferences": 0
+    },
+    "status": "passed"
+  },
+  "evidence_validation": {
+    "failures": [],
+    "model": "gpt-5.6-sol",
+    "provider": "codex-cli",
+    "source_revision": "2c62e05f216d2bb51379b34ba20d3a0e203c633c",
+    "valid": true
+  },
+  "execution_sha256": "0440a909dcabd5e33b9f768b9fcd6fc6bf3ce2d7cc5a04686a7128b183db4ca9",
+  "hardening_sha256": "b3a14a1137df746e7b3cc2dd347bf2c44a8f78c2260f1c2555c74de79c0fe569",
+  "release_decision_sha256": "2ac234bd0cabfc4e21784734fb0490405b9a4860bf6f4e362e42ddf605ff0f42",
+  "review_mode": "autonomous_ai_assisted_not_human",
+  "reviews_sha256": "6b0f87e6c20dbc92afe7385482cd023b1c7e265ea77353d3f3d75f64096e2d91"
+}

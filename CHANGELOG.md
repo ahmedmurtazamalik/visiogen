@@ -17,6 +17,8 @@ revisions because AI-backed output is non-deterministic.
   document claims, entity alignment, and consistency findings.
 - Immutable A8 corpus execution, provider readiness preflight, deterministic
   security hardening, blinded review packets, and checksum-bound release scoring.
+- Passed A8 analysis release decision for the frozen seven-case RC1 corpus under
+  the documented autonomous AI-assisted review policy.
 - Explicit partial-result behavior and complete provider/prompt/artifact provenance.
 
 ### Hardened
@@ -33,5 +35,7 @@ revisions because AI-backed output is non-deterministic.
 - Portable DOCX mode does not render Word shapes, SmartArt, charts, or text boxes.
 - Rendered DOCX, cross-page logical diagrams, and arbitrary-document understanding
   are outside the accepted boundary.
-- Final A8 human review and Windows desktop-Visio lifecycle evidence are external
-  release gates and are never inferred from Linux tests.
+- A8 analysis acceptance uses two isolated AI-assisted review passes rather than
+  independent human signatures; the acceptance record states this explicitly.
+- Windows desktop-Visio lifecycle evidence remains a separate generation gate and
+  does not affect the analysis-pipeline decision.

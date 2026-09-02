@@ -1,8 +1,10 @@
 # Visiogen
 
-**Current release line:** `0.1.0` experimental release candidate. See the
+**Current release line:** `0.1.0` experimental release candidate. The document-
+analysis path has passed its A8 release evaluation under the recorded autonomous
+AI-assisted review policy. See the
 [`0.1.0 experimental release record`](docs/releases/0.1.0-experimental.md) for the
-supported boundary, measured evidence, and outstanding external acceptance gates.
+supported boundary, measured evidence, and separate generation acceptance gates.
 
 Visiogen is an AI-assisted diagram toolkit with two independent product
 directions:
@@ -136,7 +138,10 @@ It publishes an accessible report separately from the private evidence bundle an
 returns a distinct exit code for partial candidate failure. Fresh PDF and DOCX
 sources have passed the clean-source, real-`gpt-5.6-sol`, hash-bound vertical gate;
 see [`docs/acceptance/A7_VERTICAL_PIPELINE.md`](docs/acceptance/A7_VERTICAL_PIPELINE.md).
-Broader held-out quality and DOCX rendering scope remain Phase A8.
+The complete seven-case A8 corpus, deterministic hardening gate, and checksum-bound
+release evaluation have also passed. The review was completed as two isolated
+AI-assisted passes under explicit user authorization, not as two human signatures;
+see [`docs/acceptance/A8_AI_ASSISTED_ACCEPTANCE.md`](docs/acceptance/A8_AI_ASSISTED_ACCEPTANCE.md).
 The current candidate boundary accepts portable DOCX extraction only; rendered Word
 or LibreOffice page modes are not yet supported. See
 [`docs/analysis/A8_SUPPORTED_SCOPE.md`](docs/analysis/A8_SUPPORTED_SCOPE.md).

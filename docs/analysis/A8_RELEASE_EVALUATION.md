@@ -1,6 +1,12 @@
 # A8 Release Evaluation Contract
 
-**Status:** Implemented; real held-out execution and human review pending
+**Status:** Passed for 0.1.0 RC1 under autonomous AI-assisted review
+
+The frozen seven-case execution, same-revision hardening gate, and official scorer
+passed at revision `2c62e05`. The user explicitly authorized two isolated AI review
+passes in place of the originally planned independent human reviewers. This is an
+accepted project-policy deviation and is not represented as human review. See
+[`../acceptance/A8_AI_ASSISTED_ACCEPTANCE.md`](../acceptance/A8_AI_ASSISTED_ACCEPTANCE.md).
 
 Phase A8 evaluates only the PDF/DOCX diagram-analysis path. It does not include
 VSDX generation or Microsoft Visio acceptance.
@@ -52,7 +58,7 @@ embedded raster media. `rendered_word` and `rendered_libreoffice` remain unsuppo
 until separate platform-specific corpora pass. Portable reports must disclose that
 Word shapes, SmartArt, charts, and text boxes were not rendered.
 
-## Blinded review
+## Blinded review contract
 
 Each held-out case has one checksum-bound review record with two passes:
 
@@ -62,6 +68,11 @@ Each held-out case has one checksum-bound review record with two passes:
 
 The release evaluator rejects missing, duplicate, or unblinded held-out reviews.
 Development reviews never contribute to release metrics.
+
+For RC1, the two passes were completed in isolated AI-assisted contexts with
+distinct reviewer identifiers. Future checkpoints may return to human reviewers or
+retain this policy, but must state the selected review mode in their acceptance
+record.
 
 Generate review forms only after the complete corpus execution passes:
 
