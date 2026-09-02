@@ -31,6 +31,35 @@ def normalize_visible_text(value: str) -> str:
     return " ".join(value.casefold().split())
 
 
+def normalize_duplicate_observation_ids(batch: RawObservationBatch) -> RawObservationBatch:
+    """Renumber duplicate observation IDs without changing visual evidence.
+
+    Observation IDs are local mechanical identifiers and no other observation-stage
+    record references them. Duplicate occurrences can therefore receive the next
+    unused canonical ID while preserving their kind, geometry, text, properties,
+    evidence references, confidence, and alternatives.
+    """
+
+    used: set[str] = set()
+    next_number = 1
+    observations = []
+    changed = False
+    for observation in batch.observations:
+        observation_id = observation.id
+        if observation_id in used:
+            while f"observation-{next_number:04d}" in used:
+                next_number += 1
+            observation_id = f"observation-{next_number:04d}"
+            next_number += 1
+            observation = observation.model_copy(update={"id": observation_id})
+            changed = True
+        used.add(observation_id)
+        observations.append(observation)
+    if not changed:
+        return batch
+    return batch.model_copy(update={"observations": observations})
+
+
 def _transform_box(local: NormalizedBox, source: NormalizedBox) -> NormalizedBox:
     width = source.right - source.left
     height = source.bottom - source.top

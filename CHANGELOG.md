@@ -25,6 +25,8 @@ revisions because AI-backed output is non-deterministic.
 
 ### Hardened
 
+- Duplicate model-generated visual observation IDs are deterministically renumbered
+  before validation without changing geometry, text, evidence, or meaning.
 - Exact label, reference-numeral, connector, direction, annotation, ambiguity, and
   document-claim evidence policies.
 - Dense repeated-row diagrams now re-anchor invalid reconstructed visible-text

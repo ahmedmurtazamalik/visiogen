@@ -104,6 +104,20 @@ def _observation_response(*, evidence_id: str = "evidence-0001") -> str:
     )
 
 
+def _observation_response_with_duplicate_ids() -> str:
+    payload = json.loads(_observation_response())
+    duplicate = dict(payload["observations"][0])
+    duplicate.update(
+        {
+            "kind": "object",
+            "visible_text": None,
+            "local_bbox": {"left": 0.5, "top": 0.5, "right": 0.8, "bottom": 0.8},
+        }
+    )
+    payload["observations"].append(duplicate)
+    return json.dumps(payload)
+
+
 def _diagram_response(*, label: str = "Sensor") -> str:
     return json.dumps(
         {
@@ -207,6 +221,47 @@ def test_observation_workflow_uses_overview_tiles_and_one_repair(tmp_path: Path)
     assert [path.name for path in caller.calls[0][2]] == ["overview.png", "tile.png"]
     assert "Hard validation findings" in caller.calls[1][1]
     assert result.observations.observations[0].visible_text == "Sensor"
+
+
+def test_observation_workflow_normalizes_duplicate_internal_ids_without_repair(
+    tmp_path: Path,
+) -> None:
+    prepared, bundle = _prepared_bundle(tmp_path)
+    caller = FakeImageCall([_observation_response_with_duplicate_ids()])
+
+    result = StructuredObservationWorkflow(caller).observe(prepared, bundle)
+
+    assert result.attempts == 1
+    assert len(caller.calls) == 1
+    assert [item.id for item in result.observations.observations] == [
+        "observation-0001",
+        "observation-0002",
+    ]
+    assert [item.kind for item in result.observations.observations] == [
+        "visible_text",
+        "object",
+    ]
+
+
+def test_observation_workflow_normalizes_duplicate_ids_in_repair_response(
+    tmp_path: Path,
+) -> None:
+    prepared, bundle = _prepared_bundle(tmp_path)
+    caller = FakeImageCall(
+        [
+            _observation_response(evidence_id="missing"),
+            _observation_response_with_duplicate_ids(),
+        ]
+    )
+
+    result = StructuredObservationWorkflow(caller).observe(prepared, bundle)
+
+    assert result.attempts == 2
+    assert len(result.traces) == 2
+    assert [item.id for item in result.observations.observations] == [
+        "observation-0001",
+        "observation-0002",
+    ]
 
 
 def test_reconstruction_workflow_rejects_invention_then_repairs(tmp_path: Path) -> None:

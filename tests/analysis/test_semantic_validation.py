@@ -19,6 +19,7 @@ from visiogen.analysis.validation import (
     downgrade_degraded_visible_labels,
     downgrade_unsupported_relationship_claims,
     downgrade_unsupported_relationship_endpoints,
+    normalize_duplicate_observation_ids,
     normalize_duplicate_relationship_ids,
     sanitize_object_grounding,
     validate_analyzed_diagram,
@@ -374,6 +375,22 @@ def test_duplicate_relationship_ids_are_renumbered_without_semantic_changes() ->
     assert normalized.relationships[1].model_copy(
         update={"id": duplicate.id}
     ) == duplicate
+
+
+def test_duplicate_observation_ids_are_renumbered_without_visual_changes() -> None:
+    batch = _raw_observations()
+    duplicate = batch.observations[0].model_copy(deep=True)
+    batch.observations.append(duplicate)
+
+    normalized = normalize_duplicate_observation_ids(batch)
+
+    assert [item.id for item in normalized.observations] == [
+        "observation-0001",
+        "observation-0002",
+        "observation-0003",
+        "observation-0004",
+    ]
+    assert normalized.observations[3].model_copy(update={"id": duplicate.id}) == duplicate
 
 
 def test_semantic_validation_rejects_unsupported_references_and_containment() -> None:

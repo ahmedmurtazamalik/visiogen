@@ -17,7 +17,11 @@ from visiogen.analysis.prompts import (
     build_observation_repair_prompt,
 )
 from visiogen.analysis.semantics import RawObservationBatch, ValidatedObservationSet
-from visiogen.analysis.validation import AnalysisValidationError, validate_observations
+from visiogen.analysis.validation import (
+    AnalysisValidationError,
+    normalize_duplicate_observation_ids,
+    validate_observations,
+)
 from visiogen.providers.base import (
     ImageStructuredCall,
     ProviderResponse,
@@ -165,6 +169,7 @@ class StructuredObservationWorkflow:
             )
             try:
                 batch = RawObservationBatch.model_validate_json(response.content)
+                batch = normalize_duplicate_observation_ids(batch)
                 observations = validate_observations(batch, prepared)
                 return ObservationResult(
                     observations=observations,
