@@ -1,6 +1,6 @@
 # Visiogen Generation v2 Implementation Plan
 
-**Status:** Active; G0 implementation and local verification complete, checkpoint pending
+**Status:** Active; G0 complete, G1 not started
 
 **Date:** 2026-09-03
 
@@ -89,7 +89,7 @@ analysis bundle ----------+                 |
 
 | Phase | Name | Status | Exit evidence |
 |---|---|---|---|
-| G0 | Baseline and contract freeze | In progress | Frozen corpus, rubric, current metrics complete; checkpoint commit pending |
+| G0 | Baseline and contract freeze | Complete | Frozen corpus, rubric, baseline report, tests, and checkpoint lineage |
 | G1 | Professional diagram specification | Not started | Schema, validators, fixtures, CLI parsing |
 | G2 | Analysis-to-generation bridge | Not started | Reviewed import artifact and fidelity tests |
 | G3 | AI construction planner | Not started | Real-model plans for the frozen corpus |
@@ -142,7 +142,23 @@ frozen. Missing Windows baseline cases may be marked unavailable, never inferred
 contracts, reproducible baseline builder, quality rubric, and incomplete-but-honest
 Generation v1 baseline are implemented and locally verified. See
 [`../../acceptance/G0_GENERATION_V2_BASELINE.md`](../../acceptance/G0_GENERATION_V2_BASELINE.md).
-The phase remains in progress until its clean checkpoint commit is recorded.
+The phase is closed by the checkpoint lineage recorded there.
+
+**Phase completion record:**
+
+```text
+Phase: G0 — Baseline and contract freeze
+Status: Complete
+Baseline source revision: 2c56b13
+Corpus/schema commit: 51ad0e2
+Baseline evidence commit: f9b9abc
+Evaluation documentation commit: 9ba57e2
+Deterministic tests: 263 generation-owned; 537 full repository
+Real-provider evidence: unavailable for the frozen corpus; explicitly recorded
+Windows/Visio evidence: unavailable for the frozen corpus; explicitly recorded
+Review decision: contract complete; Generation v1 quality baseline incomplete
+Known limitations carried forward: current Windows V1 comparison unavailable
+```
 
 ### G1 — Professional `DiagramSpecification`
 

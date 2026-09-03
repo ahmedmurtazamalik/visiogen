@@ -1,6 +1,6 @@
 # G0 — Generation v2 Baseline and Contract Freeze
 
-**Status:** Implementation and local verification complete; checkpoint commit pending
+**Status:** Complete
 
 **Baseline source revision:** `2c56b13`
 
@@ -81,6 +81,14 @@ passing evidence.
 ## G0 decision
 
 The corpus, evaluation rules, schemas, report format, and local baseline state meet
-the G0 exit contract. Final closure requires the checkpoint commit hash to replace
-this record's pending status and be added to the phase completion block in the
-active plan.
+the G0 exit contract. The granular checkpoint lineage is:
+
+```text
+51ad0e2  Freeze Generation v2 evaluation corpus
+f9b9abc  Record Generation v1 baseline availability
+9ba57e2  Document Generation v2 quality baseline
+```
+
+The active plan contains the complete phase record. Generation v1 visual evidence
+remains incomplete by design and cannot be upgraded without a new checksum-bound
+Windows run.
