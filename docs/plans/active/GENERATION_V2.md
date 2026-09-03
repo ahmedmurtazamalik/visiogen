@@ -1,6 +1,6 @@
 # Visiogen Generation v2 Implementation Plan
 
-**Status:** Active; G0-G3 complete, G4 not started
+**Status:** Active; G0-G4 complete
 
 **Date:** 2026-09-03
 
@@ -93,7 +93,7 @@ analysis bundle ----------+                 |
 | G1 | Professional diagram specification | Complete | Schema, validators, fixtures, CLI parsing, provenance, and checkpoint lineage |
 | G2 | Analysis-to-generation bridge | Complete | Import boundary, reviewed draft workflow, fidelity tests, provenance, and checkpoint lineage |
 | G3 | AI construction planner | Complete | Valid plans for all core families from real `gpt-5.6-sol`; checkpoint lineage |
-| G4 | Construction-plan validation and compiler IR | Not started | Hard-validation and deterministic compilation tests |
+| G4 | Construction-plan validation and compiler IR | Complete | Hard-validation and deterministic compilation tests; checkpoint lineage |
 | G5 | Native renderer v2 | Not started | Explicit shapes, ports, routes, labels, styles, and callouts |
 | G6 | Visual measurement and diagnostics | Not started | Machine-readable geometry and preview diagnostics |
 | G7 | Iterative AI visual editing | Not started | Bounded patch loop with final re-approval |
@@ -340,6 +340,36 @@ Work:
 **Exit gate:** Compilation is deterministic for a given validated plan; it makes no
 undocumented aesthetic decisions; malformed or impossible plans fail before VSDX
 mutation.
+
+**Current evidence:** A strict immutable renderer IR resolves native master names,
+styles, port coordinates, route endpoints, label anchors, callouts, and z-order.
+The compiler reports hard geometry and ownership failures before rendering,
+rejects unsupported schema fields, and includes an explicitly tagged V1 migration
+adapter. Focused deterministic and hard-failure tests pass. See
+[`../../generation/COMPILER_IR.md`](../../generation/COMPILER_IR.md). The phase
+is closed by the checkpoint lineage recorded below.
+
+Local verification: 15 focused compiler/construction/boundary tests, 291
+generation-owned tests, and 565 full-repository tests passed; package build and
+CLI help smoke check also passed.
+
+**Phase completion record:**
+
+```text
+Phase: G4 — Construction-plan validation and compiler IR
+Status: Complete
+Compiler implementation commit: 5e37704
+Hard-validation tests commit: 11208a7
+IR contract documentation commit: f664e86
+Focused compiler/construction/boundary tests: 15 passed in 0.55s
+Generation-owned tests: 291 passed in 51.67s
+Full repository tests: 565 passed in 60.44s
+Package build: passed
+CLI help check: passed
+Real-provider evidence: not required; compilation is deterministic
+Windows/Visio evidence: deferred to G5 native renderer acceptance
+Review decision: G4 exit contract satisfied
+```
 
 ### G5 — Native renderer v2
 
