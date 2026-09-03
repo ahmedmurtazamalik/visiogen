@@ -1,0 +1,18 @@
+{
+  "approved_examples_version": 1,
+  "bundle_file_count": 22,
+  "bundle_inventory_sha256": "354b4c92fafcef5251643bcd8d26784a808ec648355c55f24fdcd1eb5561a37c",
+  "cases": [
+    {"attempts": 1, "elapsed_ms": 35180.25517099886, "family": "flowchart", "plan_sha256": "6e68524717efcf76465d60af0dadb884194954dd511ffba3fe73c3e407e8f5ff", "specification_sha256": "b7ae1cb196dd1f19bb903fa4c70c7833a1ffd76703f47386fa503ed6f83e9be2", "status": "passed"},
+    {"attempts": 1, "elapsed_ms": 37401.75338901463, "family": "system_block", "plan_sha256": "427eaef9004acddd0ef11cbcf84aa8467572b4eec396dd074d391c012f30afcc", "specification_sha256": "1d3016b9456439120eec34dce7950eb33a0d1818a7117f66aa7505e923a5557e", "status": "passed"},
+    {"attempts": 2, "elapsed_ms": 72547.36848699395, "family": "component_schematic", "plan_sha256": "ad969f5bf698b80462fa72c2b27389e24112d2d06944566993f3e9b7e4eeb018", "specification_sha256": "660d529493fa99ed28d41f64cac7ca1eba3979db3e7abe22db01f8f389c8107c", "status": "passed"}
+  ],
+  "construction_plan_schema_sha256": "56fc39b39f34c052478b9c152097c3c08a912559c361362eb752cf67cb4f581f",
+  "generated_at_utc": "2026-09-03T05:27:10.226970+00:00",
+  "model": "gpt-5.6-sol",
+  "prompt_version": 1,
+  "provider": "codex",
+  "source_revision": "0df508defe66eeebce47315fe4ea06277d37c0a7",
+  "source_worktree_clean": true,
+  "status": "passed"
+}

@@ -38,6 +38,7 @@ organized here by purpose.
 
 ## Acceptance
 
+- [G3 AI construction planner](acceptance/G3_CONSTRUCTION_PLANNER.md)
 - [G0 Generation v2 baseline and contract freeze](acceptance/G0_GENERATION_V2_BASELINE.md)
 - [A8 deterministic hardening acceptance](acceptance/A8_HARDENING.md)
 - [A8 AI-assisted release acceptance](acceptance/A8_AI_ASSISTED_ACCEPTANCE.md)

@@ -1,6 +1,6 @@
 # Visiogen Generation v2 Implementation Plan
 
-**Status:** Active; G0-G2 complete, G3 implementation verified; real-model gate pending
+**Status:** Active; G0-G3 complete, G4 not started
 
 **Date:** 2026-09-03
 
@@ -92,7 +92,7 @@ analysis bundle ----------+                 |
 | G0 | Baseline and contract freeze | Complete | Frozen corpus, rubric, baseline report, tests, and checkpoint lineage |
 | G1 | Professional diagram specification | Complete | Schema, validators, fixtures, CLI parsing, provenance, and checkpoint lineage |
 | G2 | Analysis-to-generation bridge | Complete | Import boundary, reviewed draft workflow, fidelity tests, provenance, and checkpoint lineage |
-| G3 | AI construction planner | In progress | Schema/workflow verified; clean-checkpoint real-model plans pending |
+| G3 | AI construction planner | Complete | Valid plans for all core families from real `gpt-5.6-sol`; checkpoint lineage |
 | G4 | Construction-plan validation and compiler IR | Not started | Hard-validation and deterministic compilation tests |
 | G5 | Native renderer v2 | Not started | Explicit shapes, ports, routes, labels, styles, and callouts |
 | G6 | Visual measurement and diagnostics | Not started | Machine-readable geometry and preview diagnostics |
@@ -295,11 +295,31 @@ runner are implemented. Deterministic tests cover complete round trips, semantic
 drift, containment, callouts, traceability, bounded repair, prompt restrictions,
 and provenance. See
 [`../../generation/CONSTRUCTION_PLAN.md`](../../generation/CONSTRUCTION_PLAN.md).
-Focused G3 tests pass with 23 generation tests, the generation-owned gate passes
-with 284 tests, and the full repository gate passes with 558 tests. Ruff checks,
+Focused G3 tests pass with 24 generation tests, the generation-owned gate passes
+with 285 tests, and the full repository gate passes with 559 tests. Ruff checks,
 the package build, and acceptance-runner CLI check pass.
-The real `gpt-5.6-sol` exit gate must run after this implementation is committed
-from a clean checkpoint; fake-provider tests do not close G3.
+The corrected clean-checkpoint real `gpt-5.6-sol` gate passed all three core
+families. See
+[`../../acceptance/G3_CONSTRUCTION_PLANNER.md`](../../acceptance/G3_CONSTRUCTION_PLANNER.md).
+
+**Phase completion record:**
+
+```text
+Phase: G3 — AI VisioConstructionPlan
+Status: Complete
+Construction schema commit: f5aaff6
+Planner and deterministic tests commit: 6f4496b
+Acceptance tooling/documentation commit: 501a32a
+Real-run feedback correction commit: 0df508d
+Real provider/model: codex / gpt-5.6-sol
+Clean source revision: 0df508defe66eeebce47315fe4ea06277d37c0a7
+Core-family plans: flowchart passed; system_block passed; component_schematic passed
+External evidence inventory SHA-256: 354b4c92fafcef5251643bcd8d26784a808ec648355c55f24fdcd1eb5561a37c
+Generation-owned tests: 285 passed in 38.09s
+Full repository tests: 559 passed in 46.21s
+Package build: passed
+Review decision: G3 exit contract satisfied
+```
 
 ### G4 — Construction-plan validation and compiler IR
 
