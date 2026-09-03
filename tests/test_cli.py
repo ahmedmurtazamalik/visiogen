@@ -137,6 +137,53 @@ def test_generate_command_accepts_validated_spec_file(tmp_path: Path) -> None:
     assert isinstance(pipeline.calls[0][0], DiagramSpecification)
 
 
+def test_generate_can_stop_after_analysis_specification(tmp_path: Path) -> None:
+    output = tmp_path / "draft.json"
+
+    def unexpected_factory(*args, **kwargs):
+        pytest.fail("pipeline must not be constructed when stopping after specification")
+
+    assert main(
+        [
+            "generate",
+            "--analysis-bundle",
+            "tests/fixtures/generation_v2/analysis_bundles/docx",
+            "--stop-after-specification",
+            "--output",
+            str(output),
+        ],
+        pipeline_factory=cast(Any, unexpected_factory),
+    ) == 0
+
+    specification = DiagramSpecification.model_validate_json(output.read_bytes())
+    assert specification.source is not None
+    assert specification.source.document_kind == "docx"
+
+
+def test_generate_passes_analysis_specification_to_pipeline(tmp_path: Path) -> None:
+    pipeline = FakePipeline()
+
+    assert main(
+        [
+            "generate",
+            "--analysis-bundle",
+            "tests/fixtures/generation_v2/analysis_bundles/pdf",
+            "--output",
+            str(tmp_path / "drawing.vsdx"),
+            "--artifact-dir",
+            str(tmp_path / "evidence"),
+            "--template",
+            str(template_file(tmp_path)),
+        ],
+        pipeline_factory=lambda *args, **kwargs: pipeline,
+    ) == 0
+
+    source = pipeline.calls[0][0]
+    assert isinstance(source, DiagramSpecification)
+    assert source.source is not None
+    assert source.source.document_kind == "pdf"
+
+
 def test_generate_requires_exactly_one_text_source(tmp_path: Path) -> None:
     with pytest.raises(SystemExit):
         main(

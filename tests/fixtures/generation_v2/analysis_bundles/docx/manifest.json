@@ -1,0 +1,25 @@
+{
+  "application_version": "0.1.0",
+  "artifacts": [
+    {"byte_size": 244, "path": "candidate-0001/14-validated-observations.json", "sha256": "1225017cd5ef5117d7b2d456c1c38f0163836fb7b3c4e8adb4ed4df974292b3c"},
+    {"byte_size": 1652, "path": "candidate-0001/24-analyzed-diagram.json", "sha256": "0ae8db4b3ddded5c57b5028e0bb008d5c0c377e585eb58ce5bd3cec79842f77f"}
+  ],
+  "classification_elapsed_ms": null,
+  "completed_at_utc": "2026-09-03T00:00:00+00:00",
+  "document_kind": "docx",
+  "model": "fixture-model",
+  "partial_failures": [],
+  "provider": "fixture",
+  "schema_sha256": {},
+  "source_byte_size": 100,
+  "source_id": "source-docx",
+  "source_name": "review.docx",
+  "source_revision": "fixture",
+  "source_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "source_worktree_clean": true,
+  "started_at_utc": "2026-09-03T00:00:00+00:00",
+  "tools": {},
+  "total_elapsed_ms": 1.0,
+  "total_model_calls": 0,
+  "warnings": []
+}

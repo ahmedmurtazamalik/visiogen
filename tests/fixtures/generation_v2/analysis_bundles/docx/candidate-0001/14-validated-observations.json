@@ -1,0 +1,12 @@
+{
+  "candidate_id": "candidate-0001",
+  "evidence": [
+    {"id": "evidence-0001"},
+    {"id": "evidence-0002"},
+    {"id": "evidence-0003"},
+    {"id": "evidence-0004"},
+    {"id": "evidence-0005"}
+  ],
+  "observations": [],
+  "warnings": []
+}

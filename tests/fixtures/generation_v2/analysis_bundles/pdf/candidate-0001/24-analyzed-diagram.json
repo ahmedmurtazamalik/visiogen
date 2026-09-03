@@ -1,0 +1,21 @@
+{
+  "candidate_id": "candidate-0001",
+  "title": "Approval Flow",
+  "title_evidence_ids": ["evidence-0001"],
+  "family": "flowchart",
+  "orientation": "left_to_right",
+  "objects": [
+    {"id": "object-0001", "visible_label": "Review", "normalized_label": "Review", "semantic_type": "process", "visual_shape": "rectangle", "reference_numbers": [], "parent_id": null, "bbox": {"left": 0.1, "top": 0.2, "right": 0.3, "bottom": 0.4}, "evidence_ids": ["evidence-0002"], "confidence": "high", "alternatives": []},
+    {"id": "object-0002", "visible_label": "Approve", "normalized_label": "Approve", "semantic_type": "process", "visual_shape": "rectangle", "reference_numbers": [], "parent_id": null, "bbox": {"left": 0.6, "top": 0.2, "right": 0.8, "bottom": 0.4}, "evidence_ids": ["evidence-0003"], "confidence": "high", "alternatives": []}
+  ],
+  "relationships": [
+    {"id": "relationship-0001", "source_id": "object-0001", "target_id": "object-0002", "source_certainty": "known", "target_certainty": "known", "direction": "unclear", "relation": "flow", "visible_label": null, "normalized_label": null, "path": [{"x": 0.3, "y": 0.3}, {"x": 0.6, "y": 0.3}], "line_style": "solid", "evidence_ids": ["evidence-0004"], "confidence": "medium", "alternatives": [{"value": "forward", "reason": "Arrowhead is faint", "confidence": "medium"}]}
+  ],
+  "groups": [
+    {"id": "group-0001", "kind": "phase", "visible_label": "Decision", "object_ids": ["object-0001", "object-0002"], "bbox": {"left": 0.05, "top": 0.1, "right": 0.85, "bottom": 0.5}, "evidence_ids": ["evidence-0005"], "confidence": "high"}
+  ],
+  "legends": [],
+  "annotations": [],
+  "limitations": ["The connector arrowhead is faint."],
+  "confidence": "medium"
+}

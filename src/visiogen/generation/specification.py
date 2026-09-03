@@ -18,9 +18,14 @@ from visiogen.models import (
     RelationType,
 )
 
+Confidence = Literal["high", "medium", "low", "unknown"]
+
 ConstraintStrength = Literal["hard", "preference"]
 ConstraintKind = Literal["ordering", "adjacency", "alignment", "separation"]
 Notation = Literal["flowchart", "system", "component", "patent", "custom"]
+ReviewItemKind = Literal[
+    "ambiguity", "unknown", "unsupported", "annotation", "legend", "limitation"
+]
 
 
 class SpecificationError(ValueError):
@@ -42,6 +47,7 @@ class SpecificationObject(SpecificationModel):
     reference_number: str | None = None
     importance: VisualImportance = "secondary"
     notes: str | None = None
+    evidence_refs: list[str] = Field(default_factory=list)
 
 
 class SpecificationRelationship(SpecificationModel):
@@ -52,6 +58,29 @@ class SpecificationRelationship(SpecificationModel):
     direction: DirectionType = "forward"
     label: str | None = None
     required: bool = True
+    evidence_refs: list[str] = Field(default_factory=list)
+
+
+class SpecificationGroup(SpecificationModel):
+    id: str = Field(pattern=r"^[a-z][a-z0-9_]*$")
+    kind: str = Field(min_length=1)
+    label: str | None = None
+    object_ids: list[str] = Field(default_factory=list)
+    confidence: Confidence
+    evidence_refs: list[str] = Field(min_length=1)
+
+
+class SpecificationSource(SpecificationModel):
+    kind: Literal["analysis_bundle"]
+    boundary_version: Literal[1] = 1
+    document_kind: Literal["pdf", "docx"]
+    source_name: str = Field(min_length=1)
+    source_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    candidate_id: str = Field(min_length=1)
+    provider: str = Field(min_length=1)
+    model: str = Field(min_length=1)
+    manifest_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    analyzed_diagram_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
 
 
 class CompositionConstraint(SpecificationModel):
@@ -88,9 +117,10 @@ class DraftingPreferences(SpecificationModel):
 
 class ReviewItem(SpecificationModel):
     id: str = Field(pattern=r"^[a-z][a-z0-9_]*$")
-    kind: Literal["ambiguity", "unknown"]
+    kind: ReviewItemKind
     description: str = Field(min_length=1)
     permitted: bool = True
+    evidence_refs: list[str] = Field(default_factory=list)
 
 
 class VisualRequirement(SpecificationModel):
@@ -119,8 +149,10 @@ class DiagramSpecification(SpecificationModel):
     notation: Notation
     orientation: Orientation
     primary_flow: str = Field(min_length=1)
+    source: SpecificationSource | None = None
     objects: list[SpecificationObject] = Field(min_length=1)
     relationships: list[SpecificationRelationship] = Field(default_factory=list)
+    groups: list[SpecificationGroup] = Field(default_factory=list)
     constraints: list[CompositionConstraint] = Field(default_factory=list)
     drafting: DraftingPreferences = Field(default_factory=DraftingPreferences)
     review_items: list[ReviewItem] = Field(default_factory=list)
@@ -131,12 +163,14 @@ class DiagramSpecification(SpecificationModel):
     def validate_references_and_constraints(self) -> DiagramSpecification:
         object_ids = [item.id for item in self.objects]
         relationship_ids = [item.id for item in self.relationships]
+        group_ids = [item.id for item in self.groups]
         constraint_ids = [item.id for item in self.constraints]
         review_ids = [item.id for item in self.review_items]
         visual_ids = [item.id for item in self.visual_requirements]
         for label, values in (
             ("object", object_ids),
             ("relationship", relationship_ids),
+            ("group", group_ids),
             ("constraint", constraint_ids),
             ("review item", review_ids),
             ("visual requirement", visual_ids),
@@ -165,6 +199,13 @@ class DiagramSpecification(SpecificationModel):
             if missing:
                 raise ValueError(
                     f"constraint '{constraint.id}' references unknown objects: "
+                    + ", ".join(sorted(missing))
+                )
+        for group in self.groups:
+            missing = set(group.object_ids) - known
+            if missing:
+                raise ValueError(
+                    f"group '{group.id}' references unknown objects: "
                     + ", ".join(sorted(missing))
                 )
 

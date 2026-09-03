@@ -1,6 +1,6 @@
 # Visiogen Generation v2 Implementation Plan
 
-**Status:** Active; G0-G1 complete, G2 not started
+**Status:** Active; G0-G1 complete, G2 implementation verified, checkpoint pending
 
 **Date:** 2026-09-03
 
@@ -91,7 +91,7 @@ analysis bundle ----------+                 |
 |---|---|---|---|
 | G0 | Baseline and contract freeze | Complete | Frozen corpus, rubric, baseline report, tests, and checkpoint lineage |
 | G1 | Professional diagram specification | Complete | Schema, validators, fixtures, CLI parsing, provenance, and checkpoint lineage |
-| G2 | Analysis-to-generation bridge | Not started | Reviewed import artifact and fidelity tests |
+| G2 | Analysis-to-generation bridge | In progress | Implementation and local verification complete; checkpoint pending |
 | G3 | AI construction planner | Not started | Real-model plans for the frozen corpus |
 | G4 | Construction-plan validation and compiler IR | Not started | Hard-validation and deterministic compilation tests |
 | G5 | Native renderer v2 | Not started | Explicit shapes, ports, routes, labels, styles, and callouts |
@@ -230,6 +230,20 @@ Work:
 **Exit gate:** At least one PDF and one DOCX analysis bundle produce validated
 draft specifications; a reviewer can correct the spec and generate from the
 corrected artifact; evidence provenance survives the bridge.
+
+**Current evidence:** A generation-owned version 1 import boundary validates and
+checksum-verifies analysis manifests, analyzed diagrams, and visual-evidence
+references without importing analysis modules. Synthetic PDF and DOCX bundle
+fixtures project into strict draft specifications; supported semantics and
+provenance survive, while uncertain or unsupported observations become review
+items. The CLI supports explicit multi-candidate selection and can stop after
+atomically publishing a human-reviewable JSON specification. See
+[`../../generation/ANALYSIS_IMPORT.md`](../../generation/ANALYSIS_IMPORT.md).
+Focused bridge/specification/CLI/pipeline/boundary tests pass with 60 tests; the
+generation-owned gate passes with 279 tests and the full repository gate with 553
+tests. Package build and CLI help checks pass. The phase remains in progress until
+this implementation and evidence are committed and the checkpoint lineage is
+recorded.
 
 ### G3 — AI `VisioConstructionPlan`
 

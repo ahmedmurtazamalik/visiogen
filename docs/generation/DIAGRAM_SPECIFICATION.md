@@ -37,6 +37,11 @@ Version 1 records:
 - permitted ambiguities and explicit unknowns;
 - measurable visual requirements and forbidden conditions.
 
+Specifications imported from analysis additionally record checksum-bound source
+identity and evidence references on objects, relationships, groups, and review
+items. These optional fields keep expert-authored specifications concise while
+allowing the G2 bridge to preserve analysis provenance.
+
 Deterministic validation rejects duplicate IDs, unknown references, self or cyclic
 containment, malformed kind-specific constraints, incomplete measurements, and
 cycles among hard ordering constraints. The model never decides whether those

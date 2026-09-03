@@ -7,6 +7,11 @@ from collections.abc import Callable
 from pathlib import Path
 
 from visiogen.config import Settings
+from visiogen.generation.analysis_import import (
+    AnalysisImportError,
+    import_analysis_bundle,
+    write_specification,
+)
 from visiogen.generation.specification import SpecificationError, load_specification
 from visiogen.pipeline import HybridGenerationPipeline
 
@@ -33,11 +38,30 @@ def register_generate_command(
         type=Path,
         help="Validated DiagramSpecification in JSON or YAML",
     )
-    generate.add_argument("--output", type=Path, required=True, help="Final .vsdx path")
+    source.add_argument(
+        "--analysis-bundle",
+        type=Path,
+        help="Completed analysis evidence bundle to project into a draft specification",
+    )
+    generate.add_argument(
+        "--analysis-candidate",
+        help="Candidate ID when an analysis bundle contains multiple completed diagrams",
+    )
+    generate.add_argument(
+        "--stop-after-specification",
+        action="store_true",
+        help="Write the projected analysis specification to --output and stop",
+    )
+    generate.add_argument(
+        "--output",
+        type=Path,
+        required=True,
+        help="Final .vsdx path, or draft .json path when stopping after specification",
+    )
     generate.add_argument(
         "--artifact-dir",
         type=Path,
-        required=True,
+        required=False,
         help="Visible directory for prompts, responses, previews, and provenance",
     )
     generate.add_argument(
@@ -73,9 +97,34 @@ def _run_generate(
 ) -> int:
     """Run the existing hybrid generation pipeline."""
 
-    if not args.template.is_file():
+    if args.stop_after_specification and args.analysis_bundle is None:
+        raise argparse.ArgumentError(
+            None, "--stop-after-specification requires --analysis-bundle"
+        )
+    if args.analysis_candidate is not None and args.analysis_bundle is None:
+        raise argparse.ArgumentError(None, "--analysis-candidate requires --analysis-bundle")
+    if not args.stop_after_specification and args.artifact_dir is None:
+        raise argparse.ArgumentError(
+            None, "--artifact-dir is required unless stopping after specification"
+        )
+    if not args.stop_after_specification and not args.template.is_file():
         raise argparse.ArgumentError(None, f"Template file was not found: {args.template}")
-    if args.spec_file is not None:
+    if args.analysis_bundle is not None:
+        try:
+            source = import_analysis_bundle(
+                args.analysis_bundle,
+                candidate_id=args.analysis_candidate,
+            )
+        except AnalysisImportError as error:
+            raise argparse.ArgumentError(None, str(error)) from error
+        if args.stop_after_specification:
+            try:
+                output = write_specification(args.output, source)
+            except AnalysisImportError as error:
+                raise argparse.ArgumentError(None, str(error)) from error
+            print(f"Specification: {output}")
+            return 0
+    elif args.spec_file is not None:
         try:
             source = load_specification(args.spec_file)
         except SpecificationError as error:
