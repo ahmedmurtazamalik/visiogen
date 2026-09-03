@@ -1,0 +1,117 @@
+{
+  "cases": [
+    {
+      "case_id": "branching-order-fulfillment",
+      "evidence_state": "unavailable",
+      "generation_manifest_sha256": null,
+      "human_review_status": null,
+      "native_visio_status": null,
+      "preview_sha256": null,
+      "reason": "Not run: G0 was prepared on Linux and visual/native evidence requires desktop Microsoft Visio on Windows. This is unavailable evidence, not a pass.",
+      "vsdx_sha256": null
+    },
+    {
+      "case_id": "iot-monitoring-platform",
+      "evidence_state": "unavailable",
+      "generation_manifest_sha256": null,
+      "human_review_status": null,
+      "native_visio_status": null,
+      "preview_sha256": null,
+      "reason": "Not run: G0 was prepared on Linux and visual/native evidence requires desktop Microsoft Visio on Windows. This is unavailable evidence, not a pass.",
+      "vsdx_sha256": null
+    },
+    {
+      "case_id": "smart-camera-contained",
+      "evidence_state": "unavailable",
+      "generation_manifest_sha256": null,
+      "human_review_status": null,
+      "native_visio_status": null,
+      "preview_sha256": null,
+      "reason": "Not run: G0 was prepared on Linux and visual/native evidence requires desktop Microsoft Visio on Windows. This is unavailable evidence, not a pass.",
+      "vsdx_sha256": null
+    },
+    {
+      "case_id": "dense-incident-response",
+      "evidence_state": "unavailable",
+      "generation_manifest_sha256": null,
+      "human_review_status": null,
+      "native_visio_status": null,
+      "preview_sha256": null,
+      "reason": "Not run: G0 was prepared on Linux and visual/native evidence requires desktop Microsoft Visio on Windows. This is unavailable evidence, not a pass.",
+      "vsdx_sha256": null
+    },
+    {
+      "case_id": "nested-edge-cloud-platform",
+      "evidence_state": "unavailable",
+      "generation_manifest_sha256": null,
+      "human_review_status": null,
+      "native_visio_status": null,
+      "preview_sha256": null,
+      "reason": "Not run: G0 was prepared on Linux and visual/native evidence requires desktop Microsoft Visio on Windows. This is unavailable evidence, not a pass.",
+      "vsdx_sha256": null
+    },
+    {
+      "case_id": "patent-fluid-controller",
+      "evidence_state": "unavailable",
+      "generation_manifest_sha256": null,
+      "human_review_status": null,
+      "native_visio_status": null,
+      "preview_sha256": null,
+      "reason": "Not run: G0 was prepared on Linux and visual/native evidence requires desktop Microsoft Visio on Windows. This is unavailable evidence, not a pass.",
+      "vsdx_sha256": null
+    },
+    {
+      "case_id": "long-label-governance",
+      "evidence_state": "unavailable",
+      "generation_manifest_sha256": null,
+      "human_review_status": null,
+      "native_visio_status": null,
+      "preview_sha256": null,
+      "reason": "Not run: G0 was prepared on Linux and visual/native evidence requires desktop Microsoft Visio on Windows. This is unavailable evidence, not a pass.",
+      "vsdx_sha256": null
+    },
+    {
+      "case_id": "service-cache-reciprocal-loop",
+      "evidence_state": "unavailable",
+      "generation_manifest_sha256": null,
+      "human_review_status": null,
+      "native_visio_status": null,
+      "preview_sha256": null,
+      "reason": "Not run: G0 was prepared on Linux and visual/native evidence requires desktop Microsoft Visio on Windows. This is unavailable evidence, not a pass.",
+      "vsdx_sha256": null
+    },
+    {
+      "case_id": "professional-payment-architecture",
+      "evidence_state": "unavailable",
+      "generation_manifest_sha256": null,
+      "human_review_status": null,
+      "native_visio_status": null,
+      "preview_sha256": null,
+      "reason": "Not run: G0 was prepared on Linux and visual/native evidence requires desktop Microsoft Visio on Windows. This is unavailable evidence, not a pass.",
+      "vsdx_sha256": null
+    },
+    {
+      "case_id": "analysis-import-access-control",
+      "evidence_state": "unavailable",
+      "generation_manifest_sha256": null,
+      "human_review_status": null,
+      "native_visio_status": null,
+      "preview_sha256": null,
+      "reason": "Not run: G0 was prepared on Linux and visual/native evidence requires desktop Microsoft Visio on Windows. This is unavailable evidence, not a pass.",
+      "vsdx_sha256": null
+    }
+  ],
+  "corpus_sha256": "c7ecae968ee8c763d78a1d4cb8bd99c21a6b548fabc804ad93ecf078bd71d236",
+  "current_limitations": [
+    "No current checksum-bound Windows Generation v1 corpus exists for these frozen cases.",
+    "The available hybrid generation bundle skipped visual critique and has no final preview.",
+    "The superseded M6 R2 previews contain visible connector and label defects and are not a current baseline.",
+    "Generation connector-side hints reach LayoutResult but are not consumed by the renderer.",
+    "A critique-driven revised preview is not submitted for final visual re-approval."
+  ],
+  "generation_test_count": 263,
+  "generation_tests_passed": true,
+  "report_version": 1,
+  "source_revision": "2c56b13",
+  "status": "incomplete"
+}

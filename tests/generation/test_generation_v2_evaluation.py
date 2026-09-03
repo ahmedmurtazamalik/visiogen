@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -12,6 +13,7 @@ from visiogen.generation.evaluation import (
     BaselineReport,
     GenerationCorpus,
     GenerationCorpusCase,
+    sha256_bytes,
     validate_baseline_report,
     validate_generation_corpus,
 )
@@ -82,3 +84,14 @@ def test_incomplete_baseline_must_cover_exact_corpus() -> None:
     failures = validate_baseline_report(corpus, report)
 
     assert any("baseline missing cases" in failure for failure in failures)
+
+
+def test_checked_in_baseline_is_schema_valid_and_bound_to_corpus() -> None:
+    report_path = Path("docs/acceptance/evidence/g0-generation-v1-baseline.json")
+    report = BaselineReport.model_validate_json(report_path.read_bytes())
+
+    assert report.status == "incomplete"
+    assert report.generation_tests_passed
+    assert validate_baseline_report(_corpus(), report) == []
+    assert report.corpus_sha256 == sha256_bytes(CORPUS_PATH.read_bytes())
+    assert json.loads(report_path.read_text())["report_version"] == 1
