@@ -76,6 +76,11 @@ uv run visiogen generate \
   --artifact-dir artifacts/my-run/evidence
 ```
 
+Generation v2 also accepts a reviewed, strict JSON or YAML professional
+specification with `--spec-file`. Natural-language input is first converted to the
+same validated specification and the result is retained in the evidence bundle.
+See the [DiagramSpecification contract](docs/generation/DIAGRAM_SPECIFICATION.md).
+
 The default provider/model is the locally authenticated Codex CLI using `gpt-5.6-sol`. Every run preserves the exact request, logical system/user prompts, exact transport prompts sent after adapter wrapping, raw structured responses, validated designs, initial and revised VSDX files, preview images, timing, provider/model identity, and final SHA-256 checksum.
 
 The adapter uses an ephemeral read-only workspace, ignores Codex user config/rules, gives model-run shell commands no inherited environment, and passes the Codex process only a small runtime/auth allowlist. It is nevertheless an agentic local CLI with read access under Codex's sandbox policy. Treat diagram requests as trusted local input; adversarial third-party documents containing embedded instructions require stronger OS/container isolation or a non-agentic API adapter.

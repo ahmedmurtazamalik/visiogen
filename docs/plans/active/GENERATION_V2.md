@@ -1,6 +1,6 @@
 # Visiogen Generation v2 Implementation Plan
 
-**Status:** Active; G0 complete, G1 not started
+**Status:** Active; G0 complete, G1 implementation verified, checkpoint pending
 
 **Date:** 2026-09-03
 
@@ -90,7 +90,7 @@ analysis bundle ----------+                 |
 | Phase | Name | Status | Exit evidence |
 |---|---|---|---|
 | G0 | Baseline and contract freeze | Complete | Frozen corpus, rubric, baseline report, tests, and checkpoint lineage |
-| G1 | Professional diagram specification | Not started | Schema, validators, fixtures, CLI parsing |
+| G1 | Professional diagram specification | In progress | Implementation and local verification complete; checkpoint pending |
 | G2 | Analysis-to-generation bridge | Not started | Reviewed import artifact and fidelity tests |
 | G3 | AI construction planner | Not started | Real-model plans for the frozen corpus |
 | G4 | Construction-plan validation and compiler IR | Not started | Hard-validation and deterministic compilation tests |
@@ -184,6 +184,15 @@ Work:
 **Exit gate:** Expert-authored fixtures round-trip without information loss;
 invalid references and contradictory hard constraints fail with actionable
 findings; text mode produces a persisted, validated specification.
+
+**Current evidence:** The strict version 1 schema, safe JSON/YAML loader,
+deterministic reference/containment/constraint validation, bounded text adapter,
+`--spec-file` input, downstream design handoff, and checksum-bound specification
+provenance are implemented. Focused specification/CLI/pipeline tests pass, and the
+generation-owned gate passes with 271 tests. See
+[`../../generation/DIAGRAM_SPECIFICATION.md`](../../generation/DIAGRAM_SPECIFICATION.md).
+The phase remains in progress until this implementation and evidence are committed
+and the checkpoint lineage is recorded.
 
 ### G2 — Analysis-to-generation bridge
 

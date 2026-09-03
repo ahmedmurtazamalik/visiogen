@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
@@ -6,6 +7,7 @@ import pytest
 
 from visiogen.cli import main
 from visiogen.pipeline import GenerationResult, PipelineError
+from visiogen.generation.specification import DiagramSpecification
 
 
 class FakePipeline:
@@ -89,6 +91,50 @@ def test_generate_command_accepts_input_file_and_no_critique(tmp_path: Path) -> 
 
     assert exit_code == 0
     assert pipeline.calls[0][0] == "Create a flow\n"
+
+
+def test_generate_command_accepts_validated_spec_file(tmp_path: Path) -> None:
+    specification = {
+        "version": 1,
+        "title": "Simple flow",
+        "purpose": "Show a direct flow.",
+        "audience": "Reviewers",
+        "diagram_type": "flowchart",
+        "notation": "flowchart",
+        "orientation": "left_to_right",
+        "primary_flow": "start to finish",
+        "objects": [
+            {"id": "start", "label": "Start", "type": "terminator"},
+            {"id": "finish", "label": "Finish", "type": "terminator"},
+        ],
+        "relationships": [
+            {"id": "flow", "source": "start", "target": "finish"}
+        ],
+        "visual_requirements": [
+            {"id": "clear_labels", "description": "Labels remain readable."}
+        ],
+        "forbidden_conditions": ["No overlapping shapes."],
+    }
+    path = tmp_path / "spec.json"
+    path.write_text(json.dumps(specification))
+    pipeline = FakePipeline()
+
+    assert main(
+        [
+            "generate",
+            "--spec-file",
+            str(path),
+            "--output",
+            str(tmp_path / "drawing.vsdx"),
+            "--artifact-dir",
+            str(tmp_path / "evidence"),
+            "--template",
+            str(template_file(tmp_path)),
+        ],
+        pipeline_factory=lambda *args, **kwargs: pipeline,
+    ) == 0
+
+    assert isinstance(pipeline.calls[0][0], DiagramSpecification)
 
 
 def test_generate_requires_exactly_one_text_source(tmp_path: Path) -> None:

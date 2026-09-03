@@ -1,0 +1,40 @@
+{
+  "audience": "Operations reviewers",
+  "constraints": [
+    {
+      "axis": null,
+      "id": "primary_order",
+      "kind": "ordering",
+      "minimum_distance": null,
+      "object_ids": ["start", "review", "finish"],
+      "strength": "hard"
+    }
+  ],
+  "diagram_type": "flowchart",
+  "drafting": {
+    "color_direction": "neutral blue",
+    "connector_style": "orthogonal",
+    "shape_family": "standard flowchart",
+    "typography": "sans serif"
+  },
+  "forbidden_conditions": ["Do not add an approval branch."],
+  "notation": "flowchart",
+  "objects": [
+    {"id": "start", "label": "Start", "type": "terminator"},
+    {"id": "review", "importance": "primary", "label": "Review", "type": "process"},
+    {"id": "finish", "label": "Finish", "type": "terminator"}
+  ],
+  "orientation": "left_to_right",
+  "primary_flow": "Start, review, then finish.",
+  "purpose": "Show the required review sequence.",
+  "relationships": [
+    {"id": "start_review", "source": "start", "target": "review"},
+    {"id": "review_finish", "source": "review", "target": "finish"}
+  ],
+  "review_items": [],
+  "title": "Review flow",
+  "version": 1,
+  "visual_requirements": [
+    {"description": "Labels remain readable.", "id": "clear_labels"}
+  ]
+}

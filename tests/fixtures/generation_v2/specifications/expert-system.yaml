@@ -1,0 +1,51 @@
+version: 1
+title: Sensor processing system
+purpose: Show how sensed data is processed and stored.
+audience: System reviewers
+diagram_type: system_block
+notation: system
+orientation: left_to_right
+primary_flow: sensor to processor to memory
+objects:
+  - id: sensor
+    label: Sensor
+    type: sensor
+    reference_number: "110"
+  - id: processor
+    label: Processor
+    type: processor
+    reference_number: "120"
+    importance: primary
+  - id: memory
+    label: Memory
+    type: memory
+    required: false
+    importance: supporting
+    notes: Capacity is unknown.
+relationships:
+  - id: sensor_data
+    source: sensor
+    target: processor
+    relation: data
+constraints:
+  - id: primary_order
+    kind: ordering
+    object_ids: [sensor, processor, memory]
+    strength: hard
+drafting:
+  shape_family: native Visio system shapes
+  color_direction: neutral blue
+  typography: sans serif
+  connector_style: orthogonal
+review_items:
+  - id: memory_capacity
+    kind: unknown
+    description: Memory capacity is not specified.
+visual_requirements:
+  - id: no_overlap
+    description: No shape or label overlaps.
+    metric: overlap_count
+    operator: eq
+    value: 0
+forbidden_conditions:
+  - Do not imply an unmentioned control path.

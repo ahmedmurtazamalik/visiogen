@@ -7,6 +7,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from visiogen.config import Settings
+from visiogen.generation.specification import SpecificationError, load_specification
 from visiogen.pipeline import HybridGenerationPipeline
 
 PipelineFactory = Callable[..., HybridGenerationPipeline]
@@ -27,6 +28,11 @@ def register_generate_command(
     source = generate.add_mutually_exclusive_group(required=True)
     source.add_argument("--text", help="Natural-language diagram request")
     source.add_argument("--input-file", type=Path, help="UTF-8 request text file")
+    source.add_argument(
+        "--spec-file",
+        type=Path,
+        help="Validated DiagramSpecification in JSON or YAML",
+    )
     generate.add_argument("--output", type=Path, required=True, help="Final .vsdx path")
     generate.add_argument(
         "--artifact-dir",
@@ -69,11 +75,16 @@ def _run_generate(
 
     if not args.template.is_file():
         raise argparse.ArgumentError(None, f"Template file was not found: {args.template}")
-    if args.text is not None:
-        text = args.text
+    if args.spec_file is not None:
+        try:
+            source = load_specification(args.spec_file)
+        except SpecificationError as error:
+            raise argparse.ArgumentError(None, str(error)) from error
+    elif args.text is not None:
+        source = args.text
     else:
         try:
-            text = args.input_file.read_text()
+            source = args.input_file.read_text(encoding="utf-8")
         except (OSError, UnicodeError) as error:
             raise argparse.ArgumentError(None, f"Could not read input file: {error}") from error
     settings = Settings(
@@ -88,7 +99,7 @@ def _run_generate(
     )
     try:
         result = pipeline.generate(
-            text,
+            source,
             args.output,
             artifact_dir=args.artifact_dir,
         )

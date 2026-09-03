@@ -18,6 +18,11 @@ from visiogen.config import Settings
 from visiogen.critic import CritiqueResult, VisualCritique, build_critique_prompt
 from visiogen.design import DiagramDesign
 from visiogen.designer import DesignResult, build_design_prompt
+from visiogen.generation.specification import DiagramSpecification
+from visiogen.generation.specification_workflow import (
+    SpecificationResult,
+    build_specification_prompt,
+)
 from visiogen.layout import LayoutResult
 from visiogen.preview import export_vsdx_preview
 from visiogen.renderer import render_layout
@@ -28,6 +33,12 @@ class DiagramDesigner(Protocol):
     """Provider-neutral design capability used by the public pipeline."""
 
     def design(self, text: str) -> DesignResult: ...
+
+
+class DiagramSpecifier(Protocol):
+    """Provider-neutral natural-language specification capability."""
+
+    def specify(self, text: str) -> SpecificationResult: ...
 
 
 class VisualCritic(Protocol):
@@ -210,6 +221,7 @@ class HybridGenerationPipeline:
         template_path: str | Path,
         provider: str,
         model: str,
+        specifier: DiagramSpecifier | None = None,
         render: RenderCall = render_layout,
         validate_package: ValidatePackageCall = validate_vsdx_package,
         critic: VisualCritic | None = None,
@@ -219,6 +231,7 @@ class HybridGenerationPipeline:
         self._template_path = Path(template_path)
         self._provider = provider
         self._model = model
+        self._specifier = specifier
         self._render = render
         self._validate_package = validate_package
         self._critic = critic
@@ -226,7 +239,7 @@ class HybridGenerationPipeline:
 
     def generate(
         self,
-        text: str,
+        source: str | DiagramSpecification,
         output_path: str | Path,
         *,
         artifact_dir: str | Path,
@@ -237,10 +250,53 @@ class HybridGenerationPipeline:
         artifacts = Path(artifact_dir)
         _prepare_paths(destination, artifacts)
 
-        _write_text(artifacts / "00-design-system-prompt.txt", build_design_prompt())
-        _write_text(artifacts / "01-request.txt", text)
+        specification_result: SpecificationResult | None = None
+        if isinstance(source, DiagramSpecification):
+            specification = source
+            original_request = None
+        else:
+            original_request = source
+            _write_text(artifacts / "01-request.txt", source)
+            if self._specifier is None:
+                specification = None
+            else:
+                _write_text(
+                    artifacts / "00-specification-system-prompt.txt",
+                    build_specification_prompt(),
+                )
+                specification_result = self._specifier.specify(source)
+                specification = specification_result.specification
+                for index, prompt in enumerate(specification_result.user_prompts, start=1):
+                    _write_text(
+                        artifacts / f"01-specification-user-prompt-{index}.txt", prompt
+                    )
+                for index, response in enumerate(
+                    specification_result.raw_responses, start=1
+                ):
+                    _persist_raw_response(
+                        artifacts / f"02-specification-response-{index}", response
+                    )
+                for index, transport_prompt in enumerate(
+                    specification_result.transport_prompts, start=1
+                ):
+                    if transport_prompt is not None:
+                        _write_text(
+                            artifacts / f"02-specification-provider-prompt-{index}.txt",
+                            transport_prompt,
+                        )
 
-        result = self._designer.design(text)
+        if specification is not None:
+            _write_json(
+                artifacts / "03-validated-specification.json",
+                specification.model_dump(mode="json"),
+            )
+            design_input = specification.design_input()
+        else:
+            # Compatibility for directly injected legacy pipelines; production has a specifier.
+            design_input = source
+
+        _write_text(artifacts / "00-design-system-prompt.txt", build_design_prompt())
+        result = self._designer.design(design_input)
         for index, prompt in enumerate(result.user_prompts, start=1):
             _write_text(
                 artifacts / f"01-design-user-prompt-{index}.txt",
@@ -307,7 +363,7 @@ class HybridGenerationPipeline:
                 artifacts / "07-critique-system-prompt.txt",
                 build_critique_prompt(),
             )
-            critique_result = self._critic.critique(text, design, initial_preview)
+            critique_result = self._critic.critique(design_input, design, initial_preview)
             _write_text(
                 artifacts / "07-critique-user-prompt.txt",
                 critique_result.user_prompt,
@@ -370,7 +426,35 @@ class HybridGenerationPipeline:
             "design_elapsed_ms": result.metadata.elapsed_ms,
             "output": output.name,
             "output_sha256": _sha256(output),
-            "request_sha256": _sha256_bytes(text.encode()),
+            "request_sha256": (
+                _sha256_bytes(original_request.encode())
+                if original_request is not None
+                else None
+            ),
+            "diagram_specification_version": (
+                specification.version if specification is not None else None
+            ),
+            "diagram_specification_sha256": (
+                _sha256(artifacts / "03-validated-specification.json")
+                if specification is not None
+                else None
+            ),
+            "diagram_specification_schema_sha256": _schema_sha256(
+                DiagramSpecification
+            ),
+            "specification_attempts": (
+                specification_result.attempts if specification_result is not None else 0
+            ),
+            "specification_request_ids": (
+                list(specification_result.request_ids)
+                if specification_result is not None
+                else []
+            ),
+            "specification_elapsed_ms": (
+                specification_result.elapsed_ms
+                if specification_result is not None
+                else 0.0
+            ),
             "template": str(self._template_path),
             "template_sha256": (
                 _sha256(self._template_path)
@@ -410,11 +494,13 @@ def build_codex_hybrid_pipeline(
     from visiogen.critic import StructuredVisualCritic, VisualCritique
     from visiogen.design import DiagramDesign
     from visiogen.designer import StructuredDesignWorkflow
+    from visiogen.generation.specification_workflow import StructuredSpecificationWorkflow
     from visiogen.providers.codex_cli import CodexStructuredCaller
 
-    designer = StructuredDesignWorkflow(
-        CodexStructuredCaller(settings, DiagramDesign)
+    specifier = StructuredSpecificationWorkflow(
+        CodexStructuredCaller(settings, DiagramSpecification)
     )
+    designer = StructuredDesignWorkflow(CodexStructuredCaller(settings, DiagramDesign))
     critic = (
         StructuredVisualCritic(CodexStructuredCaller(settings, VisualCritique))
         if enable_critique
@@ -422,6 +508,7 @@ def build_codex_hybrid_pipeline(
     )
     return HybridGenerationPipeline(
         designer=designer,
+        specifier=specifier,
         critic=critic,
         template_path=template_path,
         provider=settings.provider,

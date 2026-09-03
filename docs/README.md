@@ -9,6 +9,7 @@ organized here by purpose.
 - [Text-to-VSDX hybrid architecture](architecture/HYBRID_AI.md)
 - [Generation v2 implementation plan](plans/active/GENERATION_V2.md)
 - [Generation v2 quality evaluation contract](generation/GENERATION_V2_EVALUATION.md)
+- [Generation v2 diagram specification](generation/DIAGRAM_SPECIFICATION.md)
 
 ## Analysis contracts and completed plan
 

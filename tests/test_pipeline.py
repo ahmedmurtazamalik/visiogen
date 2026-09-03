@@ -7,6 +7,8 @@ from visiogen import pipeline as pipeline_module
 from visiogen.critic import CritiqueResult, VisualCritique, VisualIssue
 from visiogen.design import DiagramDesign
 from visiogen.designer import DesignMetadata, DesignResult
+from visiogen.generation.specification import DiagramSpecification
+from visiogen.generation.specification_workflow import SpecificationResult
 from visiogen.pipeline import HybridGenerationPipeline, PipelineError
 
 
@@ -147,6 +149,49 @@ class FakeDesigner:
         return design_result()
 
 
+def simple_specification() -> DiagramSpecification:
+    return DiagramSpecification.model_validate(
+        {
+            "title": "Simple flow",
+            "purpose": "Show a direct flow.",
+            "audience": "Reviewers",
+            "diagram_type": "flowchart",
+            "notation": "flowchart",
+            "orientation": "left_to_right",
+            "primary_flow": "start to finish",
+            "objects": [
+                {"id": "start", "label": "Start", "type": "terminator"},
+                {"id": "finish", "label": "Finish", "type": "terminator"},
+            ],
+            "relationships": [
+                {"id": "flow", "source": "start", "target": "finish"}
+            ],
+            "visual_requirements": [
+                {"id": "clear_labels", "description": "Labels remain readable."}
+            ],
+            "forbidden_conditions": ["No overlapping shapes."],
+        }
+    )
+
+
+class FakeSpecifier:
+    def __init__(self) -> None:
+        self.requests: list[str] = []
+
+    def specify(self, text: str) -> SpecificationResult:
+        self.requests.append(text)
+        specification = simple_specification()
+        return SpecificationResult(
+            specification=specification,
+            raw_responses=(specification.model_dump_json(),),
+            user_prompts=(text,),
+            transport_prompts=("exact specification transport",),
+            attempts=1,
+            request_ids=("spec-request",),
+            elapsed_ms=15.0,
+        )
+
+
 def test_pipeline_uses_ai_design_geometry_and_writes_provenance(tmp_path: Path) -> None:
     designer = FakeDesigner()
     render_calls = []
@@ -208,6 +253,42 @@ def test_pipeline_uses_ai_design_geometry_and_writes_provenance(tmp_path: Path) 
     assert "source_revision" in manifest
     assert "source_worktree_clean" in manifest
     assert "02-provider-prompt-1.txt" in manifest["artifact_sha256"]
+
+
+def test_pipeline_persists_text_derived_specification_and_uses_it_for_design(
+    tmp_path: Path,
+) -> None:
+    designer = FakeDesigner()
+    specifier = FakeSpecifier()
+    output = tmp_path / "output.vsdx"
+    evidence = tmp_path / "evidence"
+
+    def render(template, layout, path):
+        Path(path).write_bytes(b"vsdx")
+        return Path(path)
+
+    pipeline = HybridGenerationPipeline(
+        designer=designer,
+        specifier=specifier,
+        template_path=tmp_path / "template.vsdx",
+        provider="codex",
+        model="gpt-5.6-sol",
+        render=render,
+        validate_package=lambda path: None,
+    )
+
+    pipeline.generate("Create a flow", output, artifact_dir=evidence)
+
+    assert specifier.requests == ["Create a flow"]
+    assert "validated DiagramSpecification" in designer.requests[0]
+    assert (evidence / "03-validated-specification.json").is_file()
+    assert (evidence / "02-specification-response-1.json").is_file()
+    manifest = json.loads((evidence / "manifest.json").read_text())
+    assert manifest["diagram_specification_version"] == 1
+    assert manifest["diagram_specification_sha256"]
+    assert manifest["diagram_specification_schema_sha256"]
+    assert manifest["specification_attempts"] == 1
+    assert manifest["specification_request_ids"] == ["spec-request"]
 
 
 def test_pipeline_runs_one_image_critique_and_renders_valid_revision(tmp_path: Path) -> None:
