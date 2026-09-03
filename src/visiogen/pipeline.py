@@ -494,7 +494,9 @@ def build_codex_hybrid_pipeline(
     from visiogen.critic import StructuredVisualCritic, VisualCritique
     from visiogen.design import DiagramDesign
     from visiogen.designer import StructuredDesignWorkflow
-    from visiogen.generation.specification_workflow import StructuredSpecificationWorkflow
+    from visiogen.generation.specification_workflow import (
+        StructuredSpecificationWorkflow,
+    )
     from visiogen.providers.codex_cli import CodexStructuredCaller
 
     specifier = StructuredSpecificationWorkflow(

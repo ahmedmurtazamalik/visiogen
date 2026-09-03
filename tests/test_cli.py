@@ -6,8 +6,8 @@ from typing import Any, cast
 import pytest
 
 from visiogen.cli import main
-from visiogen.pipeline import GenerationResult, PipelineError
 from visiogen.generation.specification import DiagramSpecification
+from visiogen.pipeline import GenerationResult, PipelineError
 
 
 class FakePipeline:
