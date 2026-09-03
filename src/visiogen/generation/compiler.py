@@ -119,6 +119,7 @@ class IRPort(IRModel):
 class IRShape(IRModel):
     id: str
     object_id: str
+    text: str
     master_marker: str
     master_name: str
     rect: IRRect
@@ -133,6 +134,10 @@ class IRShape(IRModel):
 class IRConnector(IRModel):
     id: str
     relationship_id: str
+    source_shape_id: str
+    source_port: str
+    target_shape_id: str
+    target_port: str
     master_marker: str
     master_name: str
     connector_type: Literal["dynamic", "straight", "orthogonal", "polyline"]
@@ -299,10 +304,12 @@ def compile_construction_plan(
 
     validate_construction_plan(specification, plan)
     findings: list[str] = []
+    object_text = {item.id: item.label for item in specification.objects}
     shapes = tuple(
         IRShape(
             id=item.id,
             object_id=item.object_id,
+            text=object_text[item.object_id],
             master_marker=item.master,
             master_name=_MASTER_NAMES[item.master],
             rect=IRRect.model_validate(item.rect.model_dump()),
@@ -424,6 +431,10 @@ def compile_construction_plan(
             IRConnector(
                 id=item.id,
                 relationship_id=item.relationship_id,
+                source_shape_id=item.source_shape_id,
+                source_port=item.source_port,
+                target_shape_id=item.target_shape_id,
+                target_port=item.target_port,
                 master_marker=item.master,
                 master_name=_MASTER_NAMES[item.master],
                 connector_type=item.connector_type,
@@ -557,6 +568,7 @@ def compile_v1_design(design: DiagramDesign) -> RendererIR:
             IRShape(
                 id=f"shape_{node.id}",
                 object_id=node.id,
+                text=node.label,
                 master_marker=visual.marker,
                 master_name=_MASTER_NAMES[visual.marker],
                 rect=rect,
@@ -595,6 +607,10 @@ def compile_v1_design(design: DiagramDesign) -> RendererIR:
             IRConnector(
                 id=f"connector_{edge.id or index}",
                 relationship_id=edge.id or f"edge_{index}",
+                source_shape_id=f"shape_{edge.source}",
+                source_port="dynamic",
+                target_shape_id=f"shape_{edge.target}",
+                target_port="dynamic",
                 master_marker=visual.marker,
                 master_name=_MASTER_NAMES[visual.marker],
                 connector_type="dynamic",
