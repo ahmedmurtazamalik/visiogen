@@ -15,17 +15,32 @@ from pathlib import Path
 from types import TracebackType
 from xml.etree import ElementTree as ET
 
-from vsdx import Cell, Connect, Page, Shape, VisioFile, namespace, r_namespace, vt_namespace
+from vsdx import (
+    Cell,
+    Connect,
+    Page,
+    Shape,
+    VisioFile,
+    namespace,
+    r_namespace,
+    vt_namespace,
+)
 
+from visiogen.generation.compiler import (
+    IRCallout,
+    IRConnector,
+    IRPoint,
+    IRShape,
+    RendererIR,
+)
 from visiogen.layout import LayoutResult
 from visiogen.models import DiagramNode
 from visiogen.shape_mapper import (
-    EdgeVisualSpec,
     PRODUCTION_TEMPLATE_MARKERS,
+    EdgeVisualSpec,
     map_edge_visual,
     map_node_visual,
 )
-
 
 TEMPLATE_PAGE_NAME = "Template Palette"
 TEMPLATE_MARKERS = (
@@ -35,6 +50,7 @@ TEMPLATE_MARKERS = (
     "__template_reference_callout__",
     "__template_connector__",
 )
+
 GENERATED_LABELS = {
     "__template_process__": "Generated Process",
     "__template_component_rectangle__": "Generated Component",
@@ -728,6 +744,308 @@ def _require_distinct_output(source: Path, destination: Path) -> None:
         raise ValueError("Refusing to overwrite the canonical template")
 
 
+def _set_section_cell(
+    shape: Shape,
+    section_name: str,
+    row_attributes: dict[str, str],
+    cell_name: str,
+    value: str,
+) -> None:
+    section = shape.xml.find(f"{namespace}Section[@N='{section_name}']")
+    if section is None:
+        section = ET.SubElement(shape.xml, f"{namespace}Section", {"N": section_name})
+    selector = "".join(f"[@{key}='{item}']" for key, item in row_attributes.items())
+    row = section.find(f"{namespace}Row{selector}")
+    if row is None:
+        row = ET.SubElement(section, f"{namespace}Row", row_attributes)
+    cell = row.find(f"{namespace}Cell[@N='{cell_name}']")
+    if cell is None:
+        cell = ET.SubElement(row, f"{namespace}Cell", {"N": cell_name})
+    cell.attrib["V"] = value
+    cell.attrib.pop("F", None)
+
+
+def _to_visio_point(page_height: float, point: IRPoint) -> tuple[float, float]:
+    return point.x, page_height - point.y
+
+
+def _shape_geometry(
+    page_height: float, shape: IRShape
+) -> tuple[float, float, float, float]:
+    return (
+        shape.rect.x + shape.rect.width / 2,
+        page_height - shape.rect.y - shape.rect.height / 2,
+        shape.rect.width,
+        shape.rect.height,
+    )
+
+
+def _style_ir_shape(shape: Shape, plan: IRShape) -> None:
+    _set_local_cell_value(shape, "FillForegnd", plan.style.fill_color)
+    _set_local_cell_value(shape, "LineColor", plan.style.line_color)
+    _set_local_cell_value(shape, "LineWeight", f"{plan.style.line_weight_pt / 72:.15g}")
+    _set_local_cell_value(shape, "LinePattern", _LINE_PATTERNS[plan.style.line_pattern])
+
+
+def _configure_ir_text(
+    label_shape: Shape,
+    owner: IRShape,
+    page_height: float,
+) -> None:
+    owner_bottom = page_height - owner.rect.y - owner.rect.height
+    text_center_x = owner.text_box.x + owner.text_box.width / 2
+    text_center_y = page_height - owner.text_box.y - owner.text_box.height / 2
+    _set_local_cell_value(
+        label_shape, "TxtPinX", f"{text_center_x - owner.rect.x:.15g}"
+    )
+    _set_local_cell_value(
+        label_shape, "TxtPinY", f"{text_center_y - owner_bottom:.15g}"
+    )
+    _set_local_cell_value(label_shape, "TxtWidth", f"{owner.text_box.width:.15g}")
+    _set_local_cell_value(label_shape, "TxtHeight", f"{owner.text_box.height:.15g}")
+    _set_local_cell_value(
+        label_shape,
+        "VerticalAlign",
+        {"top": "0", "middle": "1", "bottom": "2"}[owner.typography.vertical_align],
+    )
+    style = (1 if owner.typography.bold else 0) + (2 if owner.typography.italic else 0)
+    for name, value in (
+        ("Font", owner.typography.family),
+        ("Size", f"{owner.typography.size_pt / 72:.15g}"),
+        ("Color", owner.typography.color),
+        ("Style", str(style)),
+    ):
+        _set_section_cell(label_shape, "Character", {"IX": "0"}, name, value)
+    _set_section_cell(
+        label_shape,
+        "Paragraph",
+        {"IX": "0"},
+        "HorzAlign",
+        {"left": "0", "center": "1", "right": "2"}[owner.typography.horizontal_align],
+    )
+
+
+def _replace_connection_points(shape: Shape, plan: IRShape, page_height: float) -> None:
+    existing = shape.xml.find(f"{namespace}Section[@N='Connection']")
+    if existing is not None:
+        shape.xml.remove(existing)
+    section = ET.SubElement(shape.xml, f"{namespace}Section", {"N": "Connection"})
+    owner_bottom = page_height - plan.rect.y - plan.rect.height
+    direction = {
+        "top": ("0", "1"),
+        "right": ("1", "0"),
+        "bottom": ("0", "-1"),
+        "left": ("-1", "0"),
+    }
+    for port in plan.ports:
+        row = ET.SubElement(
+            section,
+            f"{namespace}Row",
+            {"N": port.name, "T": "Connection"},
+        )
+        local_x = port.x - plan.rect.x
+        local_y = page_height - port.y - owner_bottom
+        direction_x, direction_y = direction[port.side]
+        for name, value in (
+            ("X", f"{local_x:.15g}"),
+            ("Y", f"{local_y:.15g}"),
+            ("DirX", direction_x),
+            ("DirY", direction_y),
+            ("Type", "0"),
+        ):
+            ET.SubElement(row, f"{namespace}Cell", {"N": name, "V": value})
+
+
+def _configure_container_header(label_shape: Shape, plan: IRShape) -> None:
+    if plan.container is None:
+        return
+    width = plan.rect.width - 2 * plan.container.padding
+    _set_local_cell_value(label_shape, "TxtPinX", f"{plan.rect.width / 2:.15g}")
+    _set_local_cell_value(
+        label_shape,
+        "TxtPinY",
+        f"{plan.rect.height - plan.container.header_height / 2:.15g}",
+    )
+    _set_local_cell_value(label_shape, "TxtWidth", f"{width:.15g}")
+    _set_local_cell_value(
+        label_shape, "TxtHeight", f"{plan.container.header_height:.15g}"
+    )
+
+
+def _add_ir_connection(
+    page: Page,
+    connector: Shape,
+    endpoint: str,
+    target: Shape,
+    port_name: str,
+) -> None:
+    if port_name == "dynamic":
+        to_cell = "PinX"
+        to_part = "3"
+    else:
+        to_cell = f"Connections.{port_name}"
+        to_part = "101" if endpoint == "BeginX" else "103"
+    attributes = {
+        "FromSheet": connector.ID,
+        "FromCell": endpoint,
+        "FromPart": "9" if endpoint == "BeginX" else "12",
+        "ToSheet": target.ID,
+        "ToCell": to_cell,
+        "ToPart": to_part,
+    }
+    page.add_connect(
+        Connect(xml=ET.Element(f"{namespace}Connect", attributes), page=page)
+    )
+
+
+def _replace_route_geometry(
+    connector: Shape,
+    route: tuple[IRPoint, ...],
+    page_height: float,
+) -> None:
+    points = tuple(_to_visio_point(page_height, point) for point in route)
+    minimum_x = min(point[0] for point in points)
+    minimum_y = min(point[1] for point in points)
+    maximum_x = max(point[0] for point in points)
+    maximum_y = max(point[1] for point in points)
+    width = max(maximum_x - minimum_x, 0.25)
+    height = max(maximum_y - minimum_y, 0.25)
+    _set_local_cell_value(connector, "PinX", f"{(minimum_x + maximum_x) / 2:.15g}")
+    _set_local_cell_value(connector, "PinY", f"{(minimum_y + maximum_y) / 2:.15g}")
+    _set_local_cell_value(connector, "Width", f"{width:.15g}")
+    _set_local_cell_value(connector, "Height", f"{height:.15g}")
+    _set_local_cell_value(connector, "LocPinX", f"{width / 2:.15g}")
+    _set_local_cell_value(connector, "LocPinY", f"{height / 2:.15g}")
+    for section in connector.xml.findall(f"{namespace}Section[@N='Geometry']"):
+        connector.xml.remove(section)
+    geometry = ET.SubElement(
+        connector.xml, f"{namespace}Section", {"N": "Geometry", "IX": "0"}
+    )
+    for index, (x, y) in enumerate(points, start=1):
+        row = ET.SubElement(
+            geometry,
+            f"{namespace}Row",
+            {"T": "MoveTo" if index == 1 else "LineTo", "IX": str(index)},
+        )
+        ET.SubElement(row, f"{namespace}Cell", {"N": "X", "V": f"{x - minimum_x:.15g}"})
+        ET.SubElement(row, f"{namespace}Cell", {"N": "Y", "V": f"{y - minimum_y:.15g}"})
+
+
+def _style_ir_connector(connector: Shape, plan: IRConnector) -> None:
+    _set_local_cell_value(
+        connector,
+        "BeginArrow",
+        _ARROW_STYLE if plan.arrowheads in {"begin", "both"} else "0",
+    )
+    _set_local_cell_value(
+        connector,
+        "EndArrow",
+        _ARROW_STYLE if plan.arrowheads in {"end", "both"} else "0",
+    )
+    _set_local_cell_value(
+        connector, "LinePattern", _LINE_PATTERNS[plan.style.line_pattern]
+    )
+    _set_local_cell_value(
+        connector, "LineWeight", f"{plan.style.line_weight_pt / 72:.15g}"
+    )
+    _set_local_cell_value(connector, "LineColor", plan.style.line_color)
+    _set_local_cell_value(connector, "ConLineJumpCode", "1" if plan.jumps else "0")
+
+
+def _configure_connector_label(
+    connector: Shape, plan: IRConnector, page_height: float
+) -> None:
+    if plan.label is None:
+        return
+    pin_x = float(connector.cell_value("PinX"))
+    pin_y = float(connector.cell_value("PinY"))
+    loc_pin_x = float(connector.cell_value("LocPinX"))
+    loc_pin_y = float(connector.cell_value("LocPinY"))
+    label_x = plan.label.position.x
+    label_y = page_height - plan.label.position.y + plan.label.offset
+    _set_local_cell_value(connector, "TxtPinX", f"{label_x - pin_x + loc_pin_x:.15g}")
+    _set_local_cell_value(connector, "TxtPinY", f"{label_y - pin_y + loc_pin_y:.15g}")
+    if plan.label.orientation == "along_route":
+        start, end = plan.route[0], plan.route[-1]
+        angle = math.atan2(start.y - end.y, end.x - start.x)
+        _set_local_cell_value(connector, "TxtAngle", f"{angle:.15g}")
+    _set_local_cell_value(connector, "HideText", "0")
+    _set_local_cell_value(
+        connector,
+        "TextBkgnd",
+        "#FFFFFF" if plan.label.background == "opaque" else "0",
+    )
+
+
+def _configure_ir_callout(
+    callout: Shape,
+    plan: IRCallout,
+    target: Shape,
+    page_height: float,
+) -> None:
+    x = plan.rect.x + plan.rect.width / 2
+    y = page_height - plan.rect.y - plan.rect.height / 2
+    for name, value in (
+        ("PinX", x),
+        ("PinY", y),
+        ("Width", plan.rect.width),
+        ("Height", plan.rect.height),
+        ("LocPinX", plan.rect.width / 2),
+        ("LocPinY", plan.rect.height / 2),
+    ):
+        _set_local_cell_value(callout, name, f"{value:.15g}")
+    _set_local_cell_formula(
+        callout,
+        "Relationships",
+        "0",
+        f"SUM(DEPENDSON(6,Sheet.{target.ID}!SheetRef()))",
+    )
+    route = tuple(_to_visio_point(page_height, point) for point in plan.leader_route)
+    for section in callout.xml.findall(f"{namespace}Section[@N='Geometry'][@IX='0']"):
+        callout.xml.remove(section)
+    geometry = ET.Element(f"{namespace}Section", {"N": "Geometry", "IX": "0"})
+    body = callout.xml.find(f"{namespace}Section[@N='Geometry']")
+    insert_at = list(callout.xml).index(body) if body is not None else len(callout.xml)
+    callout.xml.insert(insert_at, geometry)
+    owner_left = plan.rect.x
+    owner_bottom = page_height - plan.rect.y - plan.rect.height
+    for index, (point_x, point_y) in enumerate(route, start=1):
+        row = ET.SubElement(
+            geometry,
+            f"{namespace}Row",
+            {"T": "MoveTo" if index == 1 else "LineTo", "IX": str(index)},
+        )
+        ET.SubElement(
+            row, f"{namespace}Cell", {"N": "X", "V": f"{point_x - owner_left:.15g}"}
+        )
+        ET.SubElement(
+            row, f"{namespace}Cell", {"N": "Y", "V": f"{point_y - owner_bottom:.15g}"}
+        )
+
+
+def _apply_container_membership(container: Shape, members: list[Shape]) -> None:
+    _set_section_cell(
+        container, "User", {"N": "msvStructureType"}, "Value", "Container"
+    )
+    for member in members:
+        _set_local_cell_formula(
+            member,
+            "Relationships",
+            "0",
+            f"SUM(DEPENDSON(4,Sheet.{container.ID}!SheetRef()))",
+        )
+
+
+def _reorder_ir_shapes(page: Page, order: list[tuple[int, int, Shape]]) -> None:
+    shapes_element = page.xml.find(f"{namespace}Shapes")
+    if shapes_element is None:
+        raise RenderingError("output page has no Shapes element")
+    for _, _, shape in order:
+        shapes_element.remove(shape.xml)
+    for _, _, shape in sorted(order, key=lambda item: (item[0], item[1])):
+        shapes_element.append(shape.xml)
+
+
 def render_layout(
     template_path: str | Path,
     layout: LayoutResult,
@@ -740,7 +1058,9 @@ def render_layout(
     source = Path(template_path)
     destination = Path(output_path)
     _require_distinct_output(source, destination)
-    if not all(math.isfinite(value) for value in (layout.page.width, layout.page.height)):
+    if not all(
+        math.isfinite(value) for value in (layout.page.width, layout.page.height)
+    ):
         raise RenderingError("finite page geometry required")
     destination.parent.mkdir(parents=True, exist_ok=True)
 
@@ -801,10 +1121,7 @@ def render_layout(
                 palette.shapes[callout_marker].shape,
                 palette.page,
             )
-            if (
-                callout.width > layout.page.width
-                or callout.height > layout.page.height
-            ):
+            if callout.width > layout.page.width or callout.height > layout.page.height:
                 raise RenderingError(
                     f"reference callout for node '{node.id}' cannot fit inside the layout page"
                 )
@@ -869,6 +1186,134 @@ def render_layout(
         palette.page.width = layout.page.width
         palette.page.height = layout.page.height
         _remove_template_palette(palette)
+        _save_vsdx(palette.document, destination)
+
+    return destination
+
+
+def render_ir(
+    template_path: str | Path,
+    ir: RendererIR,
+    output_path: str | Path,
+) -> Path:
+    """Render a validated Generation v2 IR with explicit native Visio geometry."""
+
+    source = Path(template_path)
+    destination = Path(output_path)
+    _require_distinct_output(source, destination)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    with load_template_palette(source, markers=PRODUCTION_TEMPLATE_MARKERS) as palette:
+        rendered_shapes: dict[str, Shape] = {}
+        shapes_by_object: dict[str, Shape] = {}
+        render_order: list[tuple[int, int, Shape]] = []
+        sequence = 0
+        for plan in ir.shapes:
+            copied = _copy_shape_tree(
+                palette.shapes[plan.master_marker].shape,
+                palette.page,
+            )
+            label = _find_marker_shape(copied, plan.master_marker)
+            label.text = plan.container.header_text if plan.container else plan.text
+            x, y, width, height = _shape_geometry(ir.page.height, plan)
+            for name, value in (
+                ("PinX", x),
+                ("PinY", y),
+                ("Width", width),
+                ("Height", height),
+                ("LocPinX", width / 2),
+                ("LocPinY", height / 2),
+            ):
+                _set_local_cell_value(copied, name, f"{value:.15g}")
+            _style_ir_shape(copied, plan)
+            _configure_ir_text(label, plan, ir.page.height)
+            _configure_container_header(label, plan)
+            _replace_connection_points(copied, plan, ir.page.height)
+            if plan.container:
+                _set_section_cell(
+                    copied,
+                    "User",
+                    {"N": "msvSDContainerMargin"},
+                    "Value",
+                    f"{plan.container.padding:.15g}",
+                )
+            rendered_shapes[plan.id] = copied
+            shapes_by_object[plan.object_id] = copied
+            render_order.append((plan.z_order, sequence, copied))
+            sequence += 1
+
+        for plan in ir.shapes:
+            if plan.container is None:
+                continue
+            _apply_container_membership(
+                rendered_shapes[plan.id],
+                [
+                    shapes_by_object[member_id]
+                    for member_id in plan.container.member_ids
+                ],
+            )
+
+        for plan in ir.connectors:
+            source_shape = rendered_shapes[plan.source_shape_id]
+            target_shape = rendered_shapes[plan.target_shape_id]
+            connector = _copy_shape_tree(
+                palette.shapes[plan.master_marker].shape,
+                palette.page,
+            )
+            _find_marker_shape(connector, plan.master_marker).text = (
+                plan.label.text if plan.label else ""
+            )
+            start = _to_visio_point(ir.page.height, plan.route[0])
+            finish = _to_visio_point(ir.page.height, plan.route[-1])
+            _set_connector_cached_geometry(connector, start, finish)
+            if plan.connector_type == "dynamic":
+                _configure_dynamic_connector_glue(
+                    connector, source_shape, target_shape, start, finish
+                )
+            else:
+                for name, value in (
+                    ("BeginX", start[0]),
+                    ("BeginY", start[1]),
+                    ("EndX", finish[0]),
+                    ("EndY", finish[1]),
+                ):
+                    _set_local_cell_value(connector, name, f"{value:.15g}")
+                _replace_route_geometry(connector, plan.route, ir.page.height)
+                _set_local_cell_value(connector, "RouteStyle", "16")
+            _add_ir_connection(
+                palette.page,
+                connector,
+                "BeginX",
+                source_shape,
+                plan.source_port,
+            )
+            _add_ir_connection(
+                palette.page,
+                connector,
+                "EndX",
+                target_shape,
+                plan.target_port,
+            )
+            _style_ir_connector(connector, plan)
+            _configure_connector_label(connector, plan, ir.page.height)
+            render_order.append((plan.z_order, sequence, connector))
+            sequence += 1
+
+        for plan in ir.callouts:
+            callout = _copy_shape_tree(
+                palette.shapes[plan.master_marker].shape,
+                palette.page,
+            )
+            _find_marker_shape(callout, plan.master_marker).text = plan.text
+            _configure_ir_callout(
+                callout, plan, shapes_by_object[plan.object_id], ir.page.height
+            )
+            render_order.append((plan.z_order, sequence, callout))
+            sequence += 1
+
+        palette.page.width = ir.page.width
+        palette.page.height = ir.page.height
+        _remove_template_palette(palette)
+        _reorder_ir_shapes(palette.page, render_order)
         _save_vsdx(palette.document, destination)
 
     return destination
