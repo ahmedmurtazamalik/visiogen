@@ -68,6 +68,8 @@ def build_construction_prompt() -> str:
         "and text rectangles, typography, fill and line styles, z-order, named ports, connector "
         "routes and bends, jumps, arrowheads, connector labels, container headers and padding, "
         "callout anchors and leaders, and traceability. Use top-left-origin page-inch coordinates. "
+        "Create exactly one reference callout for each object with a non-null reference_number, "
+        "and no reference callout for any other object. "
         "Do not emit VSDX XML, ShapeSheet formulas, package relationships, unsupported masters, "
         "or extra source facts. Return JSON only.\n\n"
         f"{_APPROVED_EXAMPLES}\n\n"

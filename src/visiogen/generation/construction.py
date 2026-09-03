@@ -252,6 +252,11 @@ def validate_construction_plan(
         source = next((item for item in specification.objects if item.id == callout.object_id), None)
         if source is None:
             findings.append(f"callout '{callout.id}' references an unknown object")
+        elif source.reference_number is None:
+            findings.append(
+                f"callout '{callout.id}' must be omitted because object "
+                f"'{source.id}' has no reference number"
+            )
         elif callout.text != source.reference_number:
             findings.append(f"callout '{callout.id}' does not preserve its reference number")
 

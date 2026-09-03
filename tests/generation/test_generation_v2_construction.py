@@ -78,6 +78,27 @@ def test_validation_rejects_semantic_and_traceability_drift() -> None:
     assert "missing constraint traceability: clear_callouts" in message
 
 
+def test_validation_rejects_callout_for_object_without_reference_number() -> None:
+    specification = load_specification(SPEC)
+    data = plan_data()
+    data["callouts"].append(  # type: ignore[union-attr]
+        {
+            "id": "callout_housing",
+            "object_id": "housing",
+            "carrier": "__template_reference_callout__",
+            "text": "Housing note",
+            "rect": {"x": 1, "y": 5.2, "width": 1, "height": 0.3},
+            "target_anchor": {"x": 1, "y": 3},
+            "leader_route": [{"x": 1.5, "y": 5.2}, {"x": 1, "y": 3}],
+            "z_order": 3,
+        }
+    )
+    plan = VisioConstructionPlan.model_validate(data)
+
+    with pytest.raises(ConstructionPlanError, match="must be omitted.*no reference number"):
+        validate_construction_plan(specification, plan)
+
+
 class FakeCall:
     def __init__(self, responses):
         self.responses = iter(responses)
