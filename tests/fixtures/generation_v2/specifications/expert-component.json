@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "title": "Contained controller",
+  "purpose": "Show a sensor connected to a controller inside a housing.",
+  "audience": "Engineering reviewers",
+  "diagram_type": "component_schematic",
+  "notation": "component",
+  "orientation": "left_to_right",
+  "primary_flow": "sensor to controller",
+  "objects": [
+    {"id": "housing", "label": "Housing", "type": "housing"},
+    {"id": "sensor", "label": "Sensor", "type": "sensor", "parent_id": "housing", "reference_number": "110"},
+    {"id": "controller", "label": "Controller", "type": "controller", "parent_id": "housing", "reference_number": "120"}
+  ],
+  "relationships": [
+    {"id": "sensor_data", "source": "sensor", "target": "controller", "relation": "data", "direction": "forward"}
+  ],
+  "constraints": [
+    {"id": "internal_alignment", "kind": "alignment", "object_ids": ["sensor", "controller"], "strength": "hard", "axis": "horizontal"}
+  ],
+  "visual_requirements": [
+    {"id": "clear_callouts", "description": "Reference callouts remain outside labels."}
+  ],
+  "forbidden_conditions": ["Children outside the housing."]
+}
