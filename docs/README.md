@@ -7,6 +7,7 @@ organized here by purpose.
 
 - [System overview](architecture/SYSTEM_OVERVIEW.md)
 - [Text-to-VSDX hybrid architecture](architecture/HYBRID_AI.md)
+- [Generation v2 implementation plan](plans/active/GENERATION_V2.md)
 
 ## Analysis contracts and completed plan
 
