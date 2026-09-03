@@ -1,6 +1,6 @@
 # Visiogen Generation v2 Implementation Plan
 
-**Status:** Active; G0-G4 complete
+**Status:** Active; G0-G4 complete, G5 implementation verified and Windows gate pending
 
 **Date:** 2026-09-03
 
@@ -94,7 +94,7 @@ analysis bundle ----------+                 |
 | G2 | Analysis-to-generation bridge | Complete | Import boundary, reviewed draft workflow, fidelity tests, provenance, and checkpoint lineage |
 | G3 | AI construction planner | Complete | Valid plans for all core families from real `gpt-5.6-sol`; checkpoint lineage |
 | G4 | Construction-plan validation and compiler IR | Complete | Hard-validation and deterministic compilation tests; checkpoint lineage |
-| G5 | Native renderer v2 | Not started | Explicit shapes, ports, routes, labels, styles, and callouts |
+| G5 | Native renderer v2 | In progress | Linux structural gate passes; Windows native lifecycle pending |
 | G6 | Visual measurement and diagnostics | Not started | Machine-readable geometry and preview diagnostics |
 | G7 | Iterative AI visual editing | Not started | Bounded patch loop with final re-approval |
 | G8 | Vertical Generation v2 pipeline | Not started | All three input modes produce complete evidence bundles |
@@ -391,6 +391,38 @@ Work:
 **Exit gate:** Structural tests cover horizontal, vertical, diagonal, branching,
 reciprocal, self-loop, nested-container, and callout cases. Generated files pass a
 targeted Windows smoke test for clean open, edit, move, save, close, and reopen.
+
+**Current evidence:** The template-based renderer consumes the immutable G4 IR and
+materializes explicit native masters, geometry, styles, named connection points,
+routes, connector labels, container membership, callouts, and stable z-order.
+Linux structural tests cover every required topology and validate the resulting
+package. See
+[`../../generation/NATIVE_RENDERER_V2.md`](../../generation/NATIVE_RENDERER_V2.md).
+The phase remains open because desktop Microsoft Visio is unavailable in this
+environment; the required move/save/close/reopen smoke test and manual review have
+not been run.
+
+Local verification: 55 focused compiler/renderer/package/boundary tests, 294
+generation-owned tests, and 568 full-repository tests passed; package build and
+CLI help smoke check also passed.
+
+**Implementation checkpoint:**
+
+```text
+Phase: G5 — Native renderer v2
+Status: In progress; Windows native lifecycle gate pending
+IR completion commit: 5d1488b
+Native renderer commit: 8ed9dda
+Structural tests commit: fbeaefe
+Renderer documentation commit: 47fea2e
+Focused compiler/renderer/package/boundary tests: 55 passed in 33.32s
+Generation-owned tests: 294 passed in 42.35s
+Full repository tests: 568 passed in 51.27s
+Package build: passed
+CLI help check: passed
+Windows/Visio evidence: unavailable in this Linux environment
+Review decision: implementation accepted locally; phase remains open
+```
 
 ### G6 — Visual measurement and diagnostics
 
