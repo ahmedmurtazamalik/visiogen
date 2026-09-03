@@ -1,6 +1,6 @@
 # Visiogen Generation v2 Implementation Plan
 
-**Status:** Active; G0-G1 complete, G2 implementation verified, checkpoint pending
+**Status:** Active; G0-G2 complete, G3 not started
 
 **Date:** 2026-09-03
 
@@ -91,7 +91,7 @@ analysis bundle ----------+                 |
 |---|---|---|---|
 | G0 | Baseline and contract freeze | Complete | Frozen corpus, rubric, baseline report, tests, and checkpoint lineage |
 | G1 | Professional diagram specification | Complete | Schema, validators, fixtures, CLI parsing, provenance, and checkpoint lineage |
-| G2 | Analysis-to-generation bridge | In progress | Implementation and local verification complete; checkpoint pending |
+| G2 | Analysis-to-generation bridge | Complete | Import boundary, reviewed draft workflow, fidelity tests, provenance, and checkpoint lineage |
 | G3 | AI construction planner | Not started | Real-model plans for the frozen corpus |
 | G4 | Construction-plan validation and compiler IR | Not started | Hard-validation and deterministic compilation tests |
 | G5 | Native renderer v2 | Not started | Explicit shapes, ports, routes, labels, styles, and callouts |
@@ -241,9 +241,28 @@ atomically publishing a human-reviewable JSON specification. See
 [`../../generation/ANALYSIS_IMPORT.md`](../../generation/ANALYSIS_IMPORT.md).
 Focused bridge/specification/CLI/pipeline/boundary tests pass with 60 tests; the
 generation-owned gate passes with 279 tests and the full repository gate with 553
-tests. Package build and CLI help checks pass. The phase remains in progress until
-this implementation and evidence are committed and the checkpoint lineage is
-recorded.
+tests. Package build and CLI help checks pass. The implementation and evidence are
+committed at `f95d48d`.
+
+**Phase completion record:**
+
+```text
+Phase: G2 — Analysis-to-generation bridge
+Status: Complete
+Implementation and evidence commit: f95d48d
+PDF bundle projection: passed
+DOCX bundle projection: passed
+Reviewer correction and --spec-file reload: passed
+Evidence/checksum tamper rejection: passed
+Focused bridge/specification/CLI/pipeline/boundary tests: 60 passed
+Generation-owned tests: 279 passed in 36.21s
+Full repository tests: 553 passed in 44.99s
+Package build: passed
+CLI help check: passed
+Real-provider evidence: not required to close G2; no quality claim made
+Windows/Visio evidence: not required to close G2; no native claim made
+Review decision: G2 exit contract satisfied
+```
 
 ### G3 — AI `VisioConstructionPlan`
 
