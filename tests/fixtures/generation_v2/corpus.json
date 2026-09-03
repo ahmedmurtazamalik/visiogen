@@ -1,0 +1,221 @@
+{
+  "version": 1,
+  "frozen": true,
+  "thresholds": {
+    "shape_or_label_overlaps_maximum": 0,
+    "arrowheads_inside_unrelated_shapes_maximum": 0,
+    "connectors_crossing_unrelated_labels_maximum": 0,
+    "callout_leaders_crossing_unrelated_labels_maximum": 0,
+    "required_direction_accuracy_minimum": 1.0,
+    "required_containment_accuracy_minimum": 1.0,
+    "unresolved_high_severity_findings_maximum": 0,
+    "v2_human_preference_minimum": 0.8,
+    "supported_run_completion_minimum": 0.9
+  },
+  "cases": [
+    {
+      "id": "branching-order-fulfillment",
+      "family": "branching_flowchart",
+      "input_mode": "text",
+      "source": "Create a left-to-right order fulfillment flowchart. A customer submits an order. Validate the order. If invalid, reject it and notify the customer. If valid, check inventory. If unavailable, place the order on backorder and notify the customer. If available, authorize payment, reserve inventory, ship the order, and send delivery confirmation. Label both decision outcomes and keep the successful path visually dominant.",
+      "expected_objects": ["customer", "submit_order", "validate_order", "reject_order", "notify_rejection", "check_inventory", "backorder", "notify_backorder", "authorize_payment", "reserve_inventory", "ship_order", "delivery_confirmation"],
+      "expected_relationships": [
+        {"source": "submit_order", "target": "validate_order", "direction": "forward"},
+        {"source": "validate_order", "target": "reject_order", "direction": "forward", "label": "Invalid"},
+        {"source": "validate_order", "target": "check_inventory", "direction": "forward", "label": "Valid"},
+        {"source": "check_inventory", "target": "backorder", "direction": "forward", "label": "Unavailable"},
+        {"source": "check_inventory", "target": "authorize_payment", "direction": "forward", "label": "Available"}
+      ],
+      "required_conditions": ["Decision outcomes are visibly labeled", "The successful path reads left to right", "Failure branches remain visually distinct"],
+      "forbidden_conditions": ["Connectors cross node labels", "Arrowheads terminate inside unrelated nodes", "Decision branches are visually ambiguous"],
+      "coverage_tags": ["branching", "crossing_pressure", "decision_labels"]
+    },
+    {
+      "id": "iot-monitoring-platform",
+      "family": "system_architecture",
+      "input_mode": "text",
+      "source": "Create a clear left-to-right architecture diagram for an IoT monitoring platform. Group multiple sensors and an edge gateway in a Field zone. Put the ingestion API, stream processor, time-series database, notification service, and web dashboard in a Cloud zone. Sensors send telemetry to the gateway; the gateway sends it to the ingestion API and stream processor; the processor writes the database and sends alerts; the dashboard reads the database. Emphasize the main telemetry path.",
+      "expected_objects": ["field_zone", "sensors", "edge_gateway", "cloud_zone", "ingestion_api", "stream_processor", "time_series_database", "notification_service", "web_dashboard"],
+      "expected_relationships": [
+        {"source": "sensors", "target": "edge_gateway", "direction": "forward", "label": "Telemetry"},
+        {"source": "edge_gateway", "target": "ingestion_api", "direction": "forward"},
+        {"source": "ingestion_api", "target": "stream_processor", "direction": "forward"},
+        {"source": "stream_processor", "target": "time_series_database", "direction": "forward", "label": "Writes"},
+        {"source": "web_dashboard", "target": "time_series_database", "direction": "forward", "label": "Reads"}
+      ],
+      "required_conditions": ["Field and Cloud zones are visually distinct", "All children remain inside their zone", "The telemetry path has primary visual emphasis"],
+      "forbidden_conditions": ["A connector crosses a zone title", "The database uses an ordinary process shape", "Secondary edges obscure the telemetry path"],
+      "coverage_tags": ["containment", "system_architecture", "primary_flow"]
+    },
+    {
+      "id": "smart-camera-contained",
+      "family": "contained_schematic",
+      "input_mode": "text",
+      "source": "Create a contained smart-camera component schematic. Put Image Sensor, Processor, Memory, Radio, and Power Controller inside Camera Housing. Image Sensor sends frames to Processor; Processor reads and writes Memory; Processor sends encoded video to Radio; Power Controller supplies the four other internal components. Put Cloud Service outside and connect it bidirectionally to Radio. Add readable reference numerals 110 through 150 to the five internal components.",
+      "expected_objects": ["camera_housing", "image_sensor", "processor", "memory", "radio", "power_controller", "cloud_service"],
+      "expected_relationships": [
+        {"source": "image_sensor", "target": "processor", "direction": "forward", "label": "Frames"},
+        {"source": "processor", "target": "memory", "direction": "bidirectional", "label": "Read / Write"},
+        {"source": "processor", "target": "radio", "direction": "forward", "label": "Encoded video"},
+        {"source": "radio", "target": "cloud_service", "direction": "bidirectional"}
+      ],
+      "required_conditions": ["All five internal components are inside Camera Housing", "Cloud Service is outside Camera Housing", "Reference callouts are legible and traceable"],
+      "forbidden_conditions": ["Callout leaders cross unrelated labels", "Power connectors obscure data-flow labels", "Containment is implied only by proximity"],
+      "coverage_tags": ["containment", "reference_callouts", "reciprocal_edges"]
+    },
+    {
+      "id": "dense-incident-response",
+      "family": "dense_process",
+      "input_mode": "text",
+      "source": "Create a dense but readable incident-response process. Alert Intake leads to Triage. Triage branches to False Positive Closure, Standard Investigation, or Major Incident. Standard Investigation gathers evidence, contains the issue, eradicates the cause, recovers service, and performs review. Major Incident additionally activates Incident Command, Legal, Communications, and Executive Notification before joining containment. Show escalation and feedback from review to detection tuning without crossing labels.",
+      "expected_objects": ["alert_intake", "triage", "false_positive_closure", "standard_investigation", "major_incident", "gather_evidence", "incident_command", "legal", "communications", "executive_notification", "containment", "eradication", "recovery", "review", "detection_tuning"],
+      "expected_relationships": [
+        {"source": "alert_intake", "target": "triage", "direction": "forward"},
+        {"source": "triage", "target": "major_incident", "direction": "forward", "label": "Major"},
+        {"source": "review", "target": "detection_tuning", "direction": "forward"},
+        {"source": "detection_tuning", "target": "alert_intake", "direction": "forward", "label": "Feedback"}
+      ],
+      "required_conditions": ["The main lifecycle remains traceable", "The major-incident fan-out is grouped", "The feedback route stays outside the main flow corridor"],
+      "forbidden_conditions": ["Connectors cross labels", "Feedback looks like a normal forward step", "Parallel notification routes are indistinguishable"],
+      "coverage_tags": ["branching", "crossing_pressure", "dense_graph"]
+    },
+    {
+      "id": "nested-edge-cloud-platform",
+      "family": "nested_architecture",
+      "input_mode": "text",
+      "source": "Create an edge-to-cloud platform with an On-Premises container and a Cloud Platform container. Inside On-Premises, place a Factory Network container holding Sensors, PLC, and Edge Gateway. Inside Cloud Platform, place an Ingestion container with API Gateway and Message Broker, plus an Analytics container with Stream Processor, Data Lake, and Dashboard. Show the telemetry path and the dashboard query path.",
+      "expected_objects": ["on_premises", "factory_network", "sensors", "plc", "edge_gateway", "cloud_platform", "ingestion", "api_gateway", "message_broker", "analytics", "stream_processor", "data_lake", "dashboard"],
+      "expected_relationships": [
+        {"source": "sensors", "target": "plc", "direction": "forward"},
+        {"source": "plc", "target": "edge_gateway", "direction": "forward"},
+        {"source": "edge_gateway", "target": "api_gateway", "direction": "forward"},
+        {"source": "message_broker", "target": "stream_processor", "direction": "forward"},
+        {"source": "dashboard", "target": "data_lake", "direction": "forward", "label": "Queries"}
+      ],
+      "required_conditions": ["Nested containers have visible headers and padding", "Cross-boundary telemetry remains clear", "Children do not collide with container titles"],
+      "forbidden_conditions": ["Nested boundaries are visually merged", "A child extends outside its parent", "Cross-container edges cross headers"],
+      "coverage_tags": ["containment", "nested_containers", "crossing_pressure"]
+    },
+    {
+      "id": "patent-fluid-controller",
+      "family": "patent_schematic",
+      "input_mode": "text",
+      "source": "Create a patent-oriented schematic for fluid-control assembly 100. Housing 110 contains inlet valve 120, pressure sensor 130, controller 140, actuator 150, and outlet valve 160. Fluid flows from the inlet valve through the outlet valve. The pressure sensor reports pressure to the controller, and the controller commands the actuator, which operates both valves. Place reference numerals outside component labels and route leaders without crossing other labels.",
+      "expected_objects": ["assembly", "housing", "inlet_valve", "pressure_sensor", "controller", "actuator", "outlet_valve"],
+      "expected_relationships": [
+        {"source": "pressure_sensor", "target": "controller", "direction": "forward", "label": "Pressure"},
+        {"source": "controller", "target": "actuator", "direction": "forward", "label": "Command"},
+        {"source": "actuator", "target": "inlet_valve", "direction": "forward", "label": "Operates"},
+        {"source": "actuator", "target": "outlet_valve", "direction": "forward", "label": "Operates"}
+      ],
+      "required_conditions": ["Every numbered component has one unambiguous callout", "Fluid and control relationships use distinct styles", "The housing boundary remains clear"],
+      "forbidden_conditions": ["A callout leader crosses a component label", "Reference numerals overlap shapes", "Control flow can be mistaken for fluid flow"],
+      "coverage_tags": ["containment", "reference_callouts", "professional_constraints"]
+    },
+    {
+      "id": "long-label-governance",
+      "family": "long_label",
+      "input_mode": "text",
+      "source": "Create a left-to-right governance workflow using these exact labels: Submit Proposed Customer Data Retention Policy; Privacy and Regulatory Compliance Assessment; Information Security Architecture Review; Business Data Owner Approval; Legal Exception and Risk Acceptance; Publish Approved Retention Schedule. Compliance Assessment and Security Review run in parallel, then join before Business Data Owner Approval. A rejected owner decision routes to Legal Exception and Risk Acceptance and then returns for approval.",
+      "expected_objects": ["submit_policy", "compliance_assessment", "security_review", "owner_approval", "legal_exception", "publish_schedule"],
+      "expected_relationships": [
+        {"source": "submit_policy", "target": "compliance_assessment", "direction": "forward"},
+        {"source": "submit_policy", "target": "security_review", "direction": "forward"},
+        {"source": "owner_approval", "target": "legal_exception", "direction": "forward", "label": "Rejected"},
+        {"source": "owner_approval", "target": "publish_schedule", "direction": "forward", "label": "Approved"}
+      ],
+      "required_conditions": ["Exact labels remain readable without truncation", "Parallel reviews align as peers", "The rejection loop is visually secondary"],
+      "forbidden_conditions": ["Text escapes a shape", "Font size becomes illegible", "The return loop crosses an unrelated label"],
+      "coverage_tags": ["long_labels", "branching", "self_loop"]
+    },
+    {
+      "id": "service-cache-reciprocal-loop",
+      "family": "reciprocal_self_loop",
+      "input_mode": "text",
+      "source": "Create a service interaction diagram with Client, API Service, Cache, Primary Database, and Audit Sink. Client calls API Service. API Service reads and writes Cache using one bidirectional connector, reads and writes Primary Database using one bidirectional connector, retries itself on transient failure using a self-loop labeled Retry, and sends audit events to Audit Sink. Make arrow direction and labels unmistakable.",
+      "expected_objects": ["client", "api_service", "cache", "primary_database", "audit_sink"],
+      "expected_relationships": [
+        {"source": "client", "target": "api_service", "direction": "forward", "label": "Calls"},
+        {"source": "api_service", "target": "cache", "direction": "bidirectional", "label": "Read / Write"},
+        {"source": "api_service", "target": "primary_database", "direction": "bidirectional", "label": "Read / Write"},
+        {"source": "api_service", "target": "api_service", "direction": "forward", "label": "Retry"},
+        {"source": "api_service", "target": "audit_sink", "direction": "forward", "label": "Audit events"}
+      ],
+      "required_conditions": ["Each reciprocal relationship uses one connector", "The Retry self-loop is distinct and readable", "Arrowheads remain on visible boundaries"],
+      "forbidden_conditions": ["Reciprocal arrows are doubled or stacked", "The self-loop crosses the API Service label", "Arrowheads appear inside nodes"],
+      "coverage_tags": ["reciprocal_edges", "self_loop", "connector_labels"]
+    },
+    {
+      "id": "professional-payment-architecture",
+      "family": "professional_style",
+      "input_mode": "professional_spec",
+      "source": {
+        "diagram_type": "system_architecture",
+        "purpose": "Security review of card-payment authorization",
+        "orientation": "left_to_right",
+        "objects": [
+          {"id": "merchant", "label": "Merchant", "role": "external"},
+          {"id": "api_gateway", "label": "Payment API Gateway", "role": "boundary"},
+          {"id": "token_service", "label": "Tokenization Service", "role": "service"},
+          {"id": "authorization", "label": "Authorization Engine", "role": "primary"},
+          {"id": "fraud", "label": "Fraud Scoring", "role": "service"},
+          {"id": "issuer", "label": "Card Issuer", "role": "external"},
+          {"id": "audit", "label": "Immutable Audit Store", "role": "storage"}
+        ],
+        "drafting_constraints": [
+          "Use orthogonal connectors",
+          "Use red only for trust boundaries",
+          "Keep the authorization path on one horizontal axis",
+          "Route audit writes below the main path",
+          "Show untrusted external systems outside the trust boundary"
+        ]
+      },
+      "expected_objects": ["merchant", "api_gateway", "token_service", "authorization", "fraud", "issuer", "audit"],
+      "expected_relationships": [
+        {"source": "merchant", "target": "api_gateway", "direction": "forward"},
+        {"source": "api_gateway", "target": "token_service", "direction": "forward"},
+        {"source": "token_service", "target": "authorization", "direction": "forward"},
+        {"source": "authorization", "target": "fraud", "direction": "bidirectional"},
+        {"source": "authorization", "target": "issuer", "direction": "bidirectional"},
+        {"source": "authorization", "target": "audit", "direction": "forward"}
+      ],
+      "required_conditions": ["The main authorization path shares one horizontal axis", "External systems remain outside the trust boundary", "Audit writes route below the primary corridor"],
+      "forbidden_conditions": ["Decorative colors imply undocumented meaning", "Audit routes cross the authorization path", "Trust boundaries are shown only as labels"],
+      "coverage_tags": ["professional_constraints", "style_constraints", "crossing_pressure"]
+    },
+    {
+      "id": "analysis-import-access-control",
+      "family": "document_reconstruction",
+      "input_mode": "analysis_import",
+      "source": {
+        "artifact_contract": "visiogen-analysis-generation-export-v1",
+        "source_kind": "docx",
+        "review_required": true,
+        "objects": [
+          {"id": "user", "visible_label": "User", "semantic_type": "actor"},
+          {"id": "identity_provider", "visible_label": "Identity Provider", "semantic_type": "service"},
+          {"id": "policy_engine", "visible_label": "Policy Engine", "semantic_type": "process"},
+          {"id": "application", "visible_label": "Protected Application", "semantic_type": "service"},
+          {"id": "audit_log", "visible_label": "Audit Log", "semantic_type": "data_store"}
+        ],
+        "relationships": [
+          {"source": "user", "target": "identity_provider", "direction": "forward", "label": "Credentials"},
+          {"source": "identity_provider", "target": "policy_engine", "direction": "forward", "label": "Identity claims"},
+          {"source": "policy_engine", "target": "application", "direction": "forward", "label": "Permit / Deny"},
+          {"source": "policy_engine", "target": "audit_log", "direction": "forward", "label": "Decision event"}
+        ],
+        "uncertainties": ["The source image does not establish whether Audit Log is inside the application boundary"]
+      },
+      "expected_objects": ["user", "identity_provider", "policy_engine", "application", "audit_log"],
+      "expected_relationships": [
+        {"source": "user", "target": "identity_provider", "direction": "forward", "label": "Credentials"},
+        {"source": "identity_provider", "target": "policy_engine", "direction": "forward", "label": "Identity claims"},
+        {"source": "policy_engine", "target": "application", "direction": "forward", "label": "Permit / Deny"},
+        {"source": "policy_engine", "target": "audit_log", "direction": "forward", "label": "Decision event"}
+      ],
+      "required_conditions": ["Visible labels and directions survive import", "The uncertainty remains explicit for professional review", "No unsupported application boundary is invented"],
+      "forbidden_conditions": ["Uncertainty is silently converted into containment", "Evidence-derived labels are paraphrased", "An unsupported relationship is introduced"],
+      "coverage_tags": ["analysis_import", "professional_constraints", "uncertainty_preservation"]
+    }
+  ]
+}
