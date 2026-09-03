@@ -8,6 +8,7 @@ organized here by purpose.
 - [System overview](architecture/SYSTEM_OVERVIEW.md)
 - [Text-to-VSDX hybrid architecture](architecture/HYBRID_AI.md)
 - [Generation v2 implementation plan](plans/active/GENERATION_V2.md)
+- [Generation pipeline evolution](generation/PIPELINE_EVOLUTION.md)
 - [Generation v2 quality evaluation contract](generation/GENERATION_V2_EVALUATION.md)
 - [Generation v2 diagram specification](generation/DIAGRAM_SPECIFICATION.md)
 - [Generation v2 analysis import](generation/ANALYSIS_IMPORT.md)
