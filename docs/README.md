@@ -12,6 +12,7 @@ organized here by purpose.
 - [Generation v2 diagram specification](generation/DIAGRAM_SPECIFICATION.md)
 - [Generation v2 analysis import](generation/ANALYSIS_IMPORT.md)
 - [Generation v2 construction plan](generation/CONSTRUCTION_PLAN.md)
+- [Generation v2 compiler IR](generation/COMPILER_IR.md)
 
 ## Analysis contracts and completed plan
 
