@@ -1,6 +1,6 @@
 # Visiogen Generation v2 Implementation Plan
 
-**Status:** Active; G0-G2 complete, G3 not started
+**Status:** Active; G0-G2 complete, G3 implementation verified; real-model gate pending
 
 **Date:** 2026-09-03
 
@@ -92,7 +92,7 @@ analysis bundle ----------+                 |
 | G0 | Baseline and contract freeze | Complete | Frozen corpus, rubric, baseline report, tests, and checkpoint lineage |
 | G1 | Professional diagram specification | Complete | Schema, validators, fixtures, CLI parsing, provenance, and checkpoint lineage |
 | G2 | Analysis-to-generation bridge | Complete | Import boundary, reviewed draft workflow, fidelity tests, provenance, and checkpoint lineage |
-| G3 | AI construction planner | Not started | Real-model plans for the frozen corpus |
+| G3 | AI construction planner | In progress | Schema/workflow verified; clean-checkpoint real-model plans pending |
 | G4 | Construction-plan validation and compiler IR | Not started | Hard-validation and deterministic compilation tests |
 | G5 | Native renderer v2 | Not started | Explicit shapes, ports, routes, labels, styles, and callouts |
 | G6 | Visual measurement and diagnostics | Not started | Machine-readable geometry and preview diagnostics |
@@ -287,6 +287,19 @@ Work:
 
 **Exit gate:** A real `gpt-5.6-sol` run produces valid complete construction plans
 for every core diagram family. Fake providers prove plumbing only.
+
+**Current evidence:** The version 1 `VisioConstructionPlan`, completeness and
+semantic validator, prompt/example versioning, three approved-fixture patterns,
+one-repair planner, failure provenance, and clean-source real-model acceptance
+runner are implemented. Deterministic tests cover complete round trips, semantic
+drift, containment, callouts, traceability, bounded repair, prompt restrictions,
+and provenance. See
+[`../../generation/CONSTRUCTION_PLAN.md`](../../generation/CONSTRUCTION_PLAN.md).
+Focused G3 tests pass with 23 generation tests, the generation-owned gate passes
+with 284 tests, and the full repository gate passes with 558 tests. Ruff checks,
+the package build, and acceptance-runner CLI check pass.
+The real `gpt-5.6-sol` exit gate must run after this implementation is committed
+from a clean checkpoint; fake-provider tests do not close G3.
 
 ### G4 — Construction-plan validation and compiler IR
 

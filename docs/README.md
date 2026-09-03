@@ -11,6 +11,7 @@ organized here by purpose.
 - [Generation v2 quality evaluation contract](generation/GENERATION_V2_EVALUATION.md)
 - [Generation v2 diagram specification](generation/DIAGRAM_SPECIFICATION.md)
 - [Generation v2 analysis import](generation/ANALYSIS_IMPORT.md)
+- [Generation v2 construction plan](generation/CONSTRUCTION_PLAN.md)
 
 ## Analysis contracts and completed plan
 
