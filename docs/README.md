@@ -8,6 +8,7 @@ organized here by purpose.
 - [System overview](architecture/SYSTEM_OVERVIEW.md)
 - [Text-to-VSDX hybrid architecture](architecture/HYBRID_AI.md)
 - [Generation v2 implementation plan](plans/active/GENERATION_V2.md)
+- [Generation v2 quality evaluation contract](generation/GENERATION_V2_EVALUATION.md)
 
 ## Analysis contracts and completed plan
 
@@ -34,6 +35,7 @@ organized here by purpose.
 
 ## Acceptance
 
+- [G0 Generation v2 baseline and contract freeze](acceptance/G0_GENERATION_V2_BASELINE.md)
 - [A8 deterministic hardening acceptance](acceptance/A8_HARDENING.md)
 - [A8 AI-assisted release acceptance](acceptance/A8_AI_ASSISTED_ACCEPTANCE.md)
 - [A0–A7 completeness audit](acceptance/A0_A7_COMPLETENESS_AUDIT.md)

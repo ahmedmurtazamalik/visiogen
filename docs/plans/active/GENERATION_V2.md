@@ -1,6 +1,6 @@
 # Visiogen Generation v2 Implementation Plan
 
-**Status:** Planned; G0 not started
+**Status:** Active; G0 implementation and local verification complete, checkpoint pending
 
 **Date:** 2026-09-03
 
@@ -89,7 +89,7 @@ analysis bundle ----------+                 |
 
 | Phase | Name | Status | Exit evidence |
 |---|---|---|---|
-| G0 | Baseline and contract freeze | Not started | Frozen corpus, rubric, current metrics |
+| G0 | Baseline and contract freeze | In progress | Frozen corpus, rubric, current metrics complete; checkpoint commit pending |
 | G1 | Professional diagram specification | Not started | Schema, validators, fixtures, CLI parsing |
 | G2 | Analysis-to-generation bridge | Not started | Reviewed import artifact and fidelity tests |
 | G3 | AI construction planner | Not started | Real-model plans for the frozen corpus |
@@ -137,6 +137,12 @@ Work:
 
 **Exit gate:** The corpus, rubric, baseline report format, and source revision are
 frozen. Missing Windows baseline cases may be marked unavailable, never inferred.
+
+**Current evidence:** The ten-case corpus, frozen thresholds, strict evaluation
+contracts, reproducible baseline builder, quality rubric, and incomplete-but-honest
+Generation v1 baseline are implemented and locally verified. See
+[`../../acceptance/G0_GENERATION_V2_BASELINE.md`](../../acceptance/G0_GENERATION_V2_BASELINE.md).
+The phase remains in progress until its clean checkpoint commit is recorded.
 
 ### G1 — Professional `DiagramSpecification`
 
@@ -432,4 +438,3 @@ Windows/Visio evidence:
 Review decision:
 Known limitations carried forward:
 ```
-
