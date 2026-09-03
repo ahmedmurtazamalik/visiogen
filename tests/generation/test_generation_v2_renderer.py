@@ -115,7 +115,10 @@ def _connector(
         ),
         label=IRConnectorLabel(
             text=label,
-            position=points[len(points) // 2],
+            position=IRPoint(
+                x=(points[0].x + points[-1].x) / 2,
+                y=(points[0].y + points[-1].y) / 2,
+            ),
             offset=0.1,
             orientation="horizontal",
             background="opaque",
@@ -239,6 +242,100 @@ def _comprehensive_ir() -> RendererIR:
     )
 
 
+def professional_acceptance_ir() -> RendererIR:
+    housing = _shape(
+        "shape_housing",
+        "Signal Processing System",
+        "__template_housing_container__",
+        (0.5, 0.6, 10, 5.8),
+        0,
+        container=IRContainer(
+            header_text="Signal Processing System",
+            header_height=0.45,
+            padding=0.35,
+            member_ids=("sensor", "controller", "database"),
+            clipping="contain",
+        ),
+    )
+    sensor = _shape(
+        "shape_sensor", "Sensor", "__template_sensor__", (1.25, 2.4, 1.8, 1.4), 1
+    )
+    controller = _shape(
+        "shape_controller",
+        "Controller",
+        "__template_controller__",
+        (4.35, 2.35, 2.3, 1.5),
+        2,
+    )
+    database = _shape(
+        "shape_database",
+        "Event Store",
+        "__template_database__",
+        (7.85, 2.4, 1.9, 1.4),
+        3,
+    )
+    sensor_data = _connector(
+        "sensor_data",
+        "shape_sensor",
+        "right",
+        "shape_controller",
+        "left",
+        ((3.05, 3.1), (4.35, 3.1)),
+        10,
+        connector_type="dynamic",
+        label="sensor data",
+    )
+    event_stream = _connector(
+        "event_stream",
+        "shape_controller",
+        "right",
+        "shape_database",
+        "left",
+        ((6.65, 3.1), (7.85, 3.1)),
+        11,
+        connector_type="dynamic",
+        label="event stream",
+    )
+    return RendererIR(
+        source_engine="v2",
+        page=IRPage(width=11, height=7, orientation="landscape", margin=0.4, grid=0.25),
+        regions=(),
+        guides=(),
+        shapes=(housing, sensor, controller, database),
+        connectors=(sensor_data, event_stream),
+        callouts=(
+            IRCallout(
+                id="callout_sensor",
+                object_id="sensor",
+                master_marker="__template_reference_callout__",
+                master_name="Reference Callout",
+                text="110",
+                rect=IRRect(x=1.65, y=4.25, width=0.8, height=0.35),
+                target_anchor=IRPoint(x=2.15, y=3.8),
+                leader_route=(
+                    IRPoint(x=2.05, y=4.25),
+                    IRPoint(x=2.15, y=3.8),
+                ),
+                z_order=20,
+            ),
+            IRCallout(
+                id="callout_controller",
+                object_id="controller",
+                master_marker="__template_reference_callout__",
+                master_name="Reference Callout",
+                text="120",
+                rect=IRRect(x=5.1, y=4.25, width=0.8, height=0.35),
+                target_anchor=IRPoint(x=5.5, y=3.85),
+                leader_route=(
+                    IRPoint(x=5.5, y=4.25),
+                    IRPoint(x=5.5, y=3.85),
+                ),
+                z_order=21,
+            ),
+        ),
+    )
+
+
 def test_render_ir_preserves_native_structure_routes_ports_and_callouts(
     tmp_path: Path,
 ) -> None:
@@ -268,10 +365,16 @@ def test_render_ir_preserves_native_structure_routes_ports_and_callouts(
         rows = horizontal.xml.findall(
             f"{namespace}Section[@N='Geometry'][@IX='0']/{namespace}Row"
         )
-        assert [row.attrib["T"] for row in rows] == ["MoveTo", "LineTo"]
+        assert [row.attrib["T"] for row in rows if row.attrib.get("Del") != "1"] == [
+            "MoveTo",
+            "LineTo",
+        ]
+        assert any(row.attrib.get("Del") == "1" for row in rows)
         assert horizontal.cell_value("LinePattern") == "2"
         assert horizontal.cell_value("EndArrow") == "4"
         assert horizontal.cell_value("TextBkgnd") == "#FFFFFF"
+        assert horizontal.cells["BeginX"].xml.attrib["F"] == "No Formula"
+        assert horizontal.cells["TxtPinX"].xml.attrib["F"] == "No Formula"
         connection_cells = {
             item.xml.attrib["FromCell"]: item.xml.attrib["ToCell"]
             for item in page.connects
@@ -318,13 +421,31 @@ def test_render_ir_preserves_native_structure_routes_ports_and_callouts(
         assert float(inner_label.cell_value("TxtHeight")) == pytest.approx(0.4)
         assert f"Sheet.{outer.ID}!SheetRef()" in inner.cell_formula("Relationships")
         assert f"Sheet.{inner.ID}!SheetRef()" in shape_a.cell_formula("Relationships")
+        assert f"Sheet.{shape_a.ID}!SheetRef()" in inner.cell_formula("Relationships")
+        assert f"Sheet.{shape_c.ID}!SheetRef()" in inner.cell_formula("Relationships")
+        assert inner.cell_value("DontMoveChildren") == "1"
+        resize = inner.xml.find(
+            f"{namespace}Section[@N='User']/{namespace}Row[@N='msvSDContainerResize']/{namespace}Cell[@N='Value']"
+        )
+        assert resize.attrib["V"] == "0"
 
         callout = _outer(page.find_shape_by_text("101"))
         assert f"Sheet.{shape_a.ID}!SheetRef()" in callout.cell_formula("Relationships")
+        assert float(callout.cell_value("TxtWidth")) == pytest.approx(0.8)
         leader_rows = callout.xml.findall(
             f"{namespace}Section[@N='Geometry'][@IX='0']/{namespace}Row"
         )
-        assert [row.attrib["T"] for row in leader_rows] == ["MoveTo", "LineTo"]
+        assert [
+            row.attrib["T"]
+            for row in leader_rows
+            if row.attrib.get("Del") != "1"
+        ] == ["MoveTo", "LineTo"]
+        leader_end = next(
+            row for row in leader_rows if row.attrib.get("IX") == "2"
+        )
+        assert f"Sheet.{shape_a.ID}!PinX" in leader_end.find(
+            f"{namespace}Cell[@N='X']"
+        ).attrib["F"]
 
 
 def test_render_ir_keeps_requested_z_order(tmp_path: Path) -> None:
@@ -346,3 +467,58 @@ def test_render_ir_keeps_requested_z_order(tmp_path: Path) -> None:
 
     assert labels[:5] == ["Outer", "Inner", "A", "B", "C"]
     assert labels[-1] == "101"
+
+
+def test_professional_acceptance_candidate_is_structurally_valid(
+    tmp_path: Path,
+) -> None:
+    output = render_ir(
+        TEMPLATE,
+        professional_acceptance_ir(),
+        tmp_path / "g5-professional-acceptance.vsdx",
+    )
+
+    validate_vsdx_package(output)
+    with VisioFile(str(output)) as document:
+        page = document.get_page_by_name("Template Palette")
+        housing = _outer(page.find_shape_by_text("Signal Processing System"))
+        sensor = _outer(page.find_shape_by_text("Sensor"))
+        controller = _outer(page.find_shape_by_text("Controller"))
+        database = _outer(page.find_shape_by_text("Event Store"))
+        assert (housing.x, housing.y, housing.width, housing.height) == pytest.approx(
+            (5.5, 3.5, 10, 5.8)
+        )
+        assert housing.cells["Width"].xml.attrib["F"] == "No Formula"
+        assert sensor.cells["Width"].xml.attrib["F"] == "No Formula"
+        active_children = [
+            child for child in housing.child_shapes if child.xml.attrib.get("Del") != "1"
+        ]
+        assert len(active_children) == 1
+        header = active_children[0]
+        assert all(child.xml.attrib.get("Del") == "1" for child in header.child_shapes)
+        assert len(header.xml.findall(f"{namespace}Section[@N='Geometry']")) == 1
+        housing_rows = housing.xml.findall(
+            f"{namespace}Section[@N='Geometry'][@IX='0']/{namespace}Row"
+        )
+        assert [row.attrib["T"] for row in housing_rows] == [
+            "MoveTo",
+            "LineTo",
+            "LineTo",
+            "LineTo",
+            "LineTo",
+        ]
+        assert f"Sheet.{sensor.ID}!SheetRef()" in housing.cell_formula("Relationships")
+        assert f"Sheet.{controller.ID}!SheetRef()" in housing.cell_formula(
+            "Relationships"
+        )
+        assert f"Sheet.{database.ID}!SheetRef()" in housing.cell_formula(
+            "Relationships"
+        )
+        assert len({item.from_id for item in page.connects}) == 2
+        connector_ids = {item.from_id for item in page.connects}
+        for connector_id in connector_ids:
+            connector = next(
+                shape for shape in page.all_shapes if shape.ID == connector_id
+            )
+            assert connector.cell_formula("BeginX").startswith("_WALKGLUE(")
+            assert connector.cell_formula("EndX").startswith("_WALKGLUE(")

@@ -16,7 +16,9 @@ It does not move, resize, reroute, or restyle plan elements.
 For each shape, the renderer applies the selected master, exact rectangle, text
 box, typography, fill, line style, named connection points, and z-order. Native
 container shapes retain their structure metadata; membership is represented by
-Visio `SheetRef` dependency formulas. The requested padding is written to the
+reciprocal Visio `SheetRef` dependency formulas on both the container and each
+member. Native auto-resize is disabled so Visio preserves the validated IR
+geometry when opening the document. The requested padding is written to the
 container margin cell and the header receives its explicit height.
 
 Explicit straight, orthogonal, and polyline connectors receive local `MoveTo` and
@@ -46,3 +48,20 @@ editing, endpoint movement, save, close, and reopen. Run the generated candidate
 through `scripts/validate_in_visio.ps1` with at least two connected shape labels.
 G5 must remain open until that checksum-bound Windows report and manual review are
 available.
+
+The comprehensive topology fixture is a structural stress test, not a visual
+acceptance candidate. Windows visual review must use the restrained
+`g5-professional-acceptance-v6.vsdx` fixture containing one housing, three
+components, two labeled routes, and two reference callouts. Its explicit geometry,
+text, route, and style cells block inherited master formulas so desktop Visio does
+not restore template defaults during recalculation. Group children scale with the
+planned outer shape, and unused inherited geometry rows are explicitly deleted.
+The container body is rendered on the group root so Visio cannot detach the
+template's nested body subshape from its header during container recalculation.
+The header is likewise reduced to one explicit rectangle so inherited decorative
+geometry cannot draw outside the housing.
+
+Windows move/undo review is mandatory, not optional visual polish. The restrained
+candidate uses native movement-aware connector glue, target-relative callout leader
+endpoints, and explicit deleted overrides for suppressed master children so opening,
+moving, and undoing cannot resurrect cached master geometry.

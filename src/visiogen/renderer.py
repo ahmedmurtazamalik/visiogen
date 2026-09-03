@@ -762,7 +762,102 @@ def _set_section_cell(
     if cell is None:
         cell = ET.SubElement(row, f"{namespace}Cell", {"N": cell_name})
     cell.attrib["V"] = value
-    cell.attrib.pop("F", None)
+    cell.attrib["F"] = "No Formula"
+
+
+def _block_master_inheritance(shape: Shape, names: Collection[str]) -> None:
+    """Make G5 cached cell values authoritative when desktop Visio recalculates."""
+
+    for name in names:
+        cell = shape.cells.get(name)
+        if cell is None:
+            raise RenderingError(f"cannot block missing cell '{name}' on shape {shape.ID}")
+        cell.xml.attrib["F"] = "No Formula"
+
+
+def _resize_group_children(shape: Shape, width: float, height: float) -> None:
+    """Scale copied group children to the requested instance dimensions."""
+
+    old_width = float(shape.cell_value("Width"))
+    old_height = float(shape.cell_value("Height"))
+    scale_x = width / old_width
+    scale_y = height / old_height
+    for child in shape.child_shapes:
+        child_width = float(child.cell_value("Width")) * scale_x
+        child_height = float(child.cell_value("Height")) * scale_y
+        _resize_group_children(child, child_width, child_height)
+        for name, value in (
+            ("PinX", float(child.cell_value("PinX")) * scale_x),
+            ("PinY", float(child.cell_value("PinY")) * scale_y),
+            ("Width", child_width),
+            ("Height", child_height),
+            ("LocPinX", float(child.cell_value("LocPinX")) * scale_x),
+            ("LocPinY", float(child.cell_value("LocPinY")) * scale_y),
+        ):
+            _set_local_cell_value(child, name, f"{value:.15g}")
+        _block_master_inheritance(
+            child, ("PinX", "PinY", "Width", "Height", "LocPinX", "LocPinY")
+        )
+
+
+def _delete_unused_master_geometry_rows(shape: Shape, used: set[int]) -> None:
+    if shape.master_shape is None:
+        return
+    geometry = shape.xml.find(f"{namespace}Section[@N='Geometry'][@IX='0']")
+    master_geometry = shape.master_shape.xml.find(
+        f"{namespace}Section[@N='Geometry'][@IX='0']"
+    )
+    if geometry is None or master_geometry is None:
+        return
+    for master_row in master_geometry.findall(f"{namespace}Row"):
+        index = int(master_row.attrib["IX"])
+        if index not in used:
+            ET.SubElement(
+                geometry,
+                f"{namespace}Row",
+                {"T": master_row.attrib.get("T", "LineTo"), "IX": str(index), "Del": "1"},
+            )
+
+
+def _replace_rectangle_geometry(shape: Shape, width: float, height: float) -> None:
+    for section in shape.xml.findall(f"{namespace}Section[@N='Geometry']"):
+        shape.xml.remove(section)
+    geometry = ET.SubElement(
+        shape.xml, f"{namespace}Section", {"N": "Geometry", "IX": "0"}
+    )
+    for index, (row_type, x, y) in enumerate(
+        (
+            ("MoveTo", 0.0, 0.0),
+            ("LineTo", width, 0.0),
+            ("LineTo", width, height),
+            ("LineTo", 0.0, height),
+            ("LineTo", 0.0, 0.0),
+        ),
+        start=1,
+    ):
+        row = ET.SubElement(
+            geometry, f"{namespace}Row", {"T": row_type, "IX": str(index)}
+        )
+        ET.SubElement(row, f"{namespace}Cell", {"N": "X", "V": f"{x:.15g}"})
+        ET.SubElement(row, f"{namespace}Cell", {"N": "Y", "V": f"{y:.15g}"})
+
+
+def _replace_container_body(shape: Shape, header: Shape, width: float, height: float) -> None:
+    """Render the housing body on the group root, independent of master internals."""
+
+    shapes = shape.xml.find(f"{namespace}Shapes")
+    if shapes is None:
+        raise RenderingError(f"container shape {shape.ID} has no child Shapes element")
+    header_root = header
+    while (
+        isinstance(header_root.parent, Shape)
+        and header_root.parent.ID != shape.ID
+    ):
+        header_root = header_root.parent
+    for child in list(shape.child_shapes):
+        if child.ID != header_root.ID:
+            child.xml.attrib["Del"] = "1"
+    _replace_rectangle_geometry(shape, width, height)
 
 
 def _to_visio_point(page_height: float, point: IRPoint) -> tuple[float, float]:
@@ -803,6 +898,12 @@ def _configure_ir_text(
     )
     _set_local_cell_value(label_shape, "TxtWidth", f"{owner.text_box.width:.15g}")
     _set_local_cell_value(label_shape, "TxtHeight", f"{owner.text_box.height:.15g}")
+    _set_local_cell_value(
+        label_shape, "TxtLocPinX", f"{owner.text_box.width / 2:.15g}"
+    )
+    _set_local_cell_value(
+        label_shape, "TxtLocPinY", f"{owner.text_box.height / 2:.15g}"
+    )
     _set_local_cell_value(
         label_shape,
         "VerticalAlign",
@@ -860,16 +961,27 @@ def _configure_container_header(label_shape: Shape, plan: IRShape) -> None:
     if plan.container is None:
         return
     width = plan.rect.width - 2 * plan.container.padding
-    _set_local_cell_value(label_shape, "TxtPinX", f"{plan.rect.width / 2:.15g}")
-    _set_local_cell_value(
-        label_shape,
-        "TxtPinY",
-        f"{plan.rect.height - plan.container.header_height / 2:.15g}",
-    )
+    height = plan.container.header_height
+    child_shapes = label_shape.xml.find(f"{namespace}Shapes")
+    if child_shapes is not None:
+        for child in label_shape.child_shapes:
+            child.xml.attrib["Del"] = "1"
+    _replace_rectangle_geometry(label_shape, width, height)
+    for name, value in (
+        ("PinX", plan.rect.width / 2),
+        ("PinY", plan.rect.height - height / 2),
+        ("Width", width),
+        ("Height", height),
+        ("LocPinX", width / 2),
+        ("LocPinY", height / 2),
+        ("TxtPinX", width / 2),
+        ("TxtPinY", height / 2),
+        ("TxtLocPinX", width / 2),
+        ("TxtLocPinY", height / 2),
+    ):
+        _set_local_cell_value(label_shape, name, f"{value:.15g}")
     _set_local_cell_value(label_shape, "TxtWidth", f"{width:.15g}")
-    _set_local_cell_value(
-        label_shape, "TxtHeight", f"{plan.container.header_height:.15g}"
-    )
+    _set_local_cell_value(label_shape, "TxtHeight", f"{height:.15g}")
 
 
 def _add_ir_connection(
@@ -929,6 +1041,7 @@ def _replace_route_geometry(
         )
         ET.SubElement(row, f"{namespace}Cell", {"N": "X", "V": f"{x - minimum_x:.15g}"})
         ET.SubElement(row, f"{namespace}Cell", {"N": "Y", "V": f"{y - minimum_y:.15g}"})
+    _delete_unused_master_geometry_rows(connector, set(range(1, len(points) + 1)))
 
 
 def _style_ir_connector(connector: Shape, plan: IRConnector) -> None:
@@ -994,6 +1107,17 @@ def _configure_ir_callout(
         ("LocPinY", plan.rect.height / 2),
     ):
         _set_local_cell_value(callout, name, f"{value:.15g}")
+    for name, value in (
+        ("TxtPinX", plan.rect.width / 2),
+        ("TxtPinY", plan.rect.height / 2),
+        ("TxtWidth", plan.rect.width),
+        ("TxtHeight", plan.rect.height),
+        ("TxtLocPinX", plan.rect.width / 2),
+        ("TxtLocPinY", plan.rect.height / 2),
+        ("VerticalAlign", 1),
+    ):
+        _set_local_cell_value(callout, name, f"{value:.15g}")
+    _set_section_cell(callout, "Paragraph", {"IX": "0"}, "HorzAlign", "1")
     _set_local_cell_formula(
         callout,
         "Relationships",
@@ -1021,19 +1145,38 @@ def _configure_ir_callout(
         ET.SubElement(
             row, f"{namespace}Cell", {"N": "Y", "V": f"{point_y - owner_bottom:.15g}"}
         )
+        if index == len(route):
+            row.find(f"{namespace}Cell[@N='X']").attrib["F"] = (
+                f"Sheet.{target.ID}!PinX-PinX+LocPinX"
+            )
+            row.find(f"{namespace}Cell[@N='Y']").attrib["F"] = (
+                f"Sheet.{target.ID}!PinY-PinY+LocPinY"
+            )
+    _delete_unused_master_geometry_rows(callout, set(range(1, len(route) + 1)))
+
+
+def _add_relationship(shape: Shape, relationship: int, targets: list[Shape]) -> None:
+    if not targets:
+        return
+    dependency = "DEPENDSON(" + str(relationship) + "," + ",".join(
+        f"Sheet.{target.ID}!SheetRef()" for target in targets
+    ) + ")"
+    existing = shape.cell_formula("Relationships")
+    if existing and existing.startswith("SUM(") and existing.endswith(")"):
+        dependency = existing[4:-1] + "," + dependency
+    _set_local_cell_formula(shape, "Relationships", "0", f"SUM({dependency})")
 
 
 def _apply_container_membership(container: Shape, members: list[Shape]) -> None:
     _set_section_cell(
         container, "User", {"N": "msvStructureType"}, "Value", "Container"
     )
+    _set_section_cell(container, "User", {"N": "msvSDContainerResize"}, "Value", "0")
+    _set_local_cell_value(container, "DontMoveChildren", "1")
+    _block_master_inheritance(container, ("DontMoveChildren",))
+    _add_relationship(container, 1, members)
     for member in members:
-        _set_local_cell_formula(
-            member,
-            "Relationships",
-            "0",
-            f"SUM(DEPENDSON(4,Sheet.{container.ID}!SheetRef()))",
-        )
+        _add_relationship(member, 4, [container])
 
 
 def _reorder_ir_shapes(page: Page, order: list[tuple[int, int, Shape]]) -> None:
@@ -1215,6 +1358,9 @@ def render_ir(
             label = _find_marker_shape(copied, plan.master_marker)
             label.text = plan.container.header_text if plan.container else plan.text
             x, y, width, height = _shape_geometry(ir.page.height, plan)
+            _resize_group_children(copied, width, height)
+            if plan.container:
+                _replace_container_body(copied, label, width, height)
             for name, value in (
                 ("PinX", x),
                 ("PinY", y),
@@ -1224,9 +1370,25 @@ def render_ir(
                 ("LocPinY", height / 2),
             ):
                 _set_local_cell_value(copied, name, f"{value:.15g}")
+            _set_local_cell_value(copied, "Relationships", "0")
             _style_ir_shape(copied, plan)
             _configure_ir_text(label, plan, ir.page.height)
             _configure_container_header(label, plan)
+            _block_master_inheritance(
+                copied,
+                (
+                    "PinX", "PinY", "Width", "Height", "LocPinX", "LocPinY",
+                    "FillForegnd", "LineColor", "LineWeight", "LinePattern",
+                ),
+            )
+            _block_master_inheritance(
+                label,
+                (
+                    "PinX", "PinY", "Width", "Height", "LocPinX", "LocPinY",
+                    "TxtPinX", "TxtPinY", "TxtLocPinX", "TxtLocPinY",
+                    "TxtWidth", "TxtHeight", "VerticalAlign",
+                ),
+            )
             _replace_connection_points(copied, plan, ir.page.height)
             if plan.container:
                 _set_section_cell(
@@ -1279,6 +1441,13 @@ def render_ir(
                     _set_local_cell_value(connector, name, f"{value:.15g}")
                 _replace_route_geometry(connector, plan.route, ir.page.height)
                 _set_local_cell_value(connector, "RouteStyle", "16")
+                _block_master_inheritance(
+                    connector,
+                    (
+                        "BeginX", "BeginY", "EndX", "EndY", "PinX", "PinY",
+                        "Width", "Height", "LocPinX", "LocPinY", "RouteStyle",
+                    ),
+                )
             _add_ir_connection(
                 palette.page,
                 connector,
@@ -1295,6 +1464,18 @@ def render_ir(
             )
             _style_ir_connector(connector, plan)
             _configure_connector_label(connector, plan, ir.page.height)
+            _block_master_inheritance(
+                connector,
+                (
+                    "BeginArrow", "EndArrow", "LinePattern", "LineWeight",
+                    "LineColor", "ConLineJumpCode",
+                ),
+            )
+            if plan.label is not None:
+                label_cells = ["TxtPinX", "TxtPinY", "HideText", "TextBkgnd"]
+                if plan.label.orientation == "along_route":
+                    label_cells.append("TxtAngle")
+                _block_master_inheritance(connector, label_cells)
             render_order.append((plan.z_order, sequence, connector))
             sequence += 1
 
@@ -1306,6 +1487,14 @@ def render_ir(
             _find_marker_shape(callout, plan.master_marker).text = plan.text
             _configure_ir_callout(
                 callout, plan, shapes_by_object[plan.object_id], ir.page.height
+            )
+            _block_master_inheritance(
+                callout,
+                (
+                    "PinX", "PinY", "Width", "Height", "LocPinX", "LocPinY",
+                    "TxtPinX", "TxtPinY", "TxtWidth", "TxtHeight", "VerticalAlign",
+                    "TxtLocPinX", "TxtLocPinY",
+                ),
             )
             render_order.append((plan.z_order, sequence, callout))
             sequence += 1

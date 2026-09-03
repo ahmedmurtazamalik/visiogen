@@ -402,6 +402,19 @@ The phase remains open because desktop Microsoft Visio is unavailable in this
 environment; the required move/save/close/reopen smoke test and manual review have
 not been run.
 
+The first Windows-opened structural stress fixture failed visual review: Visio
+recalculated incomplete one-sided container membership, changing container and
+member geometry, while the intentionally combined topology routes were unsuitable
+as a professional acceptance sample. The renderer now records reciprocal native
+membership, disables container auto-resize, fixes callout text geometry, and has a
+separate restrained professional acceptance fixture. Windows re-validation of
+that replacement candidate remains pending.
+
+Post-remediation local verification: 56 focused compiler/renderer/package/boundary
+tests, 295 generation-owned tests, and 569 full-repository tests passed; package
+build also passed. Replacement candidate SHA-256:
+`7c37bebb9e9586a69f9946e531813c84e6575068bfc89397facb916023b56b8c`.
+
 Local verification: 55 focused compiler/renderer/package/boundary tests, 294
 generation-owned tests, and 568 full-repository tests passed; package build and
 CLI help smoke check also passed.
@@ -530,6 +543,31 @@ Work:
 **Exit gate:** All supported corpus cases pass automated native lifecycle checks and
 manual visual review. The release record states the supported scope and remaining
 limitations without borrowing evidence from document analysis.
+
+Windows review of the first restrained candidate found a second native-rendering
+failure: Visio reopened the package without warnings but reapplied master formulas,
+restoring template sizes and displacing text, connectors, and callouts. The G5-only
+renderer now writes explicit `No Formula` overrides for authoritative cached cells
+while preserving dynamic connector glue formulas. Replacement candidate:
+The second Windows screenshot then exposed inherited geometry inside grouped
+container children, inherited text-block origins, and an undeleted third master
+geometry row on each explicit connector. The third Windows screenshot confirmed
+those fixes and isolated the remaining defect to the container master's nested
+body subshape, which Visio detached from its correctly positioned header. The body
+is now rendered directly on the container group root. The fourth Windows screenshot
+showed correct containment and isolated one final inherited decorative geometry
+section in the header; the header is now a single explicit rectangle. Replacement
+The fifth Windows review showed that first-open appearance was correct but native
+move/undo behavior still failed: explicit routes did not follow their endpoints,
+callout leaders stayed behind, and removed instance children were inherited again
+from the master. Suppressed master children are now retained with explicit deletion
+markers, the acceptance routes use native movement-aware glue, and callout leader
+ends reference target pins. Replacement candidate:
+`artifacts/g5-professional-acceptance-v6.vsdx`,
+SHA-256
+`aaeb85078def9656c0f135ba07e5be71afbafe6dc3c57946db3099d24f09507c`.
+G5 remains in progress pending Windows open/edit/move/save/reopen review of that
+exact artifact.
 
 ### GX — Constrained direct-VSDX XML research experiment
 
