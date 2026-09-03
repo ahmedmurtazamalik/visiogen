@@ -16,6 +16,8 @@ from visiogen.generation.compiler import (
 )
 from visiogen.generation.construction import VisioConstructionPlan
 from visiogen.generation.specification import DiagramSpecification, load_specification
+from visiogen.renderer import render_ir
+from visiogen.validation import validate_vsdx_package
 
 SPEC = Path("tests/fixtures/generation_v2/specifications/expert-component.json")
 
@@ -204,7 +206,10 @@ def test_compilation_is_deterministic_resolved_and_immutable() -> None:
     assert first.source_engine == "v2"
     by_object = {shape.object_id: shape for shape in first.shapes}
     assert by_object["housing"].master_name == "Housing"
+    assert by_object["housing"].text == "Housing"
     assert by_object["sensor"].ports[1].x == 3.5
+    assert first.connectors[0].source_shape_id == "shape_sensor"
+    assert first.connectors[0].target_port == "left"
     assert first.connectors[0].route[0].model_dump() == {"x": 3.5, "y": 2.95}
     assert first.connectors[0].route[-1].model_dump() == {"x": 6.0, "y": 2.9}
     with pytest.raises(ValidationError):
@@ -308,3 +313,11 @@ def test_v1_adapter_is_explicitly_tagged_and_deterministic() -> None:
     assert first == compile_v1_design(design)
     assert first.source_engine == "v1_compatibility"
     assert first.shapes and first.connectors
+
+
+def test_v1_adapter_remains_renderable_during_migration(tmp_path: Path) -> None:
+    ir = compile_v1_design(DiagramDesign.model_validate(valid_design_data()))
+
+    output = render_ir(Path("templates/template.vsdx"), ir, tmp_path / "v1-ir.vsdx")
+
+    validate_vsdx_package(output)
