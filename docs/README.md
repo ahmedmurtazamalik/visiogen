@@ -13,6 +13,7 @@ organized here by purpose.
 - [Generation v2 analysis import](generation/ANALYSIS_IMPORT.md)
 - [Generation v2 construction plan](generation/CONSTRUCTION_PLAN.md)
 - [Generation v2 compiler IR](generation/COMPILER_IR.md)
+- [Generation v2 native renderer](generation/NATIVE_RENDERER_V2.md)
 
 ## Analysis contracts and completed plan
 

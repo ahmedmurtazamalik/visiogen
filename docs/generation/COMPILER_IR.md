@@ -10,6 +10,7 @@ facts required by a native renderer.
 The immutable IR contains:
 
 - canonical native master marker and master name pairs;
+- exact visible shape text and connector endpoint/port ownership;
 - normalized color tokens and strict typography, shape, and connector styles;
 - absolute named-port coordinates;
 - connector routes including resolved source and target endpoints;
