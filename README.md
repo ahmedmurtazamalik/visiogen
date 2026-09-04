@@ -14,7 +14,11 @@ directions:
 2. **Document analysis:** inspect diagrams in PDF or DOCX documents, describe their
    visible semantics, and compare them with related document text.
 
-The generation pipeline is implemented. Document analysis has completed safe
+The Generation v1 pipeline and public CLI are implemented. Generation v2 is being
+introduced incrementally: its specification, analysis-import, construction-plan,
+compiler, and native-renderer contracts are implemented, while visual diagnostics,
+iterative editing, vertical integration, comparative evaluation, and Windows
+cutover remain open. Document analysis has completed safe
 deterministic PDF/DOCX ingestion, diagram discovery/image preparation, and accepted
 evidence-grounded visual observation, semantic reconstruction, faithful textual
 description, bounded document-text claim extraction, conservative entity alignment,
@@ -42,9 +46,10 @@ The paths share narrowly scoped provider and configuration infrastructure, but
 neither depends on the other. Generation work can continue while document analysis
 is developed independently.
 
-## Hybrid-AI architecture
+## Generation architecture
 
-Visiogen now uses a hybrid design pipeline rather than limiting the LLM to semantic extraction:
+The public `visiogen generate` command currently uses the Generation v1 hybrid
+pipeline:
 
 ```text
 text request
@@ -60,7 +65,29 @@ text request
 
 Output is intentionally allowed to vary between runs. Code remains authoritative for hard invariants and VSDX package safety; AI contributes semantic judgment, hierarchy, composition, geometry, and image-grounded improvement. The model never authors VSDX XML or ShapeSheet formulas directly.
 
-The authoritative generation contract is
+Generation v2 separates what the diagram must communicate from how Visio should
+construct it:
+
+```text
+natural language / professional specification / analysis bundle
+→ validated DiagramSpecification
+→ AI-authored VisioConstructionPlan
+→ deterministic validation and renderer-neutral compilation
+→ native VSDX renderer
+→ Microsoft Visio preview and visual diagnostics
+→ bounded visual edit patches
+→ preview re-approval and native lifecycle acceptance
+```
+
+G0–G4 are complete. The G5 native renderer is implemented and passes Linux
+structural verification; its checksum-bound Windows Visio lifecycle gate is still
+pending. It is not yet wired into the public generation command, so the existing
+Generation v1 path remains the supported CLI behavior until the v2 release gates
+are complete. See the [Generation v2 implementation plan](docs/plans/active/GENERATION_V2.md),
+[native renderer contract](docs/generation/NATIVE_RENDERER_V2.md), and
+[pipeline evolution](docs/generation/PIPELINE_EVOLUTION.md).
+
+The authoritative contract for the current public pipeline is
 [`docs/architecture/HYBRID_AI.md`](docs/architecture/HYBRID_AI.md).
 
 ## Generate a diagram
