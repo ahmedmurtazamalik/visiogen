@@ -628,6 +628,23 @@ outside the begin/end envelope across move, undo, redo, save, and reopen. Focuse
 replacement candidate: `artifacts/g5-connector-acceptance-v9.vsdx`, SHA-256
 `30f115a4cd56b62dba56d9aa3944797aaa6238e14aaaf10aeb47ad8b35e0864b`.
 
+Broader event-driven and IoT generations then exposed two related instance/render
+defects that the small candidate did not exercise. Copied palette objects retained
+inherited-only cached Geometry at the palette dimensions after their Width/Height
+changed, making visible outlines overlap, leave the page, and surround otherwise
+correct edge ports. Orthogonal routes also remained frozen at old page-coordinate
+bends, so moving an endpoint across a bend reversed the final leg and visually
+flipped the arrowhead. Generated nodes now discard inherited-only Geometry,
+Scratch, Control, and User caches before resizing; their named ports use
+Width/Height-relative formulas. Straight and orthogonal routes use
+`ConFixedCode=0`; explicitly requested freeform polylines retain fixed authored
+bends. Suppressed
+container descendants are recursively hidden and container headers receive an
+explicit contrasting fill. The construction/compiler gate now also enforces page
+margins, minimum container padding, and same-parent sibling clearance. Linux
+package validation passes for normalized reproductions of both reported plans;
+Windows move/undo/redo/save/reopen and manual visual review remain required.
+
 ### GX — Constrained direct-VSDX XML research experiment
 
 **Purpose:** Test the user's direct-authoring hypothesis without putting production

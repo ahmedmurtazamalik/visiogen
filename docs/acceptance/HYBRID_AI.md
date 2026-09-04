@@ -55,7 +55,7 @@ This is package bloat, not 19 page dependencies. Pruning is deferred until the i
 
 Current corrected-tree results:
 
-- Full automated suite: **248 tests passed**.
+- Full automated suite: **609 tests passed**.
 - Focused Ruff checks passed for the migration modules and tests.
 - Focused mypy checks passed for the seven hybrid source modules.
 - Source distribution and wheel built successfully.

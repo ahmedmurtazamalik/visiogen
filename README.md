@@ -79,10 +79,14 @@ G0–G4 are complete, the G5 renderer passes its local structural gate, and the 
 vertical path is wired into the public CLI. G6 visual diagnostics and G7 iterative
 editing were not required for the first complete text/specification-to-VSDX path
 and remain deferred. Windows Visio lifecycle acceptance and comparative quality
-evaluation are still pending. Explicit connectors now use live named-port glue,
-Visio-native inward direction vectors, consistent connection-row metadata, and
-movement-aware route geometry. The Windows gate checks endpoint movement and rejects
-straight-line detours across move, undo, redo, save, and reopen. See the
+evaluation are still pending. Generated shapes discard stale palette-size geometry
+caches so their native master outlines match the planned bounds. Straight and
+orthogonal connectors use live, resize-aware named ports plus Visio-native
+rerouting; explicitly requested freeform polylines retain their bends. The Windows
+gate crosses an old orthogonal bend and checks endpoint movement, terminal-leg
+direction, and straight-line detours across move, undo, redo, save, and reopen.
+The construction gate also reserves the declared page margin, container padding,
+and a minimum same-parent sibling gap. See the
 [Generation v2 implementation plan](docs/plans/active/GENERATION_V2.md),
 [native renderer contract](docs/generation/NATIVE_RENDERER_V2.md), and
 [pipeline evolution](docs/generation/PIPELINE_EVOLUTION.md).
