@@ -78,23 +78,28 @@ Do not approve a prompt merely to make the automation continue.
 1. open page one in Microsoft Visio through COM;
 2. export `preview-before.png`;
 3. locate two named connected shapes, including labels nested inside native groups;
-4. move both shapes in X and Y through writable `PinX`/`PinY` cells;
+4. move both shapes through writable `PinX`/`PinY` cells, preferring a safe
+   translation that crosses an endpoint-adjacent orthogonal bend;
 5. verify every `Connect.ToPart` agrees with the target cell's effective native row;
 6. verify the exact native connection signatures remain unchanged and every
    attached connector endpoint actually moves;
 7. reject any straight connector whose rendered geometry leaves its begin/end
    envelope, which catches loop-back and rectangular detours;
-8. undo and verify the exact original shape and connector-endpoint coordinates;
-9. redo and verify the exact moved shape and connector-endpoint coordinates;
-10. export `preview-after-move.png`;
-11. save as `candidate-resaved.vsdx`;
-12. close the document;
-13. reopen the saved document read-only;
-14. verify top-level shape and page connection counts remain stable;
-15. verify moved coordinates, connection metadata, connector geometry, and exact
+8. verify every orthogonal terminal leg remains nonzero, axis-aligned, and exits
+   opposite the attached port's inward direction before/after move, undo, redo,
+   and reopen;
+9. undo and verify the exact original shape and connector-endpoint coordinates;
+10. redo and verify the exact moved shape and connector-endpoint coordinates;
+11. require at least one real terminal-bend crossing in the hybrid corpus;
+12. export `preview-after-move.png`;
+13. save as `candidate-resaved.vsdx`;
+14. close the document;
+15. reopen the saved document read-only;
+16. verify top-level shape and page connection counts remain stable;
+17. verify moved coordinates, connection metadata, connector geometry, and exact
     native connection signatures survive reopening;
-16. export `preview-reopened.png`; and
-17. write checksum-bound `acceptance-report.json` evidence.
+18. export `preview-reopened.png`; and
+19. write checksum-bound `acceptance-report.json` evidence.
 
 The corpus uses these movement targets:
 

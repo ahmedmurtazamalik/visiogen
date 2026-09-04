@@ -156,6 +156,7 @@ try {
             InputVsdx = $outputVsdx
             OutputDirectory = $nativeDirectory
             MoveLabels = [string[]]$case.MoveLabels
+            RequireBendCrossing = $true
         }
         if ($Visible) {
             $acceptanceArguments.Visible = $true
@@ -166,6 +167,9 @@ try {
         $nativeReport = Get-Content -LiteralPath $nativeReportPath -Raw -Encoding UTF8 | ConvertFrom-Json
         if ([string]$nativeReport.status -ne "automation_passed") {
             throw "Native Microsoft Visio automation failed for case '$($case.Name)'."
+        }
+        if (-not [bool]$nativeReport.terminal_bend_crossed) {
+            throw "Native Microsoft Visio automation did not cross a terminal bend for case '$($case.Name)'."
         }
         $nativeSourceHash = [string]$nativeReport.evidence.input_vsdx.sha256
         if ($nativeSourceHash -ne $generatedHash) {
