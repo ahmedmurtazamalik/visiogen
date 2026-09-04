@@ -30,6 +30,7 @@ from visiogen.generation.compiler import (
     IRCallout,
     IRConnector,
     IRPoint,
+    IRPort,
     IRShape,
     RendererIR,
 )
@@ -1134,15 +1135,204 @@ def _replace_connection_points(shape: Shape, plan: IRShape, page_height: float) 
         )
         local_x = port.x - plan.rect.x
         local_y = page_height - port.y - owner_bottom
+        x_fraction = local_x / plan.rect.width
+        y_fraction = local_y / plan.rect.height
+        x_formula, y_formula = _connection_point_formulas(
+            plan,
+            port,
+            x_fraction,
+            y_fraction,
+        )
         direction_x, direction_y = direction[port.side]
-        for name, value in (
-            ("X", f"{local_x:.15g}"),
-            ("Y", f"{local_y:.15g}"),
-            ("DirX", direction_x),
-            ("DirY", direction_y),
-            ("Type", "0"),
+        for name, value, formula in (
+            ("X", f"{local_x:.15g}", x_formula),
+            ("Y", f"{local_y:.15g}", y_formula),
+            ("DirX", direction_x, None),
+            ("DirY", direction_y, None),
+            ("Type", "0", None),
         ):
-            ET.SubElement(row, f"{namespace}Cell", {"N": name, "V": value})
+            attributes = {"N": name, "V": value}
+            if formula is not None:
+                attributes["F"] = formula
+            ET.SubElement(row, f"{namespace}Cell", attributes)
+
+
+def _connection_point_formulas(
+    plan: IRShape,
+    port: IRPort,
+    x_fraction: float,
+    y_fraction: float,
+) -> tuple[str, str]:
+    """Keep projected connection points on the master silhouette after resize."""
+
+    x_formula = f"Width*{x_fraction:.15g}"
+    y_formula = f"Height*{y_fraction:.15g}"
+    if port.side in {"top", "bottom"}:
+        offset = (port.x - plan.rect.x) / plan.rect.width
+    else:
+        offset = (port.y - plan.rect.y) / plan.rect.height
+    if plan.master_marker == "__template_terminator__":
+        radius = "MIN(Height/2,Width/4)"
+        if port.side in {"left", "right"}:
+            curve = math.sqrt(max(1.0 - (1.0 - 2.0 * offset) ** 2, 0.0))
+            inset = f"{1.0 - curve:.15g}"
+            x_formula = (
+                f"{radius}*{inset}"
+                if port.side == "left"
+                else f"Width-{radius}*{inset}"
+            )
+            y_formula = f"Height*{1.0 - offset:.15g}"
+        else:
+            position = f"Width*{offset:.15g}"
+            sign = "+" if port.side == "top" else "-"
+            left_curve = (
+                f"Height/2{sign}Height/2*SQRT(1-(({position}-{radius})/"
+                f"{radius})^2)"
+            )
+            right_curve = (
+                f"Height/2{sign}Height/2*SQRT(1-(({position}-(Width-{radius}))/"
+                f"{radius})^2)"
+            )
+            edge = "Height" if port.side == "top" else "0"
+            x_formula = position
+            y_formula = (
+                f"IF({position}<{radius},{left_curve},"
+                f"IF({position}>Width-{radius},{right_curve},{edge}))"
+            )
+    elif plan.master_marker == "__template_input_output__":
+        slant = "MIN(Height/4,Width/4)"
+        if port.side in {"left", "right"}:
+            shift = f"{slant}*{1.0 - 2.0 * offset:.15g}"
+            x_formula = shift if port.side == "left" else f"Width+{shift}"
+            y_formula = f"Height*{1.0 - offset:.15g}"
+        else:
+            position = f"Width*{offset:.15g}"
+            x_formula = position
+            if port.side == "top":
+                y_formula = (
+                    f"IF({position}<{slant},"
+                    f"Height*({position}+{slant})/(2*{slant}),Height)"
+                )
+            else:
+                y_formula = (
+                    f"IF({position}>Width-{slant},"
+                    f"Height*({position}-(Width-{slant}))/(2*{slant}),0)"
+                )
+    elif plan.master_marker == "__template_delay__":
+        sagitta = "MIN(Width,Height)/2"
+        radius = f"((Height/2)^2+({sagitta})^2)/(2*({sagitta}))"
+        center = f"Width-({radius})"
+        if port.side == "right":
+            local_y = f"Height*{1.0 - offset:.15g}"
+            x_formula = (
+                f"({center})+SQRT(({radius})^2-({local_y}-Height/2)^2)"
+            )
+            y_formula = local_y
+        elif port.side in {"top", "bottom"}:
+            position = f"Width*{offset:.15g}"
+            sign = "+" if port.side == "top" else "-"
+            curve = (
+                f"Height/2{sign}SQRT(({radius})^2-({position}-({center}))^2)"
+            )
+            edge = "Height" if port.side == "top" else "0"
+            x_formula = position
+            y_formula = f"IF({position}>Width-({sagitta}),{curve},{edge})"
+    elif plan.master_marker in {"__template_controller__", "__template_interface__"}:
+        radius = "MIN(Width*0.1,Width/2,Height/2)"
+        if port.side in {"left", "right"}:
+            local_y = f"Height*{1.0 - offset:.15g}"
+            bottom_inset = (
+                f"{radius}-SQRT(({radius})^2-({local_y}-{radius})^2)"
+            )
+            top_inset = (
+                f"{radius}-SQRT(({radius})^2-"
+                f"({local_y}-(Height-{radius}))^2)"
+            )
+            inset = (
+                f"IF({local_y}<{radius},{bottom_inset},"
+                f"IF({local_y}>Height-{radius},{top_inset},0))"
+            )
+            x_formula = inset if port.side == "left" else f"Width-({inset})"
+            y_formula = local_y
+        else:
+            local_x = f"Width*{offset:.15g}"
+            left_inset = f"{radius}-SQRT(({radius})^2-({local_x}-{radius})^2)"
+            right_inset = (
+                f"{radius}-SQRT(({radius})^2-"
+                f"({local_x}-(Width-{radius}))^2)"
+            )
+            inset = (
+                f"IF({local_x}<{radius},{left_inset},"
+                f"IF({local_x}>Width-{radius},{right_inset},0))"
+            )
+            x_formula = local_x
+            y_formula = (
+                f"Height-({inset})" if port.side == "top" else inset
+            )
+    elif plan.master_marker == "__template_database__":
+        sagitta = "MIN(Height/8,Width/8)"
+        radius = f"((Height/2)^2+({sagitta})^2)/(2*({sagitta}))"
+        if port.side in {"left", "right"}:
+            local_y = f"Height*{1.0 - offset:.15g}"
+            curve = f"SQRT(({radius})^2-({local_y}-Height/2)^2)"
+            if port.side == "left":
+                x_formula = f"({radius})-({curve})"
+            else:
+                x_formula = f"Width+({sagitta})-({radius})+({curve})"
+            y_formula = local_y
+        else:
+            position = f"Width*{offset:.15g}"
+            sign = "+" if port.side == "top" else "-"
+            left_curve = (
+                f"Height/2{sign}SQRT(({radius})^2-({position}-({radius}))^2)"
+            )
+            edge = "Height" if port.side == "top" else "0"
+            x_formula = position
+            y_formula = f"IF({position}<({sagitta}),{left_curve},{edge})"
+    elif plan.master_marker == "__template_document__":
+        wave = "MIN(MIN(Width,Height)/8,Width/12)"
+        radius = f"((Width/4)^2+({wave})^2)/(2*({wave}))"
+        if port.side == "bottom":
+            position = f"Width*{offset:.15g}"
+            left_wave = (
+                f"({radius})-SQRT(({radius})^2-({position}-Width/4)^2)"
+            )
+            right_wave = (
+                f"2*({wave})-({radius})+"
+                f"SQRT(({radius})^2-({position}-3*Width/4)^2)"
+            )
+            x_formula = position
+            y_formula = (
+                f"IF({position}<=Width/2,{left_wave},{right_wave})"
+            )
+        elif port.side in {"left", "right"}:
+            local_y = f"Height*{1.0 - offset:.15g}"
+            curve = f"SQRT(({radius})^2-({local_y}-({radius}))^2)"
+            wave_x = (
+                f"Width/4+({curve})"
+                if port.side == "right"
+                else f"Width/4-({curve})"
+            )
+            x_formula = f"IF({local_y}<({wave}),{wave_x},{'Width' if port.side == 'right' else '0'})"
+            y_formula = local_y
+    elif plan.master_marker == "__template_note__":
+        fold_x = "User.XFoldLength"
+        fold_y = "User.YFoldLength"
+        if port.side == "right":
+            local_y = f"Height*{1.0 - offset:.15g}"
+            x_formula = (
+                f"IF({local_y}<{fold_y},Width-{fold_x}+"
+                f"{fold_x}*{local_y}/{fold_y},Width)"
+            )
+            y_formula = local_y
+        elif port.side == "bottom":
+            local_x = f"Width*{offset:.15g}"
+            x_formula = local_x
+            y_formula = (
+                f"IF({local_x}>Width-{fold_x},{fold_y}*"
+                f"({local_x}-(Width-{fold_x}))/{fold_x},0)"
+            )
+    return x_formula, y_formula
 
 
 def _configure_container_header(label_shape: Shape, plan: IRShape) -> None:

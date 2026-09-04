@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from itertools import pairwise
-from math import isclose
+from math import isclose, sqrt
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -189,14 +189,220 @@ class CompilationError(ValueError):
         super().__init__("; ".join(findings))
 
 
-def _port(rect: Rect, side: str, offset: float) -> tuple[float, float]:
-    if side == "top":
-        return rect.x + rect.width * offset, rect.y
-    if side == "right":
-        return rect.x + rect.width, rect.y + rect.height * offset
-    if side == "bottom":
-        return rect.x + rect.width * offset, rect.y + rect.height
-    return rect.x, rect.y + rect.height * offset
+_ELLIPTICAL_MASTERS = {"__template_connector_hub__", "__template_sensor__"}
+_ROUNDED_MASTERS = {"__template_controller__", "__template_interface__"}
+
+
+def _circle_radius(chord: float, sagitta: float) -> float:
+    return ((chord / 2.0) ** 2 + sagitta**2) / (2.0 * sagitta)
+
+
+def _note_fold(width: float, height: float) -> tuple[float, float]:
+    control_y = min(0.2 * height, 2.0 * height * width**2 / (width**2 + height**2))
+    control_x = min(
+        max(
+            0.8 * width,
+            width - sqrt(max(height**2 - (height - control_y) ** 2, 0.0)),
+        ),
+        sqrt(max(width**2 - control_y**2, 0.0)),
+    )
+    delta_x = width - control_x
+    distance_squared = delta_x**2 + control_y**2
+    return (
+        distance_squared / (2.0 * delta_x),
+        distance_squared / (2.0 * control_y),
+    )
+
+
+def port_fractions(
+    master: str,
+    width: float,
+    height: float,
+    side: str,
+    offset: float,
+) -> tuple[float, float]:
+    """Return a named port on the selected master's visible silhouette."""
+
+    if side in {"top", "bottom"}:
+        x_fraction = offset
+        y_fraction = 1.0 if side == "top" else 0.0
+    else:
+        x_fraction = 1.0 if side == "right" else 0.0
+        y_fraction = 1.0 - offset
+
+    if master in _ELLIPTICAL_MASTERS:
+        radial = sqrt(max(offset * (1.0 - offset), 0.0))
+        if side == "left":
+            x_fraction = 0.5 - radial
+        elif side == "right":
+            x_fraction = 0.5 + radial
+        elif side == "top":
+            y_fraction = 0.5 + radial
+        else:
+            y_fraction = 0.5 - radial
+    elif master == "__template_decision__":
+        radial = min(offset, 1.0 - offset)
+        if side == "left":
+            x_fraction = 0.5 - radial
+        elif side == "right":
+            x_fraction = 0.5 + radial
+        elif side == "top":
+            y_fraction = 0.5 + radial
+        else:
+            y_fraction = 0.5 - radial
+    elif master == "__template_power_source__":
+        left_tip = -0.07735026666667
+        left_shoulder = 0.21132486666667
+        right_shoulder = 0.78867513333333
+        right_tip = 1.0773502666667
+        shoulder = abs(1.0 - 2.0 * offset) * (left_shoulder - left_tip)
+        if side == "left":
+            x_fraction = left_tip + shoulder
+        elif side == "right":
+            x_fraction = right_tip - shoulder
+        elif x_fraction < left_shoulder:
+            incline = (x_fraction - left_tip) / (left_shoulder - left_tip)
+            y_fraction = 0.5 + (0.5 * incline if side == "top" else -0.5 * incline)
+        elif x_fraction > right_shoulder:
+            incline = (right_tip - x_fraction) / (right_tip - right_shoulder)
+            y_fraction = 0.5 + (0.5 * incline if side == "top" else -0.5 * incline)
+    elif master == "__template_input_output__":
+        slant = min(height / 4.0, width / 4.0)
+        if side in {"left", "right"}:
+            shift = slant * (1.0 - 2.0 * offset)
+            x_fraction = (shift if side == "left" else width + shift) / width
+        elif side == "top" and width * offset < slant:
+            y_fraction = (width * offset + slant) / (2.0 * slant)
+        elif side == "bottom" and width * offset > width - slant:
+            y_fraction = (width * offset - (width - slant)) / (2.0 * slant)
+    elif master == "__template_delay__":
+        sagitta = min(width, height) / 2.0
+        radius = _circle_radius(height, sagitta)
+        center_x = width - radius
+        if side == "right":
+            local_y = height * y_fraction
+            local_x = center_x + sqrt(
+                max(radius**2 - (local_y - height / 2.0) ** 2, 0.0)
+            )
+            x_fraction = local_x / width
+        elif side in {"top", "bottom"} and width * offset > width - sagitta:
+            local_x = width * offset
+            curve = sqrt(max(radius**2 - (local_x - center_x) ** 2, 0.0))
+            y_fraction = (height / 2.0 + (curve if side == "top" else -curve)) / height
+    elif master in _ROUNDED_MASTERS:
+        radius = min(width * 0.1, width / 2.0, height / 2.0)
+        if side in {"left", "right"}:
+            local_y = height * y_fraction
+            if local_y < radius:
+                inset = radius - sqrt(max(radius**2 - (local_y - radius) ** 2, 0.0))
+            elif local_y > height - radius:
+                inset = radius - sqrt(
+                    max(radius**2 - (local_y - (height - radius)) ** 2, 0.0)
+                )
+            else:
+                inset = 0.0
+            x_fraction = (inset if side == "left" else width - inset) / width
+        else:
+            local_x = width * x_fraction
+            if local_x < radius:
+                inset = radius - sqrt(max(radius**2 - (local_x - radius) ** 2, 0.0))
+            elif local_x > width - radius:
+                inset = radius - sqrt(
+                    max(radius**2 - (local_x - (width - radius)) ** 2, 0.0)
+                )
+            else:
+                inset = 0.0
+            y_fraction = (height - inset if side == "top" else inset) / height
+    elif master == "__template_terminator__":
+        radius_fraction = min(height / (2.0 * width), 0.25)
+        if side in {"left", "right"}:
+            curve = sqrt(max(1.0 - (2.0 * y_fraction - 1.0) ** 2, 0.0))
+            inset = radius_fraction * (1.0 - curve)
+            x_fraction = inset if side == "left" else 1.0 - inset
+        elif x_fraction < radius_fraction:
+            curve = sqrt(
+                max(
+                    1.0 - ((x_fraction - radius_fraction) / radius_fraction) ** 2,
+                    0.0,
+                )
+            )
+            y_fraction = 0.5 + (0.5 * curve if side == "top" else -0.5 * curve)
+        elif x_fraction > 1.0 - radius_fraction:
+            curve = sqrt(
+                max(
+                    1.0
+                    - ((x_fraction - (1.0 - radius_fraction)) / radius_fraction) ** 2,
+                    0.0,
+                )
+            )
+            y_fraction = 0.5 + (0.5 * curve if side == "top" else -0.5 * curve)
+    elif master == "__template_database__":
+        sagitta = min(height / 8.0, width / 8.0)
+        radius = _circle_radius(height, sagitta)
+        if side in {"left", "right"}:
+            local_y = height * y_fraction
+            curve = sqrt(
+                max(radius**2 - (local_y - height / 2.0) ** 2, 0.0)
+            )
+            if side == "left":
+                x_fraction = (radius - curve) / width
+            else:
+                x_fraction = (width + sagitta - radius + curve) / width
+        elif width * x_fraction < sagitta:
+            local_x = width * x_fraction
+            curve = sqrt(max(radius**2 - (local_x - radius) ** 2, 0.0))
+            y_fraction = (height / 2.0 + (curve if side == "top" else -curve)) / height
+    elif master == "__template_document__":
+        wave = min(min(width, height) / 8.0, width / 12.0)
+        radius = _circle_radius(width / 2.0, wave)
+        if side == "bottom":
+            local_x = width * offset
+            if local_x <= width / 2.0:
+                local_y = radius - sqrt(
+                    max(radius**2 - (local_x - width / 4.0) ** 2, 0.0)
+                )
+            else:
+                local_y = 2.0 * wave - radius + sqrt(
+                    max(radius**2 - (local_x - 3.0 * width / 4.0) ** 2, 0.0)
+                )
+            y_fraction = local_y / height
+        elif side in {"left", "right"} and height * y_fraction < wave:
+            local_y = height * y_fraction
+            curve = sqrt(max(radius**2 - (local_y - radius) ** 2, 0.0))
+            local_x = width / 4.0 + (curve if side == "right" else -curve)
+            x_fraction = local_x / width
+    elif master == "__template_note__":
+        fold_x, fold_y = _note_fold(width, height)
+        if side == "right" and height * y_fraction < fold_y:
+            local_y = height * y_fraction
+            x_fraction = (
+                width - fold_x + fold_x * local_y / fold_y
+            ) / width
+        elif side == "bottom" and width * x_fraction > width - fold_x:
+            local_x = width * x_fraction
+            y_fraction = (
+                fold_y * (local_x - (width - fold_x)) / fold_x
+            ) / height
+    return x_fraction, y_fraction
+
+
+def _port(
+    rect: Rect,
+    master: str,
+    side: str,
+    offset: float,
+) -> tuple[float, float]:
+    x_fraction, y_fraction = port_fractions(
+        master,
+        rect.width,
+        rect.height,
+        side,
+        offset,
+    )
+    return (
+        rect.x + rect.width * x_fraction,
+        rect.y + rect.height * (1.0 - y_fraction),
+    )
 
 
 def _inside(
@@ -332,8 +538,8 @@ def compile_construction_plan(
                 IRPort(
                     name=port.name,
                     side=port.side,
-                    x=_port(item.rect, port.side, port.offset)[0],
-                    y=_port(item.rect, port.side, port.offset)[1],
+                    x=_port(item.rect, item.master, port.side, port.offset)[0],
+                    y=_port(item.rect, item.master, port.side, port.offset)[1],
                 )
                 for port in item.ports
             ),

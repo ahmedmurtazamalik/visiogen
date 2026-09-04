@@ -13,6 +13,7 @@ from visiogen.generation.compiler import (
     CompilationError,
     compile_construction_plan,
     compile_v1_design,
+    port_fractions,
 )
 from visiogen.generation.construction import VisioConstructionPlan
 from visiogen.generation.specification import DiagramSpecification, load_specification
@@ -216,6 +217,69 @@ def test_compilation_is_deterministic_resolved_and_immutable() -> None:
         first.shapes[0].z_order = 99
     with pytest.raises(ValidationError):
         first.shapes[0].rect.x = 99
+
+
+@pytest.mark.parametrize(
+    ("master", "side", "offset", "expected"),
+    (
+        (
+            "__template_connector_hub__",
+            "right",
+            0.25,
+            (0.9330127018922193, 0.75),
+        ),
+        ("__template_decision__", "right", 0.25, (0.75, 0.75)),
+        (
+            "__template_power_source__",
+            "right",
+            0.5,
+            (1.0773502666667, 0.5),
+        ),
+        (
+            "__template_power_source__",
+            "top",
+            0.1,
+            (0.1, 0.807179676972449),
+        ),
+        ("__template_input_output__", "right", 0.25, (1.0625, 0.75)),
+        (
+            "__template_delay__",
+            "right",
+            0.25,
+            (0.9665063509461096, 0.75),
+        ),
+        (
+            "__template_controller__",
+            "right",
+            0.05,
+            (0.9661437827766148, 0.95),
+        ),
+        ("__template_terminator__", "left", 0.0, (0.25, 1.0)),
+        ("__template_database__", "right", 0.5, (1.0625, 0.5)),
+        ("__template_document__", "bottom", 0.5, (0.5, 0.125)),
+        ("__template_note__", "bottom", 0.9, (0.9, 0.1)),
+    ),
+)
+def test_nonrectangular_ports_project_to_visible_silhouette(
+    master: str,
+    side: str,
+    offset: float,
+    expected: tuple[float, float],
+) -> None:
+    assert port_fractions(master, 2, 1, side, offset) == pytest.approx(expected)
+
+
+def test_compiler_preserves_projected_port_offset_in_ir() -> None:
+    data = plan_data()
+    data["shapes"][1]["ports"][1]["offset"] = 0.25  # type: ignore[index]
+    data["shapes"][2]["ports"][0]["offset"] = 0.175  # type: ignore[index]
+    data["connectors"][0]["waypoints"] = []  # type: ignore[index]
+
+    compiled = _compile(data)
+    sensor = next(shape for shape in compiled.shapes if shape.id == "shape_sensor")
+    port = next(port for port in sensor.ports if port.name == "right")
+
+    assert (port.x, port.y) == pytest.approx((3.399519052838329, 2.575))
 
 
 def test_compiler_converts_nonempty_connector_bends_to_ir_points() -> None:

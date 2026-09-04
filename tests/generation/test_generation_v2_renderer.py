@@ -23,6 +23,7 @@ from visiogen.generation.compiler import (
     IRShapeStyle,
     IRTypography,
     RendererIR,
+    port_fractions,
 )
 from visiogen.renderer import render_ir
 from visiogen.validation import validate_vsdx_package
@@ -363,6 +364,22 @@ def test_render_ir_preserves_native_structure_routes_ports_and_callouts(
         assert shape_a.xml.find(f"{namespace}Section[@N='Geometry']") is None
         ports = shape_a.xml.find(f"{namespace}Section[@N='Connection']")
         assert {row.attrib["N"] for row in ports} == {"top", "right", "bottom", "left"}
+        port_rows = {row.attrib["N"]: row for row in ports}
+        assert port_rows["top"].find(
+            f"{namespace}Cell[@N='X']"
+        ).attrib["F"] == "Width*0.5"
+        assert port_rows["top"].find(
+            f"{namespace}Cell[@N='Y']"
+        ).attrib["F"] == "Height*1"
+        assert port_rows["right"].find(
+            f"{namespace}Cell[@N='X']"
+        ).attrib["F"] == "Width*1"
+        assert port_rows["bottom"].find(
+            f"{namespace}Cell[@N='Y']"
+        ).attrib["F"] == "Height*0"
+        assert port_rows["left"].find(
+            f"{namespace}Cell[@N='X']"
+        ).attrib["F"] == "Width*0"
         directions = {
             row.attrib["N"]: (
                 row.find(f"{namespace}Cell[@N='DirX']").attrib["V"],
@@ -571,6 +588,137 @@ def test_render_ir_keeps_requested_z_order(tmp_path: Path) -> None:
 
     assert labels[:5] == ["Outer", "Inner", "A", "B", "C"]
     assert labels[-1] == "101"
+
+
+def test_render_ir_writes_projected_nonrectangular_ports_as_resize_formulas(
+    tmp_path: Path,
+) -> None:
+    cases = (
+        ("Hub", "__template_connector_hub__", "right", 0.25, "X", "Width*"),
+        (
+            "Database",
+            "__template_database__",
+            "right",
+            0.5,
+            "X",
+            "MIN(Height/8,Width/8)",
+        ),
+        (
+            "Terminator",
+            "__template_terminator__",
+            "left",
+            0.1,
+            "X",
+            "MIN(Height/2,Width/4)",
+        ),
+        (
+            "Data",
+            "__template_input_output__",
+            "right",
+            0.25,
+            "X",
+            "MIN(Height/4,Width/4)",
+        ),
+        ("Delay", "__template_delay__", "right", 0.25, "X", "SQRT("),
+        (
+            "Rounded",
+            "__template_controller__",
+            "right",
+            0.05,
+            "X",
+            "MIN(Width*0.1,Width/2,Height/2)",
+        ),
+        (
+            "Document",
+            "__template_document__",
+            "bottom",
+            0.5,
+            "Y",
+            "MIN(MIN(Width,Height)/8,Width/12)",
+        ),
+        (
+            "Note",
+            "__template_note__",
+            "bottom",
+            0.9,
+            "Y",
+            "User.XFoldLength",
+        ),
+    )
+    planned = []
+    expected: dict[str, tuple[float, float, str, str]] = {}
+    for index, (label, marker, side, offset, formula_axis, fragment) in enumerate(cases):
+        x = 0.5 + (index % 3) * 3.5
+        y = 0.5 + (index // 3) * 2.0
+        width = 2.0
+        height = 1.0 if marker != "__template_connector_hub__" else 1.5
+        x_fraction, y_fraction = port_fractions(
+            marker, width, height, side, offset
+        )
+        port_name = f"port_{index}"
+        planned.append(
+            _shape(
+                f"shape_projection_{index}",
+                label,
+                marker,
+                (x, y, width, height),
+                index,
+            ).model_copy(
+                update={
+                    "ports": (
+                        IRPort(
+                            name=port_name,
+                            side=side,
+                            x=x + width * x_fraction,
+                            y=y + height * (1 - y_fraction),
+                        ),
+                    )
+                }
+            )
+        )
+        expected[label] = (
+            width * x_fraction,
+            height * y_fraction,
+            formula_axis,
+            fragment,
+        )
+    ir = RendererIR(
+        source_engine="v2",
+        page=IRPage(
+            width=11,
+            height=7,
+            orientation="landscape",
+            margin=0.25,
+            grid=0.25,
+        ),
+        regions=(),
+        guides=(),
+        shapes=tuple(planned),
+        connectors=(),
+        callouts=(),
+    )
+
+    output = render_ir(TEMPLATE, ir, tmp_path / "projected-port.vsdx")
+
+    with VisioFile(str(output)) as document:
+        page = document.get_page_by_name("Template Palette")
+        for index, (label, *_unused) in enumerate(cases):
+            rendered = _outer(
+                next(shape for shape in page.all_shapes if shape.text.strip() == label)
+            )
+            row = rendered.xml.find(
+                f"{namespace}Section[@N='Connection']/"
+                f"{namespace}Row[@N='port_{index}']"
+            )
+            assert row is not None
+            x_cell = row.find(f"{namespace}Cell[@N='X']")
+            y_cell = row.find(f"{namespace}Cell[@N='Y']")
+            assert x_cell is not None and y_cell is not None
+            expected_x, expected_y, formula_axis, fragment = expected[label]
+            assert float(x_cell.attrib["V"]) == pytest.approx(expected_x)
+            assert float(y_cell.attrib["V"]) == pytest.approx(expected_y)
+            formula_cell = x_cell if formula_axis == "X" else y_cell
+            assert fragment in formula_cell.attrib["F"]
 
 
 def test_professional_acceptance_candidate_is_structurally_valid(
