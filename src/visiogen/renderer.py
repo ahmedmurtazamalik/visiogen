@@ -205,6 +205,44 @@ def _copy_shape_tree(shape: Shape, page: Page) -> Shape:
     return copied_shape
 
 
+def _strip_inherited_dimension_caches(shape: Shape) -> None:
+    """Remove stale palette-instance caches that depend on shape dimensions.
+
+    The template palette objects are resized instances of native masters. Visio
+    writes calculated values for inherited Geometry, Scratch, Control, and User
+    cells into page XML with ``F="Inh"``. Copying those rows and then changing
+    only Width/Height leaves the old palette outline in the package, even though
+    the generated shape and its ports have the requested dimensions.
+
+    Removing only inherited cells restores the linked master's formulas in the
+    context of the generated instance. Renderer-authored values, formulas, and
+    deletion overrides are deliberately preserved.
+    """
+
+    dimension_sections = {"Geometry", "Scratch", "Control", "User"}
+    for section in list(shape.xml.findall(f"{namespace}Section")):
+        if section.attrib.get("N") not in dimension_sections:
+            continue
+        for cell in list(section.findall(f"{namespace}Cell")):
+            if cell.attrib.get("F") == "Inh":
+                section.remove(cell)
+        for row in list(section.findall(f"{namespace}Row")):
+            row_cells = list(row.findall(f"{namespace}Cell"))
+            for cell in row_cells:
+                if cell.attrib.get("F") == "Inh":
+                    row.remove(cell)
+            if (
+                row_cells
+                and not row.findall(f"{namespace}Cell")
+                and row.attrib.get("Del") != "1"
+            ):
+                section.remove(row)
+        if not list(section) and section.attrib.get("Del") != "1":
+            shape.xml.remove(section)
+    for child in shape.child_shapes:
+        _strip_inherited_dimension_caches(child)
+
+
 def _attach_callout_leader(callout: Shape, target: Shape) -> None:
     """Point a copied callout's leader at the bottom edge of its target shape."""
 
@@ -869,6 +907,41 @@ def _resize_group_children(shape: Shape, width: float, height: float) -> None:
         )
 
 
+def _hide_shape_tree(shape: Shape) -> None:
+    """Hide a copied master child and every nested descendant reliably."""
+
+    shape.xml.attrib["Del"] = "1"
+    for name in ("FillPattern", "LinePattern", "HideText"):
+        _set_local_cell_value(shape, name, "0" if name != "HideText" else "1")
+    geometry_indexes = {
+        section.attrib.get("IX", "0")
+        for section in shape.xml.findall(f"{namespace}Section[@N='Geometry']")
+    }
+    if shape.master_shape is not None:
+        geometry_indexes.update(
+            section.attrib.get("IX", "0")
+            for section in shape.master_shape.xml.findall(
+                f"{namespace}Section[@N='Geometry']"
+            )
+        )
+    for index in sorted(geometry_indexes, key=int):
+        section = shape.xml.find(
+            f"{namespace}Section[@N='Geometry'][@IX='{index}']"
+        )
+        if section is None:
+            section = ET.SubElement(
+                shape.xml,
+                f"{namespace}Section",
+                {"N": "Geometry", "IX": index},
+            )
+        no_show = section.find(f"{namespace}Cell[@N='NoShow']")
+        if no_show is None:
+            no_show = ET.SubElement(section, f"{namespace}Cell", {"N": "NoShow"})
+        no_show.attrib.update({"V": "1", "F": "No Formula"})
+    for child in shape.child_shapes:
+        _hide_shape_tree(child)
+
+
 def _delete_unused_master_geometry_rows(shape: Shape, used: set[int]) -> None:
     if shape.master_shape is None:
         return
@@ -894,6 +967,12 @@ def _replace_rectangle_geometry(shape: Shape, width: float, height: float) -> No
     geometry = ET.SubElement(
         shape.xml, f"{namespace}Section", {"N": "Geometry", "IX": "0"}
     )
+    for name, value in (("NoShow", "0"), ("NoFill", "0"), ("NoLine", "0")):
+        ET.SubElement(
+            geometry,
+            f"{namespace}Cell",
+            {"N": name, "V": value, "F": "No Formula"},
+        )
     for index, (row_type, x, y) in enumerate(
         (
             ("MoveTo", 0.0, 0.0),
@@ -909,6 +988,30 @@ def _replace_rectangle_geometry(shape: Shape, width: float, height: float) -> No
         )
         ET.SubElement(row, f"{namespace}Cell", {"N": "X", "V": f"{x:.15g}"})
         ET.SubElement(row, f"{namespace}Cell", {"N": "Y", "V": f"{y:.15g}"})
+    _delete_unused_master_geometry_rows(shape, {1, 2, 3, 4, 5})
+    if shape.master_shape is None:
+        return
+    inherited_indexes = sorted(
+        {
+            section.attrib.get("IX", "0")
+            for section in shape.master_shape.xml.findall(
+                f"{namespace}Section[@N='Geometry']"
+            )
+            if section.attrib.get("IX", "0") != "0"
+        },
+        key=int,
+    )
+    for index in inherited_indexes:
+        hidden = ET.SubElement(
+            shape.xml,
+            f"{namespace}Section",
+            {"N": "Geometry", "IX": index},
+        )
+        ET.SubElement(
+            hidden,
+            f"{namespace}Cell",
+            {"N": "NoShow", "V": "1", "F": "No Formula"},
+        )
 
 
 def _replace_container_body(shape: Shape, header: Shape, width: float, height: float) -> None:
@@ -925,7 +1028,7 @@ def _replace_container_body(shape: Shape, header: Shape, width: float, height: f
         header_root = header_root.parent
     for child in list(shape.child_shapes):
         if child.ID != header_root.ID:
-            child.xml.attrib["Del"] = "1"
+            _hide_shape_tree(child)
     _replace_rectangle_geometry(shape, width, height)
 
 
@@ -949,6 +1052,18 @@ def _style_ir_shape(shape: Shape, plan: IRShape) -> None:
     _set_local_cell_value(shape, "LineColor", plan.style.line_color)
     _set_local_cell_value(shape, "LineWeight", f"{plan.style.line_weight_pt / 72:.15g}")
     _set_local_cell_value(shape, "LinePattern", _LINE_PATTERNS[plan.style.line_pattern])
+
+
+def _contrasting_text_color(background: str) -> str:
+    channels = [int(background[index:index + 2], 16) / 255 for index in (1, 3, 5)]
+    linear = [
+        value / 12.92 if value <= 0.04045 else ((value + 0.055) / 1.055) ** 2.4
+        for value in channels
+    ]
+    luminance = 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
+    black_contrast = (luminance + 0.05) / 0.05
+    white_contrast = 1.05 / (luminance + 0.05)
+    return "#000000" if black_contrast >= white_contrast else "#FFFFFF"
 
 
 def _configure_ir_text(
@@ -1038,7 +1153,7 @@ def _configure_container_header(label_shape: Shape, plan: IRShape) -> None:
     child_shapes = label_shape.xml.find(f"{namespace}Shapes")
     if child_shapes is not None:
         for child in label_shape.child_shapes:
-            child.xml.attrib["Del"] = "1"
+            _hide_shape_tree(child)
     _replace_rectangle_geometry(label_shape, width, height)
     for name, value in (
         ("PinX", plan.rect.width / 2),
@@ -1055,6 +1170,20 @@ def _configure_container_header(label_shape: Shape, plan: IRShape) -> None:
         _set_local_cell_value(label_shape, name, f"{value:.15g}")
     _set_local_cell_value(label_shape, "TxtWidth", f"{width:.15g}")
     _set_local_cell_value(label_shape, "TxtHeight", f"{height:.15g}")
+    # Container typography is commonly light, so give the explicit header a
+    # deterministic high-contrast fill instead of inheriting a transparent
+    # palette child.
+    _set_local_cell_value(label_shape, "FillForegnd", plan.style.line_color)
+    _set_local_cell_value(label_shape, "FillPattern", "1")
+    _set_local_cell_value(label_shape, "LineColor", plan.style.line_color)
+    _set_local_cell_value(label_shape, "LinePattern", "1")
+    _set_section_cell(
+        label_shape,
+        "Character",
+        {"IX": "0"},
+        "Color",
+        _contrasting_text_color(plan.style.line_color),
+    )
 
 
 def _add_ir_connection(
@@ -1517,6 +1646,7 @@ def render_ir(
                 palette.shapes[plan.master_marker].shape,
                 palette.page,
             )
+            _strip_inherited_dimension_caches(copied)
             label = _find_marker_shape(copied, plan.master_marker)
             label.text = plan.container.header_text if plan.container else plan.text
             x, y, width, height = _shape_geometry(ir.page.height, plan)
@@ -1584,6 +1714,7 @@ def render_ir(
                 palette.shapes[plan.master_marker].shape,
                 palette.page,
             )
+            _strip_inherited_dimension_caches(connector)
             _find_marker_shape(connector, plan.master_marker).text = (
                 plan.label.text if plan.label else ""
             )
@@ -1659,6 +1790,7 @@ def render_ir(
                 palette.shapes[plan.master_marker].shape,
                 palette.page,
             )
+            _strip_inherited_dimension_caches(callout)
             _find_marker_shape(callout, plan.master_marker).text = plan.text
             _configure_ir_callout(
                 callout, plan, shapes_by_object[plan.object_id], ir.page.height

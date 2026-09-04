@@ -360,6 +360,7 @@ def test_render_ir_preserves_native_structure_routes_ports_and_callouts(
         )
         assert shape_a.cell_value("FillForegnd") == "#EEF4FF"
         assert shape_a.cell_value("LineColor") == "#234567"
+        assert shape_a.xml.find(f"{namespace}Section[@N='Geometry']") is None
         ports = shape_a.xml.find(f"{namespace}Section[@N='Connection']")
         assert {row.attrib["N"] for row in ports} == {"top", "right", "bottom", "left"}
         directions = {
@@ -477,6 +478,19 @@ def test_render_ir_preserves_native_structure_routes_ports_and_callouts(
                 connection.xml.attrib["FromCell"]
             ] = connection.xml.attrib["ToSheet"]
         assert len(connectors) == 6
+        for connector_id in connectors:
+            connector_shape = next(
+                shape for shape in page.all_shapes if shape.ID == connector_id
+            )
+            inherited_caches = [
+                cell
+                for section in connector_shape.xml.findall(f"{namespace}Section")
+                if section.attrib.get("N")
+                in {"Geometry", "Scratch", "Control", "User"}
+                for cell in section.iter(f"{namespace}Cell")
+                if cell.attrib.get("F") == "Inh"
+            ]
+            assert inherited_caches == []
         assert (
             sum(
                 endpoints.get("BeginX") == shape_a.ID
@@ -519,6 +533,9 @@ def test_render_ir_preserves_native_structure_routes_ports_and_callouts(
         callout = _outer(page.find_shape_by_text("101"))
         assert f"Sheet.{shape_a.ID}!SheetRef()" in callout.cell_formula("Relationships")
         assert float(callout.cell_value("TxtWidth")) == pytest.approx(0.8)
+        assert callout.xml.find(
+            f"{namespace}Section[@N='Geometry'][@IX='1']"
+        ) is None
         leader_rows = callout.xml.findall(
             f"{namespace}Section[@N='Geometry'][@IX='0']/{namespace}Row"
         )
@@ -580,13 +597,61 @@ def test_professional_acceptance_candidate_is_structurally_valid(
         for shape in (housing, sensor, controller, database):
             for name in ("PinX", "PinY", "Width", "Height", "LocPinX", "LocPinY"):
                 assert shape.cells[name].xml.attrib["F"] == shape.cell_value(name)
+        for shape in (sensor, controller, database):
+            assert shape.xml.find(f"{namespace}Section[@N='Geometry']") is None
+        assert database.xml.find(f"{namespace}Section[@N='Scratch']") is None
+        assert controller.xml.find(f"{namespace}Section[@N='Control']") is None
         active_children = [
             child for child in housing.child_shapes if child.xml.attrib.get("Del") != "1"
         ]
         assert len(active_children) == 1
         header = active_children[0]
-        assert all(child.xml.attrib.get("Del") == "1" for child in header.child_shapes)
-        assert len(header.xml.findall(f"{namespace}Section[@N='Geometry']")) == 1
+        hidden_roots = [child for child in housing.child_shapes if child.ID != header.ID]
+        hidden = [
+            descendant
+            for root in [*hidden_roots, *header.child_shapes]
+            for descendant in [root, *root.all_shapes]
+        ]
+        assert hidden and all(child.xml.attrib.get("Del") == "1" for child in hidden)
+        assert all(child.cell_value("HideText") == "1" for child in hidden)
+        assert all(child.cell_value("FillPattern") == "0" for child in hidden)
+        assert all(child.cell_value("LinePattern") == "0" for child in hidden)
+        assert all(
+            geometries
+            and all(
+                geometry.find(f"{namespace}Cell[@N='NoShow']").attrib["V"] == "1"
+                for geometry in geometries
+            )
+            for child in hidden
+            for geometries in (
+                child.xml.findall(f"{namespace}Section[@N='Geometry']"),
+            )
+        )
+        header_geometry = header.xml.findall(f"{namespace}Section[@N='Geometry']")
+        assert len(header_geometry) > 1
+        active_geometry = next(
+            section for section in header_geometry if section.attrib.get("IX") == "0"
+        )
+        assert {
+            name: active_geometry.find(f"{namespace}Cell[@N='{name}']").attrib["V"]
+            for name in ("NoShow", "NoFill", "NoLine")
+        } == {"NoShow": "0", "NoFill": "0", "NoLine": "0"}
+        assert all(
+            section.find(f"{namespace}Cell[@N='NoShow']").attrib["V"] == "1"
+            for section in header_geometry
+            if section.attrib.get("IX") != "0"
+        )
+        assert any(
+            row.attrib.get("Del") == "1"
+            for row in active_geometry.findall(f"{namespace}Row")
+        )
+        assert header.cell_value("FillForegnd") == "#234567"
+        assert header.cell_value("FillPattern") == "1"
+        header_color = header.xml.find(
+            f"{namespace}Section[@N='Character']/{namespace}Row[@IX='0']/"
+            f"{namespace}Cell[@N='Color']"
+        )
+        assert header_color is not None and header_color.attrib["V"] == "#FFFFFF"
         housing_rows = housing.xml.findall(
             f"{namespace}Section[@N='Geometry'][@IX='0']/{namespace}Row"
         )
