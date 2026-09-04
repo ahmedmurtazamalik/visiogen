@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from itertools import pairwise
-from math import isclose, sqrt
+from itertools import combinations, pairwise
+from math import hypot, isclose, sqrt
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -42,6 +42,8 @@ _MASTER_NAMES = {
     "__template_reference_callout__": "Reference Callout",
 }
 _COORDINATE_TOLERANCE = 1e-9
+_MIN_CONTAINER_PADDING = 0.25
+_MIN_SIBLING_CLEARANCE = 0.25
 
 
 class IRModel(BaseModel):
@@ -480,6 +482,105 @@ def _outside_page(point: Point | IRPoint, width: float, height: float) -> bool:
     return point.x < 0 or point.y < 0 or point.x > width or point.y > height
 
 
+def _outside_page_margin(
+    point: Point | IRPoint,
+    width: float,
+    height: float,
+    margin: float,
+) -> bool:
+    return (
+        point.x < margin - _COORDINATE_TOLERANCE
+        or point.y < margin - _COORDINATE_TOLERANCE
+        or point.x > width - margin + _COORDINATE_TOLERANCE
+        or point.y > height - margin + _COORDINATE_TOLERANCE
+    )
+
+
+def _rect_inside_page_margin(
+    rect: Rect | IRRect,
+    width: float,
+    height: float,
+    margin: float,
+) -> bool:
+    return (
+        rect.x >= margin - _COORDINATE_TOLERANCE
+        and rect.y >= margin - _COORDINATE_TOLERANCE
+        and rect.x + rect.width <= width - margin + _COORDINATE_TOLERANCE
+        and rect.y + rect.height <= height - margin + _COORDINATE_TOLERANCE
+    )
+
+
+def _shape_visual_bounds(
+    rect: Rect | IRRect,
+    master: str,
+) -> tuple[float, float, float, float]:
+    left = rect.x
+    top = rect.y
+    right = rect.x + rect.width
+    bottom = rect.y + rect.height
+    if master == "__template_input_output__":
+        overhang = min(rect.height / 4.0, rect.width / 4.0)
+        left -= overhang
+        right += overhang
+    elif master == "__template_power_source__":
+        overhang = rect.width * 0.0773502666667
+        left -= overhang
+        right += overhang
+    elif master == "__template_database__":
+        right += min(rect.height / 8.0, rect.width / 8.0)
+    return left, top, right, bottom
+
+
+def _bounds_inside_page_margin(
+    bounds: tuple[float, float, float, float],
+    width: float,
+    height: float,
+    margin: float,
+) -> bool:
+    left, top, right, bottom = bounds
+    return (
+        left >= margin - _COORDINATE_TOLERANCE
+        and top >= margin - _COORDINATE_TOLERANCE
+        and right <= width - margin + _COORDINATE_TOLERANCE
+        and bottom <= height - margin + _COORDINATE_TOLERANCE
+    )
+
+
+def _bounds_inside_rect(
+    bounds: tuple[float, float, float, float],
+    outer: Rect | IRRect,
+    padding: float,
+    header: float,
+) -> bool:
+    left, top, right, bottom = bounds
+    return (
+        left >= outer.x + padding - _COORDINATE_TOLERANCE
+        and top >= outer.y + padding + header - _COORDINATE_TOLERANCE
+        and right <= outer.x + outer.width - padding + _COORDINATE_TOLERANCE
+        and bottom <= outer.y + outer.height - padding + _COORDINATE_TOLERANCE
+    )
+
+
+def _visual_bounds_have_clearance(
+    first: tuple[float, float, float, float],
+    second: tuple[float, float, float, float],
+    clearance: float,
+) -> bool:
+    first_left, first_top, first_right, first_bottom = first
+    second_left, second_top, second_right, second_bottom = second
+    horizontal_gap = max(
+        first_left - second_right,
+        second_left - first_right,
+        0.0,
+    )
+    vertical_gap = max(
+        first_top - second_bottom,
+        second_top - first_bottom,
+        0.0,
+    )
+    return hypot(horizontal_gap, vertical_gap) + _COORDINATE_TOLERANCE >= clearance
+
+
 def _same_point(first: Point | IRPoint, second: Point | IRPoint) -> bool:
     return first.x == second.x and first.y == second.y
 
@@ -516,6 +617,11 @@ def compile_construction_plan(
 
     validate_construction_plan(specification, plan)
     findings: list[str] = []
+    if (
+        plan.page.width <= 2 * plan.page.margin
+        or plan.page.height <= 2 * plan.page.margin
+    ):
+        findings.append("page margin leaves no usable drawing area")
     object_text = {item.id: item.label for item in specification.objects}
     shapes = tuple(
         IRShape(
@@ -579,11 +685,36 @@ def compile_construction_plan(
             findings.append(f"shape '{item.id}' port names must be unique")
         if not _rect_inside(item.text_box, item.rect):
             findings.append(f"shape '{item.id}' text box is outside its shape")
+        if not _bounds_inside_page_margin(
+            _shape_visual_bounds(item.rect, item.master_marker),
+            plan.page.width,
+            plan.page.height,
+            plan.page.margin,
+        ):
+            findings.append(f"shape '{item.id}' violates the page margin")
         if item.container:
+            if item.container.padding < _MIN_CONTAINER_PADDING:
+                findings.append(
+                    f"container '{item.object_id}' padding must be at least "
+                    f"{_MIN_CONTAINER_PADDING:g} inches"
+                )
+            if item.rect.width <= 2.0 * item.container.padding + _COORDINATE_TOLERANCE:
+                findings.append(
+                    f"container '{item.object_id}' padding leaves no usable header width"
+                )
+            if (
+                item.rect.height
+                <= item.container.header_height
+                + 2.0 * item.container.padding
+                + _COORDINATE_TOLERANCE
+            ):
+                findings.append(
+                    f"container '{item.object_id}' header and padding leave no usable body"
+                )
             for member_id in item.container.member_ids:
                 member = by_object[member_id]
-                if item.container.clipping == "contain" and not _rect_inside(
-                    member.rect,
+                if item.container.clipping == "contain" and not _bounds_inside_rect(
+                    _shape_visual_bounds(member.rect, member.master_marker),
                     item.rect,
                     item.container.padding,
                     item.container.header_height,
@@ -591,6 +722,25 @@ def compile_construction_plan(
                     findings.append(
                         f"member '{member_id}' violates container '{item.object_id}' padding/header"
                     )
+
+    parent_by_object = {
+        item.id: item.parent_id for item in specification.objects
+    }
+    clearance = _MIN_SIBLING_CLEARANCE
+    sibling_groups: dict[str | None, list[IRShape]] = {}
+    for item in shapes:
+        sibling_groups.setdefault(parent_by_object[item.object_id], []).append(item)
+    for siblings in sibling_groups.values():
+        for first, second in combinations(siblings, 2):
+            if not _visual_bounds_have_clearance(
+                _shape_visual_bounds(first.rect, first.master_marker),
+                _shape_visual_bounds(second.rect, second.master_marker),
+                clearance,
+            ):
+                findings.append(
+                    f"sibling shapes '{first.id}' and '{second.id}' require at least "
+                    f"{clearance:g} inches of clearance"
+                )
 
     connectors: list[IRConnector] = []
     for index, item in enumerate(plan.connectors):
@@ -612,13 +762,39 @@ def compile_construction_plan(
                         f"connector '{item.id}' has a non-orthogonal segment"
                     )
         if any(
-            _outside_page(point, plan.page.width, plan.page.height) for point in route
+            _outside_page(point, plan.page.width, plan.page.height)
+            for point in route
         ):
             findings.append(f"connector '{item.id}' route is outside page bounds")
-        if item.label and _outside_page(
-            item.label.position, plan.page.width, plan.page.height
+        elif any(
+            _outside_page_margin(
+                point,
+                plan.page.width,
+                plan.page.height,
+                plan.page.margin,
+            )
+            for point in route
+        ):
+            findings.append(f"connector '{item.id}' route violates the page margin")
+        label_position = (
+            Point(
+                x=item.label.position.x,
+                y=item.label.position.y - item.label.offset,
+            )
+            if item.label
+            else None
+        )
+        if label_position and _outside_page(
+            label_position, plan.page.width, plan.page.height
         ):
             findings.append(f"connector '{item.id}' label is outside page bounds")
+        elif label_position and _outside_page_margin(
+            label_position,
+            plan.page.width,
+            plan.page.height,
+            plan.page.margin,
+        ):
+            findings.append(f"connector '{item.id}' label violates the page margin")
         excluded = {item.source_shape_id, item.target_shape_id}
         for shape in shapes:
             if shape.id in excluded or shape.container is not None:
@@ -678,6 +854,13 @@ def compile_construction_plan(
             or item.rect.y + item.rect.height > plan.page.height
         ):
             findings.append(f"callout '{item.id}' is outside page bounds")
+        elif not _rect_inside_page_margin(
+            item.rect,
+            plan.page.width,
+            plan.page.height,
+            plan.page.margin,
+        ):
+            findings.append(f"callout '{item.id}' violates the page margin")
         if not _inside(item.leader_route[0], item.rect):
             findings.append(f"callout '{item.id}' leader does not start at its callout")
         if not _same_point(item.leader_route[-1], item.target_anchor):
@@ -689,6 +872,16 @@ def compile_construction_plan(
             for point in item.leader_route
         ):
             findings.append(f"callout '{item.id}' leader is outside page bounds")
+        elif any(
+            _outside_page_margin(
+                point,
+                plan.page.width,
+                plan.page.height,
+                plan.page.margin,
+            )
+            for point in item.leader_route
+        ):
+            findings.append(f"callout '{item.id}' leader violates the page margin")
         if any(
             _same_point(first, second) for first, second in pairwise(item.leader_route)
         ):

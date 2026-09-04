@@ -7,12 +7,12 @@ from dataclasses import dataclass
 
 from pydantic import ValidationError
 
+from visiogen.generation.compiler import CompilationError, compile_construction_plan
 from visiogen.generation.construction import (
     ConstructionPlanError,
     VisioConstructionPlan,
     validate_construction_plan,
 )
-from visiogen.generation.compiler import CompilationError, compile_construction_plan
 from visiogen.generation.specification import DiagramSpecification
 from visiogen.providers.base import (
     ProviderResponse,
@@ -20,7 +20,7 @@ from visiogen.providers.base import (
     StructuredModelCall,
 )
 
-CONSTRUCTION_PROMPT_VERSION = 1
+CONSTRUCTION_PROMPT_VERSION = 2
 APPROVED_EXAMPLES_VERSION = 1
 
 _APPROVED_EXAMPLES = """
@@ -100,6 +100,14 @@ def build_construction_prompt() -> str:
         "callout anchors and leaders, and traceability. Use top-left-origin page-inch coordinates. "
         "Connector waypoints contain only intermediate route points; never repeat the source or "
         "target port coordinate, and never create consecutive duplicate points. "
+        "Use polyline only when the visual requirements explicitly demand fixed freeform bends; "
+        "otherwise choose straight, orthogonal, or dynamic routing so Visio can reroute after moves. "
+        "Keep every rendered shape, route, label anchor, and callout inside the declared page "
+        "margin. Keep same-parent sibling shapes at least 0.25 inches apart, "
+        "use at least 0.25 inches of container padding, and keep declared children contained. "
+        "Prefer consistent peer dimensions and 10-12 point body text; size each shape so its "
+        "exact label wraps to at most two lines instead of shrinking its text. Reserve visible space for "
+        "connector labels and do not place shapes flush against page or container edges. "
         "Create exactly one reference callout for each object with a non-null reference_number, "
         "and no reference callout for any other object. "
         "Do not emit VSDX XML, ShapeSheet formulas, package relationships, unsupported masters, "

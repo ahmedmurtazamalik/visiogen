@@ -118,10 +118,12 @@ def test_planner_uses_versioned_approved_examples_and_preserves_provenance() -> 
     result = StructuredConstructionPlanner(call).plan(load_specification(SPEC))
     assert result.attempts == 1
     assert result.request_ids == ("r1",)
-    assert result.prompt_version == 1 and result.examples_version == 1
+    assert result.prompt_version == 2 and result.examples_version == 1
     assert "expert-flow.json" in call.calls[0][0]
     assert "expert-system.yaml" in call.calls[0][0]
     assert "expert-component.json" in call.calls[0][0]
+    assert "same-parent sibling shapes" in call.calls[0][0]
+    assert "10-12 point body text" in call.calls[0][0]
     assert "Housing" in call.calls[0][1]
 
 

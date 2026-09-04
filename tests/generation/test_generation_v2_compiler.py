@@ -328,6 +328,120 @@ def test_compiler_rejects_ambiguous_ids_ports_and_region_bounds() -> None:
     assert "plan element IDs must be unique: main_axis" in str(error.value)
 
 
+def test_compiler_enforces_page_margin_not_just_physical_bounds() -> None:
+    data = plan_data()
+    data["shapes"][0]["rect"]["x"] = 0.49  # type: ignore[index]
+
+    with pytest.raises(CompilationError, match="shape 'shape_housing' violates the page margin"):
+        _compile(data)
+
+
+@pytest.mark.parametrize(
+    ("gap", "should_pass"),
+    ((0.25, True), (0.24, False)),
+)
+def test_compiler_enforces_minimum_sibling_clearance(
+    gap: float,
+    should_pass: bool,
+) -> None:
+    data = plan_data()
+    data["page"]["grid"] = 1.0  # type: ignore[index]
+    controller = data["shapes"][2]  # type: ignore[index]
+    controller_rect = {"x": 3.5 + gap, "y": 2.45, "width": 2, "height": 1}
+    controller["rect"] = controller_rect
+    controller["text_box"] = controller_rect.copy()
+    connector = data["connectors"][0]  # type: ignore[index]
+    connector["waypoints"] = []
+    controller_callout = data["callouts"][1]  # type: ignore[index]
+    controller_callout["target_anchor"] = {"x": 4.5, "y": 3}
+    controller_callout["leader_route"][-1] = {"x": 4.5, "y": 3}
+
+    if should_pass:
+        _compile(data)
+    else:
+        with pytest.raises(CompilationError, match="require at least 0.25 inches"):
+            _compile(data)
+
+
+def test_compiler_enforces_minimum_container_padding() -> None:
+    data = plan_data()
+    data["shapes"][0]["container"]["padding"] = 0.24  # type: ignore[index]
+
+    with pytest.raises(CompilationError, match="padding must be at least 0.25 inches"):
+        _compile(data)
+
+
+def test_compiler_rejects_container_without_usable_header_or_body() -> None:
+    data = plan_data()
+    data["shapes"][0]["rect"] = {  # type: ignore[index]
+        "x": 1,
+        "y": 1,
+        "width": 0.5,
+        "height": 0.9,
+    }
+
+    with pytest.raises(CompilationError) as error:
+        _compile(data)
+
+    assert "padding leaves no usable header width" in str(error.value)
+    assert "header and padding leave no usable body" in str(error.value)
+
+
+def test_compiler_allows_declared_container_overflow() -> None:
+    data = plan_data()
+    data["shapes"][0]["container"]["clipping"] = "allow_overflow"  # type: ignore[index]
+    sensor = data["shapes"][1]  # type: ignore[index]
+    sensor["rect"] = {"x": 0.5, "y": 2.2, "width": 1.5, "height": 1.5}
+    sensor["text_box"] = sensor["rect"].copy()
+    data["connectors"][0]["waypoints"] = [  # type: ignore[index]
+        {"x": 2, "y": 3},
+        {"x": 6, "y": 3},
+    ]
+    data["callouts"][0]["target_anchor"] = {"x": 1.25, "y": 2.95}  # type: ignore[index]
+    data["callouts"][0]["leader_route"][-1] = {"x": 1.25, "y": 2.95}  # type: ignore[index]
+
+    _compile(data)
+
+
+def test_compiler_uses_visible_master_bounds_for_margins_and_spacing() -> None:
+    margin_data = plan_data()
+    sensor = margin_data["shapes"][1]  # type: ignore[index]
+    sensor["master"] = "__template_power_source__"
+    sensor["rect"]["x"] = 0.5
+    sensor["text_box"]["x"] = 0.5
+
+    with pytest.raises(CompilationError) as margin_error:
+        _compile(margin_data)
+    assert "shape 'shape_sensor' violates the page margin" in str(margin_error.value)
+
+    spacing_data = plan_data()
+    spacing_data["shapes"][1]["master"] = "__template_power_source__"  # type: ignore[index]
+    controller = spacing_data["shapes"][2]  # type: ignore[index]
+    controller_rect = {"x": 3.75, "y": 2.45, "width": 2, "height": 1}
+    controller["rect"] = controller_rect
+    controller["text_box"] = controller_rect.copy()
+    spacing_data["connectors"][0]["waypoints"] = []  # type: ignore[index]
+    spacing_data["callouts"][1]["target_anchor"] = {"x": 4.75, "y": 3}  # type: ignore[index]
+    spacing_data["callouts"][1]["leader_route"][-1] = {"x": 4.75, "y": 3}  # type: ignore[index]
+
+    with pytest.raises(CompilationError, match="require at least 0.25 inches"):
+        _compile(spacing_data)
+
+
+def test_compiler_validates_the_connector_label_after_its_offset() -> None:
+    data = plan_data()
+    data["connectors"][0]["label"] = {  # type: ignore[index]
+        "text": "data",
+        "position": {"x": 4.5, "y": 0.6},
+        "offset": 0.2,
+        "orientation": "horizontal",
+        "background": "opaque",
+    }
+
+    with pytest.raises(CompilationError, match="label violates the page margin"):
+        _compile(data)
+
+
 def test_compiler_reports_containment_route_and_label_failures() -> None:
     data = plan_data()
     data["shapes"][1]["rect"] = {"x": 1.1, "y": 1.1, "width": 1.5, "height": 1.5}  # type: ignore[index]

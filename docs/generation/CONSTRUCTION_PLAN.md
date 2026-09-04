@@ -14,9 +14,12 @@ reference callouts, visual rationale, and constraint traceability.
 
 The validator requires exactly one shape per specification object and one
 connector per relationship. It checks endpoint shapes and ports, semantic arrow
-direction, exact relationship labels, page bounds, containment membership,
-reference-number callouts, and traceability for every hard constraint and visual
-requirement. Invalid initial output receives at most one model repair.
+direction, exact relationship labels, page margins, containment membership and
+padding, minimum same-parent sibling clearance, reference-number callouts, and
+traceability for every hard constraint and visual requirement. The prompt prefers
+consistent peer sizes and readable 10–12 point body text rather than oversized
+shapes or reduced typography. Invalid initial output receives at most one model
+repair.
 
 The prompt and approved-example set are independently versioned. Its three
 few-shot patterns come only from the checked-in expert flowchart, system, and
