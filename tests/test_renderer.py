@@ -388,7 +388,7 @@ def test_render_layout_creates_styled_labeled_glued_connector(tmp_path: Path) ->
         assert connector.cell_formula("EndTrigger") == (
             f"_XFTRIGGER(Sheet.{controller.ID}!EventXFMod)"
         )
-        assert connector.cell_value("ConFixedCode") == "6"
+        assert connector.cell_value("ConFixedCode") == "0"
         assert float(connector.cell_value("BeginX")) == pytest.approx(2.75)
         assert float(connector.cell_value("BeginY")) == pytest.approx(2.5)
         assert float(connector.cell_value("EndX")) == pytest.approx(4.75)

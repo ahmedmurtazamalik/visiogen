@@ -423,7 +423,7 @@ def test_render_ir_preserves_native_structure_routes_ports_and_callouts(
         assert rows[1].find(f"{namespace}Cell[@N='X']").attrib["F"] == (
             "EndX-PinX+LocPinX"
         )
-        assert horizontal.cell_value("ConFixedCode") == "2"
+        assert horizontal.cell_value("ConFixedCode") == "0"
         assert horizontal.cell_value("ShapeRouteStyle") == "2"
         assert horizontal.cell_value("ConLineRouteExt") == "1"
         assert horizontal.xml.find(f"{namespace}Cell[@N='RouteStyle']") is None
@@ -438,7 +438,7 @@ def test_render_ir_preserves_native_structure_routes_ports_and_callouts(
         vertical_rows = vertical.xml.findall(
             f"{namespace}Section[@N='Geometry'][@IX='0']/{namespace}Row"
         )
-        assert vertical.cell_value("ConFixedCode") == "2"
+        assert vertical.cell_value("ConFixedCode") == "0"
         assert vertical.cell_value("ShapeRouteStyle") == "1"
         assert vertical.cell_value("ConLineRouteExt") == "0"
         assert vertical_rows[1].find(f"{namespace}Cell[@N='X']").attrib["F"] == (
@@ -521,17 +521,31 @@ def test_render_ir_preserves_native_structure_routes_ports_and_callouts(
             for endpoints in connectors.values()
         )
 
-        dynamic_id = next(
-            item.from_id
-            for item in page.connects
-            if item.xml.attrib["ToCell"] == "Connections.top"
-            and item.xml.attrib["FromCell"] == "BeginX"
+        dynamic = next(
+            shape
+            for shape in page.all_shapes
+            if (shape.cell_formula("BeginX") or "").startswith("_WALKGLUE(")
         )
-        dynamic = next(shape for shape in page.all_shapes if dynamic_id == shape.ID)
         assert (
             dynamic.cell_formula("BeginX")
             == "_WALKGLUE(BegTrigger,EndTrigger,WalkPreference)"
         )
+        assert dynamic.cell_value("ConFixedCode") == "0"
+        dynamic_connections = [
+            item.xml.attrib for item in page.connects if item.from_id == dynamic.ID
+        ]
+        assert {item["ToCell"] for item in dynamic_connections} == {"PinX"}
+        assert {item["ToPart"] for item in dynamic_connections} == {"3"}
+
+        diagonal_id = next(
+            item.from_id
+            for item in page.connects
+            if item.xml.attrib["FromCell"] == "BeginX"
+            and item.to_id == shape_b.ID
+            and item.xml.attrib["ToCell"] == "Connections.bottom"
+        )
+        diagonal = next(shape for shape in page.all_shapes if shape.ID == diagonal_id)
+        assert diagonal.cell_value("ConFixedCode") == "2"
 
         outer = _outer(page.find_shape_by_text("Outer"))
         inner = _outer(page.find_shape_by_text("Inner"))

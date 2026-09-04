@@ -123,7 +123,7 @@ def test_renderer_fixture_produces_structurally_valid_editable_package(
                 )
             assert f"Sheet.{begin_id}!" in connector.cell_formula("BegTrigger")
             assert f"Sheet.{end_id}!" in connector.cell_formula("EndTrigger")
-            assert connector.cell_value("ConFixedCode") == "6"
+            assert connector.cell_value("ConFixedCode") == "0"
 
             for prefix, endpoint_id in (("Begin", begin_id), ("End", end_id)):
                 endpoint_shape = shapes_by_id[endpoint_id]

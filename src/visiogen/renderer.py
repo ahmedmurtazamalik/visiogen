@@ -605,7 +605,9 @@ def _configure_dynamic_connector_glue(
         "2",
         f"_XFTRIGGER(Sheet.{target.ID}!EventXFMod)",
     )
-    _set_local_cell_value(connector, "ConFixedCode", "6")
+    # Value 6 is reserved for Visio's own routing logic. A generated dynamic
+    # connector must remain free to choose a new perimeter route after a move.
+    _set_local_cell_value(connector, "ConFixedCode", "0")
 
 
 def _configure_explicit_connector_glue(
@@ -616,6 +618,7 @@ def _configure_explicit_connector_glue(
     target_port: str,
     start: tuple[float, float],
     finish: tuple[float, float],
+    connector_type: str,
 ) -> None:
     """Glue explicit route endpoints to exact named connection-point rows."""
 
@@ -646,12 +649,14 @@ def _configure_explicit_connector_glue(
         "2",
         f"_XFTRIGGER(Sheet.{target.ID}!EventXFMod)",
     )
-    # Explicit routes own their geometry.  Letting Visio's routing algorithm take
-    # over here can replace that geometry when an endpoint moves (and value 6 is
-    # reserved for Visio's internal routing algorithm).  The endpoint formulas
-    # still recalculate, so the connector remains glued while its route stays
-    # under our control.
-    _set_local_cell_value(connector, "ConFixedCode", "2")
+    # Native straight and orthogonal routes must recalculate when either endpoint
+    # moves. A deliberate freeform polyline is the one exception: its authored
+    # bends are fixed geometry rather than a request for Visio routing.
+    _set_local_cell_value(
+        connector,
+        "ConFixedCode",
+        "2" if connector_type == "polyline" else "0",
+    )
 
 
 def _style_connector(shape: Shape, visual: EdgeVisualSpec) -> None:
@@ -1924,6 +1929,7 @@ def render_ir(
                     plan.target_port,
                     start,
                     finish,
+                    plan.connector_type,
                 )
                 _replace_route_geometry(
                     connector,
@@ -1949,14 +1955,14 @@ def render_ir(
                 connector,
                 "BeginX",
                 source_shape,
-                plan.source_port,
+                "dynamic" if plan.connector_type == "dynamic" else plan.source_port,
             )
             _add_ir_connection(
                 palette.page,
                 connector,
                 "EndX",
                 target_shape,
-                plan.target_port,
+                "dynamic" if plan.connector_type == "dynamic" else plan.target_port,
             )
             _style_ir_connector(connector, plan)
             _configure_connector_label(connector, plan, ir.page.height)
