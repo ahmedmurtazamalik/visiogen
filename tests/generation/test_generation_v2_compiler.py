@@ -218,6 +218,38 @@ def test_compilation_is_deterministic_resolved_and_immutable() -> None:
         first.shapes[0].rect.x = 99
 
 
+def test_compiler_converts_nonempty_connector_bends_to_ir_points() -> None:
+    data = plan_data()
+    data["connectors"][0]["bends"] = [  # type: ignore[index]
+        {"x": 3.5, "y": 3.0},
+        {"x": 6.0, "y": 3.0},
+    ]
+
+    compiled = _compile(data)
+
+    assert [point.model_dump() for point in compiled.connectors[0].bends] == [
+        {"x": 3.5, "y": 3.0},
+        {"x": 6.0, "y": 3.0},
+    ]
+    with pytest.raises(ValidationError):
+        compiled.connectors[0].bends[0].x = 99
+
+
+def test_orthogonal_routes_tolerate_binary_float_noise() -> None:
+    data = plan_data()
+    data["connectors"][0]["waypoints"] = [  # type: ignore[index]
+        {"x": 4.0, "y": 2.9500000005},
+        {"x": 4.0, "y": 2.9},
+    ]
+
+    compiled = _compile(data)
+
+    coordinate_delta = abs(
+        compiled.connectors[0].route[0].y - compiled.connectors[0].route[1].y
+    )
+    assert 0 < coordinate_delta <= 1e-9
+
+
 def test_compiler_rejects_ambiguous_ids_ports_and_region_bounds() -> None:
     data = plan_data()
     data["regions"][0]["rect"]["width"] = 10  # type: ignore[index]

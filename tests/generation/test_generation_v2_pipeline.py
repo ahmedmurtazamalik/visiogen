@@ -12,13 +12,15 @@ from visiogen.generation.pipeline import GenerationV2Pipeline
 from visiogen.generation.planner import (
     ConstructionPlanningError,
     ConstructionPlanResult,
+    ConstructionTimeoutError,
 )
 from visiogen.generation.specification import load_specification
 from visiogen.generation.specification_workflow import (
     SpecificationResult,
+    SpecificationTimeoutError,
     SpecificationWorkflowError,
 )
-from visiogen.providers.base import ProviderResponse
+from visiogen.providers.base import ProviderResponse, ProviderTimeoutError
 from visiogen.validation import validate_vsdx_package
 
 
@@ -310,5 +312,116 @@ def test_failed_construction_retains_both_responses_and_validation_error(
     )
     assert (evidence / "06-construction-validation-error.txt").read_text() == (
         "page: Field required\n"
+    )
+    assert progress[-1].stage == "failed"
+
+
+def test_provider_timeout_retains_attempt_metadata_and_prior_response(
+    tmp_path: Path,
+) -> None:
+    timeout = ProviderTimeoutError(
+        "timeout",
+        elapsed_ms=300_000,
+        transport_prompt="timed-out-transport",
+    )
+
+    class TimedOutPlanner:
+        def plan(self, specification) -> ConstructionPlanResult:
+            raise ConstructionTimeoutError(
+                timeout,
+                responses=[
+                    ProviderResponse(
+                        content="{}",
+                        transport_prompt="first-transport",
+                    )
+                ],
+                user_prompts=["initial plan", "repair plan"],
+                validation_error="page: Field required",
+            )
+
+    pipeline = GenerationV2Pipeline(
+        specifier=FakeSpecifier(),
+        planner=TimedOutPlanner(),
+        template_path=TEMPLATE,
+        provider="fake",
+        model="fixture-v1",
+    )
+    evidence = tmp_path / "evidence"
+    progress = []
+
+    with pytest.raises(ConstructionTimeoutError):
+        pipeline.generate(
+            "Create a flow",
+            tmp_path / "drawing.vsdx",
+            artifact_dir=evidence,
+            progress=progress.append,
+        )
+
+    timeout_data = json.loads(
+        (evidence / "06-construction-timeout.json").read_text()
+    )
+    assert timeout_data == {
+        "attempt": 2,
+        "elapsed_ms": 300_000,
+        "error_type": "ConstructionTimeoutError",
+        "message": "Construction model call 2 timed out after 300.0 seconds",
+        "stage": "construction",
+    }
+    assert (evidence / "06-construction-response-1.json").read_text().strip() == "{}"
+    assert (evidence / "06-construction-provider-prompt-1.txt").read_text() == (
+        "first-transport"
+    )
+    assert (evidence / "06-construction-provider-prompt-2.txt").read_text() == (
+        "timed-out-transport"
+    )
+    assert (evidence / "06-construction-pre-timeout-validation-error.txt").read_text() == (
+        "page: Field required\n"
+    )
+    assert progress[-1].stage == "failed"
+
+
+def test_specification_timeout_retains_timed_out_prompt_metadata(
+    tmp_path: Path,
+) -> None:
+    timeout = ProviderTimeoutError(
+        "timeout",
+        elapsed_ms=300_000,
+        transport_prompt="timed-out-specification-transport",
+    )
+
+    class TimedOutSpecifier:
+        def specify(self, text: str) -> SpecificationResult:
+            raise SpecificationTimeoutError(
+                timeout,
+                responses=[],
+                user_prompts=[text],
+            )
+
+    pipeline = GenerationV2Pipeline(
+        specifier=TimedOutSpecifier(),
+        planner=FakePlanner(),
+        template_path=TEMPLATE,
+        provider="fake",
+        model="fixture-v1",
+    )
+    evidence = tmp_path / "evidence"
+    progress = []
+
+    with pytest.raises(SpecificationTimeoutError):
+        pipeline.generate(
+            "Create a flow",
+            tmp_path / "drawing.vsdx",
+            artifact_dir=evidence,
+            progress=progress.append,
+        )
+
+    timeout_data = json.loads(
+        (evidence / "03-specification-timeout.json").read_text()
+    )
+    assert timeout_data["attempt"] == 1
+    assert timeout_data["stage"] == "specification"
+    assert timeout_data["elapsed_ms"] == 300_000
+    assert (evidence / "03-specification-provider-prompt-1.txt").read_text() == (
+        "timed-out-specification-transport"
     )
     assert progress[-1].stage == "failed"

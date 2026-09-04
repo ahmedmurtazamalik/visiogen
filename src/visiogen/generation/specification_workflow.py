@@ -8,7 +8,11 @@ from dataclasses import dataclass
 from pydantic import ValidationError
 
 from visiogen.generation.specification import DiagramSpecification
-from visiogen.providers.base import ProviderResponse, StructuredModelCall
+from visiogen.providers.base import (
+    ProviderResponse,
+    ProviderTimeoutError,
+    StructuredModelCall,
+)
 
 
 _CONSTRAINT_FIELD_RULES = (
@@ -36,6 +40,29 @@ class SpecificationWorkflowError(ValueError):
         self.user_prompts = tuple(user_prompts or ())
         self.validation_error = validation_error
         super().__init__(message)
+
+
+class SpecificationTimeoutError(ProviderTimeoutError):
+    """A timed-out specification call with the preceding auditable state."""
+
+    def __init__(
+        self,
+        error: ProviderTimeoutError,
+        *,
+        responses: list[ProviderResponse],
+        user_prompts: list[str],
+        validation_error: str | None = None,
+    ) -> None:
+        self.responses = tuple(responses)
+        self.user_prompts = tuple(user_prompts)
+        self.attempt = len(responses) + 1
+        self.validation_error = validation_error
+        super().__init__(
+            f"Specification model call {self.attempt} timed out after "
+            f"{error.elapsed_ms / 1000:.1f} seconds",
+            elapsed_ms=error.elapsed_ms,
+            transport_prompt=error.transport_prompt,
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -85,12 +112,28 @@ class StructuredSpecificationWorkflow:
             raise SpecificationWorkflowError("Diagram request is empty")
         system_prompt = build_specification_prompt()
         prompts = [text]
-        responses = [self._call_model(system_prompt, text)]
+        responses: list[ProviderResponse] = []
+        try:
+            responses.append(self._call_model(system_prompt, text))
+        except ProviderTimeoutError as error:
+            raise SpecificationTimeoutError(
+                error,
+                responses=responses,
+                user_prompts=prompts,
+            ) from error
         try:
             specification = DiagramSpecification.model_validate_json(responses[0].content)
         except ValidationError as error:
             prompts.append(_repair_prompt(text, responses[0].content, str(error)))
-            responses.append(self._call_model(system_prompt, prompts[-1]))
+            try:
+                responses.append(self._call_model(system_prompt, prompts[-1]))
+            except ProviderTimeoutError as timeout_error:
+                raise SpecificationTimeoutError(
+                    timeout_error,
+                    responses=responses,
+                    user_prompts=prompts,
+                    validation_error=str(error),
+                ) from timeout_error
             try:
                 specification = DiagramSpecification.model_validate_json(responses[1].content)
             except ValidationError as repair_error:

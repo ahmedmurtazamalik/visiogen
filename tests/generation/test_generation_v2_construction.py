@@ -14,11 +14,12 @@ from visiogen.generation.construction import (
 )
 from visiogen.generation.planner import (
     ConstructionPlanningError,
+    ConstructionTimeoutError,
     StructuredConstructionPlanner,
     build_construction_prompt,
 )
 from visiogen.generation.specification import load_specification
-from visiogen.providers.base import ProviderResponse
+from visiogen.providers.base import ProviderResponse, ProviderTimeoutError
 
 SPEC = Path("tests/fixtures/generation_v2/specifications/expert-component.json")
 
@@ -105,7 +106,10 @@ class FakeCall:
         self.calls = []
     def __call__(self, system_prompt, user_prompt):
         self.calls.append((system_prompt, user_prompt))
-        return ProviderResponse(content=next(self.responses), request_id=f"r{len(self.calls)}", elapsed_ms=5, transport_prompt="transport")
+        response = next(self.responses)
+        if isinstance(response, BaseException):
+            raise response
+        return ProviderResponse(content=response, request_id=f"r{len(self.calls)}", elapsed_ms=5, transport_prompt="transport")
 
 
 def test_planner_uses_versioned_approved_examples_and_preserves_provenance() -> None:
@@ -143,6 +147,51 @@ def test_planner_repairs_compiler_findings_before_returning() -> None:
 
     assert result.attempts == 2
     assert "zero-length segment" in call.calls[1][1]
+
+
+def test_planner_preserves_initial_and_repair_timeout_state() -> None:
+    specification = load_specification(SPEC)
+    initial_timeout = ProviderTimeoutError(
+        "timeout", elapsed_ms=300_000, transport_prompt="initial-transport"
+    )
+    with pytest.raises(ConstructionTimeoutError) as initial:
+        StructuredConstructionPlanner(FakeCall([initial_timeout])).plan(specification)
+    assert initial.value.attempt == 1
+    assert initial.value.responses == ()
+    assert initial.value.transport_prompt == "initial-transport"
+
+    repair_timeout = ProviderTimeoutError(
+        "timeout", elapsed_ms=300_000, transport_prompt="repair-transport"
+    )
+    with pytest.raises(ConstructionTimeoutError) as repair:
+        StructuredConstructionPlanner(FakeCall(["{}", repair_timeout])).plan(
+            specification
+        )
+    assert repair.value.attempt == 2
+    assert [item.content for item in repair.value.responses] == ["{}"]
+    assert len(repair.value.user_prompts) == 2
+    assert repair.value.validation_error is not None
+    assert "Field required" in repair.value.validation_error
+
+
+def test_planner_does_not_send_internal_ir_validation_errors_for_model_repair(
+    monkeypatch,
+) -> None:
+    def invalid_internal_ir(*args, **kwargs):
+        from visiogen.generation.compiler import IRPoint
+
+        IRPoint.model_validate({"x": "not-a-number", "y": 1})
+
+    monkeypatch.setattr(
+        "visiogen.generation.planner.compile_construction_plan",
+        invalid_internal_ir,
+    )
+    call = FakeCall([json.dumps(plan_data())])
+
+    with pytest.raises(RuntimeError, match="Internal compiler error"):
+        StructuredConstructionPlanner(call).plan(load_specification(SPEC))
+
+    assert len(call.calls) == 1
 
 
 def test_prompt_forbids_package_authoring() -> None:

@@ -23,6 +23,7 @@ from visiogen.generation.specification import (
     load_specification,
 )
 from visiogen.pipeline import GenerationResult
+from visiogen.providers.base import ProviderTimeoutError
 
 
 class GenerationPipeline(Protocol):
@@ -120,8 +121,8 @@ def register_generate_command(
     generate.add_argument(
         "--timeout",
         type=float,
-        default=180.0,
-        help="Seconds per model call",
+        default=300.0,
+        help="Seconds per model call; increase for complex concurrent runs",
     )
     generate.add_argument(
         "--no-critique",
@@ -218,6 +219,13 @@ def _run_generate(
             artifact_dir=args.artifact_dir,
             progress=None if args.quiet else show_progress,
         )
+    except ProviderTimeoutError as error:
+        raise argparse.ArgumentError(
+            None,
+            f"Generation failed: {error}. Evidence: {args.artifact_dir}. "
+            "Retry with a larger --timeout (for example, --timeout 600) or "
+            "run fewer generations concurrently.",
+        ) from error
     except (OSError, RuntimeError, ValueError) as error:
         raise argparse.ArgumentError(None, f"Generation failed: {error}") from error
     print(f"VSDX: {result.output_path}")

@@ -13,12 +13,14 @@ from visiogen.generation.compiler import RendererIR, compile_construction_plan
 from visiogen.generation.planner import (
     ConstructionPlanResult,
     ConstructionPlanningError,
+    ConstructionTimeoutError,
     StructuredConstructionPlanner,
     build_construction_prompt,
 )
 from visiogen.generation.specification import DiagramSpecification
 from visiogen.generation.specification_workflow import (
     SpecificationResult,
+    SpecificationTimeoutError,
     SpecificationWorkflowError,
     StructuredSpecificationWorkflow,
     build_specification_prompt,
@@ -114,6 +116,19 @@ class GenerationV2Pipeline:
             )
             try:
                 specification_result = self._specifier.specify(source)
+            except SpecificationTimeoutError as error:
+                self._persist_timeout_trace(
+                    artifacts,
+                    "03-specification",
+                    "specification",
+                    error,
+                )
+                report(
+                    "failed",
+                    "Specification provider call timed out; timeout evidence "
+                    "was retained",
+                )
+                raise
             except SpecificationWorkflowError as error:
                 self._persist_model_trace(
                     artifacts,
@@ -159,6 +174,18 @@ class GenerationV2Pipeline:
         )
         try:
             plan_result = self._planner.plan(specification)
+        except ConstructionTimeoutError as error:
+            self._persist_timeout_trace(
+                artifacts,
+                "06-construction",
+                "construction",
+                error,
+            )
+            report(
+                "failed",
+                "Construction provider call timed out; timeout evidence was retained",
+            )
+            raise
         except ConstructionPlanningError as error:
             self._persist_model_trace(
                 artifacts,
@@ -267,6 +294,41 @@ class GenerationV2Pipeline:
             artifact_dir=artifacts,
             provider=self._provider,
             model=self._model,
+        )
+
+    @staticmethod
+    def _persist_timeout_trace(
+        artifacts: Path,
+        prefix: str,
+        stage: str,
+        error: SpecificationTimeoutError | ConstructionTimeoutError,
+    ) -> None:
+        GenerationV2Pipeline._persist_model_trace(
+            artifacts,
+            prefix,
+            error.user_prompts,
+            tuple(item.content for item in error.responses),
+            tuple(item.transport_prompt for item in error.responses),
+        )
+        if error.transport_prompt is not None:
+            _write_text(
+                artifacts / f"{prefix}-provider-prompt-{error.attempt}.txt",
+                error.transport_prompt,
+            )
+        if error.validation_error is not None:
+            _write_text(
+                artifacts / f"{prefix}-pre-timeout-validation-error.txt",
+                error.validation_error + "\n",
+            )
+        _write_json(
+            artifacts / f"{prefix}-timeout.json",
+            {
+                "attempt": error.attempt,
+                "elapsed_ms": error.elapsed_ms,
+                "error_type": type(error).__name__,
+                "message": str(error),
+                "stage": stage,
+            },
         )
 
     @staticmethod

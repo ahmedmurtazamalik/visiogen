@@ -14,7 +14,11 @@ from visiogen.generation.construction import (
 )
 from visiogen.generation.compiler import CompilationError, compile_construction_plan
 from visiogen.generation.specification import DiagramSpecification
-from visiogen.providers.base import ProviderResponse, StructuredModelCall
+from visiogen.providers.base import (
+    ProviderResponse,
+    ProviderTimeoutError,
+    StructuredModelCall,
+)
 
 CONSTRUCTION_PROMPT_VERSION = 1
 APPROVED_EXAMPLES_VERSION = 1
@@ -45,6 +49,29 @@ class ConstructionPlanningError(ValueError):
         self.user_prompts = tuple(user_prompts)
         self.validation_error = validation_error
         super().__init__(message)
+
+
+class ConstructionTimeoutError(ProviderTimeoutError):
+    """A timed-out construction call with the preceding auditable state."""
+
+    def __init__(
+        self,
+        error: ProviderTimeoutError,
+        *,
+        responses: list[ProviderResponse],
+        user_prompts: list[str],
+        validation_error: str | None = None,
+    ) -> None:
+        self.responses = tuple(responses)
+        self.user_prompts = tuple(user_prompts)
+        self.attempt = len(responses) + 1
+        self.validation_error = validation_error
+        super().__init__(
+            f"Construction model call {self.attempt} timed out after "
+            f"{error.elapsed_ms / 1000:.1f} seconds",
+            elapsed_ms=error.elapsed_ms,
+            transport_prompt=error.transport_prompt,
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -106,18 +133,40 @@ class StructuredConstructionPlanner:
     ) -> VisioConstructionPlan:
         plan = VisioConstructionPlan.model_validate_json(response.content)
         plan = validate_construction_plan(specification, plan)
-        compile_construction_plan(specification, plan)
+        try:
+            compile_construction_plan(specification, plan)
+        except ValidationError as error:
+            raise RuntimeError(
+                "Internal compiler error: validated construction data produced "
+                "invalid renderer IR"
+            ) from error
         return plan
 
     def plan(self, specification: DiagramSpecification) -> ConstructionPlanResult:
         system_prompt = build_construction_prompt()
         prompts = [_input(specification)]
-        responses = [self._call_model(system_prompt, prompts[0])]
+        responses: list[ProviderResponse] = []
+        try:
+            responses.append(self._call_model(system_prompt, prompts[0]))
+        except ProviderTimeoutError as error:
+            raise ConstructionTimeoutError(
+                error,
+                responses=responses,
+                user_prompts=prompts,
+            ) from error
         try:
             plan = self._validate(specification, responses[0])
         except (ValidationError, ConstructionPlanError, CompilationError) as error:
             prompts.append(_repair_prompt(specification, responses[0].content, str(error)))
-            responses.append(self._call_model(system_prompt, prompts[1]))
+            try:
+                responses.append(self._call_model(system_prompt, prompts[1]))
+            except ProviderTimeoutError as timeout_error:
+                raise ConstructionTimeoutError(
+                    timeout_error,
+                    responses=responses,
+                    user_prompts=prompts,
+                    validation_error=str(error),
+                ) from timeout_error
             try:
                 plan = self._validate(specification, responses[1])
             except (

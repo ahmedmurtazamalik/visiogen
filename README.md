@@ -118,6 +118,10 @@ into a path such as `/08-event-driven/final.vsdx`. If specification or construct
 validation exhausts its repair attempt, both model responses and the final validation
 finding remain in that run's evidence directory.
 
+Generation defaults to 300 seconds per model call. Complex concurrent runs can spend
+longer waiting on the provider; use `--timeout 600` and limit initial batches to two
+simultaneous commands when testing large diagrams.
+
 Generation v2 also accepts a reviewed, strict JSON or YAML professional
 specification with `--spec-file`. Natural-language input is first converted to the
 same validated specification and the result is retained in the evidence bundle.

@@ -8,6 +8,7 @@ import pytest
 from visiogen.cli import main
 from visiogen.generation.specification import DiagramSpecification
 from visiogen.pipeline import GenerationResult, PipelineError
+from visiogen.providers.base import ProviderTimeoutError
 
 
 class FakePipeline:
@@ -66,6 +67,7 @@ def test_generate_command_runs_hybrid_pipeline_with_explicit_artifacts(tmp_path:
     assert pipeline.calls == [("Create a sensor system", output, artifacts)]
     assert factory_calls[0][0].provider == "codex"
     assert factory_calls[0][0].codex_model == "gpt-5.6-sol"
+    assert factory_calls[0][0].timeout_seconds == 300.0
     assert factory_calls[0][2] is True
 
 
@@ -345,6 +347,37 @@ def test_generate_reports_pipeline_failures_cleanly(tmp_path: Path, capsys) -> N
 
     assert error.value.code == 2
     assert "Generation failed: Evidence directory must be empty" in capsys.readouterr().err
+
+
+def test_generate_timeout_suggests_larger_deadline_and_less_concurrency(
+    tmp_path: Path, capsys
+) -> None:
+    class TimedOutPipeline:
+        def generate(self, *args, **kwargs):
+            raise ProviderTimeoutError("model call timed out", elapsed_ms=300_000)
+
+    evidence = tmp_path / "evidence"
+    with pytest.raises(SystemExit) as error:
+        main(
+            [
+                "generate",
+                "--text",
+                "Create a flow",
+                "--output",
+                str(tmp_path / "drawing.vsdx"),
+                "--artifact-dir",
+                str(evidence),
+                "--template",
+                str(template_file(tmp_path)),
+            ],
+            pipeline_factory=lambda *args, **kwargs: TimedOutPipeline(),
+        )
+
+    assert error.value.code == 2
+    message = capsys.readouterr().err
+    assert f"Evidence: {evidence}" in message
+    assert "--timeout 600" in message
+    assert "fewer generations concurrently" in message
 
 
 class FakeAnalysisPipeline:

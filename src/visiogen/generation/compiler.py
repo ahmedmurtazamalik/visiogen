@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from itertools import pairwise
+from math import isclose
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -40,6 +41,7 @@ _MASTER_NAMES = {
     "__template_connector__": "Dynamic Connector",
     "__template_reference_callout__": "Reference Callout",
 }
+_COORDINATE_TOLERANCE = 1e-9
 
 
 class IRModel(BaseModel):
@@ -276,6 +278,10 @@ def _same_point(first: Point | IRPoint, second: Point | IRPoint) -> bool:
     return first.x == second.x and first.y == second.y
 
 
+def _same_coordinate(first: float, second: float) -> bool:
+    return isclose(first, second, rel_tol=0, abs_tol=_COORDINATE_TOLERANCE)
+
+
 def _resolved_route(
     connector: ConnectorPlan, shapes: dict[str, IRShape]
 ) -> tuple[IRPoint, ...]:
@@ -393,7 +399,9 @@ def compile_construction_plan(
             )
         if item.connector_type == "orthogonal":
             for first, second in pairwise(route):
-                if first.x != second.x and first.y != second.y:
+                if not _same_coordinate(first.x, second.x) and not _same_coordinate(
+                    first.y, second.y
+                ):
                     findings.append(
                         f"connector '{item.id}' has a non-orthogonal segment"
                     )
@@ -439,7 +447,10 @@ def compile_construction_plan(
                 master_name=_MASTER_NAMES[item.master],
                 connector_type=item.connector_type,
                 route=route,
-                bends=tuple(item.bends),
+                bends=tuple(
+                    IRPoint.model_validate(point.model_dump())
+                    for point in item.bends
+                ),
                 jumps=item.jumps,
                 arrowheads=item.arrowheads,
                 style=IRConnectorStyle(

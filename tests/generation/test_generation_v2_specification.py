@@ -14,10 +14,11 @@ from visiogen.generation.specification import (
     load_specification,
 )
 from visiogen.generation.specification_workflow import (
+    SpecificationTimeoutError,
     SpecificationWorkflowError,
     StructuredSpecificationWorkflow,
 )
-from visiogen.providers.base import ProviderResponse
+from visiogen.providers.base import ProviderResponse, ProviderTimeoutError
 
 FIXTURE_ROOT = Path("tests/fixtures/generation_v2/specifications")
 
@@ -185,14 +186,17 @@ def test_loader_rejects_unknown_extensions(tmp_path: Path) -> None:
 
 
 class FakeCall:
-    def __init__(self, responses: list[str]) -> None:
+    def __init__(self, responses: list[str | BaseException]) -> None:
         self.responses = iter(responses)
         self.calls: list[tuple[str, str]] = []
 
     def __call__(self, system_prompt: str, user_prompt: str) -> ProviderResponse:
         self.calls.append((system_prompt, user_prompt))
+        response = next(self.responses)
+        if isinstance(response, BaseException):
+            raise response
         return ProviderResponse(
-            content=next(self.responses),
+            content=response,
             request_id=f"request-{len(self.calls)}",
             elapsed_ms=10.0,
             transport_prompt=f"transport-{len(self.calls)}",
@@ -242,3 +246,33 @@ def test_text_adapter_repair_receives_every_constraint_field_finding() -> None:
     assert "axis is only valid for alignment constraints" in repair_prompt
     assert "separation constraints require minimum_distance" in repair_prompt
     assert "Never invent a numeric separation distance" in repair_prompt
+
+
+def test_text_adapter_preserves_initial_and_repair_timeout_state() -> None:
+    initial_timeout = ProviderTimeoutError(
+        "timeout",
+        elapsed_ms=300_000,
+        transport_prompt="timed-out-initial-transport",
+    )
+    with pytest.raises(SpecificationTimeoutError) as initial:
+        StructuredSpecificationWorkflow(FakeCall([initial_timeout])).specify("A system")
+    assert initial.value.attempt == 1
+    assert initial.value.responses == ()
+    assert initial.value.user_prompts == ("A system",)
+    assert initial.value.transport_prompt == "timed-out-initial-transport"
+
+    first_response = "{}"
+    repair_timeout = ProviderTimeoutError(
+        "timeout",
+        elapsed_ms=300_000,
+        transport_prompt="timed-out-repair-transport",
+    )
+    with pytest.raises(SpecificationTimeoutError) as repair:
+        StructuredSpecificationWorkflow(
+            FakeCall([first_response, repair_timeout])
+        ).specify("A system")
+    assert repair.value.attempt == 2
+    assert [item.content for item in repair.value.responses] == [first_response]
+    assert len(repair.value.user_prompts) == 2
+    assert repair.value.validation_error is not None
+    assert "Field required" in repair.value.validation_error
