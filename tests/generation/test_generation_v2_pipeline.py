@@ -5,11 +5,20 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from visiogen.generation.construction import VisioConstructionPlan
 from visiogen.generation.pipeline import GenerationV2Pipeline
-from visiogen.generation.planner import ConstructionPlanResult
+from visiogen.generation.planner import (
+    ConstructionPlanningError,
+    ConstructionPlanResult,
+)
 from visiogen.generation.specification import load_specification
-from visiogen.generation.specification_workflow import SpecificationResult
+from visiogen.generation.specification_workflow import (
+    SpecificationResult,
+    SpecificationWorkflowError,
+)
+from visiogen.providers.base import ProviderResponse
 from visiogen.validation import validate_vsdx_package
 
 
@@ -207,3 +216,99 @@ def test_text_to_native_vsdx_vertical_pipeline_preserves_evidence(tmp_path: Path
         "publish",
         "complete",
     ]
+
+
+def test_failed_specification_retains_both_responses_and_validation_error(
+    tmp_path: Path,
+) -> None:
+    responses = [
+        ProviderResponse(content="{}", transport_prompt="transport-1"),
+        ProviderResponse(content='{"version": 1}', transport_prompt="transport-2"),
+    ]
+
+    class FailingSpecifier:
+        def specify(self, text: str) -> SpecificationResult:
+            raise SpecificationWorkflowError(
+                "Specification is invalid after one repair attempt: missing title",
+                responses=responses,
+                user_prompts=[text, "repair the missing title"],
+                validation_error="title: Field required",
+            )
+
+    pipeline = GenerationV2Pipeline(
+        specifier=FailingSpecifier(),
+        planner=FakePlanner(),
+        template_path=TEMPLATE,
+        provider="fake",
+        model="fixture-v1",
+    )
+    evidence = tmp_path / "evidence"
+    progress = []
+
+    with pytest.raises(SpecificationWorkflowError, match="missing title"):
+        pipeline.generate(
+            "Create a flow",
+            tmp_path / "drawing.vsdx",
+            artifact_dir=evidence,
+            progress=progress.append,
+        )
+
+    assert (evidence / "03-specification-response-1.json").read_text().strip() == "{}"
+    assert json.loads(
+        (evidence / "03-specification-response-2.json").read_text()
+    ) == {"version": 1}
+    assert (evidence / "03-specification-provider-prompt-1.txt").read_text() == (
+        "transport-1"
+    )
+    assert (evidence / "03-specification-validation-error.txt").read_text() == (
+        "title: Field required\n"
+    )
+    assert progress[-1].stage == "failed"
+
+
+def test_failed_construction_retains_both_responses_and_validation_error(
+    tmp_path: Path,
+) -> None:
+    responses = [
+        ProviderResponse(content="{}", transport_prompt="transport-1"),
+        ProviderResponse(content='{"version": 1}', transport_prompt="transport-2"),
+    ]
+
+    class FailingPlanner:
+        def plan(self, specification) -> ConstructionPlanResult:
+            raise ConstructionPlanningError(
+                "Construction plan is invalid after one repair attempt: missing page",
+                responses=responses,
+                user_prompts=["initial plan", "repair the missing page"],
+                validation_error="page: Field required",
+            )
+
+    pipeline = GenerationV2Pipeline(
+        specifier=FakeSpecifier(),
+        planner=FailingPlanner(),
+        template_path=TEMPLATE,
+        provider="fake",
+        model="fixture-v1",
+    )
+    evidence = tmp_path / "evidence"
+    progress = []
+
+    with pytest.raises(ConstructionPlanningError, match="missing page"):
+        pipeline.generate(
+            "Create a flow",
+            tmp_path / "drawing.vsdx",
+            artifact_dir=evidence,
+            progress=progress.append,
+        )
+
+    assert (evidence / "06-construction-response-1.json").read_text().strip() == "{}"
+    assert json.loads(
+        (evidence / "06-construction-response-2.json").read_text()
+    ) == {"version": 1}
+    assert (evidence / "06-construction-provider-prompt-2.txt").read_text() == (
+        "transport-2"
+    )
+    assert (evidence / "06-construction-validation-error.txt").read_text() == (
+        "page: Field required\n"
+    )
+    assert progress[-1].stage == "failed"

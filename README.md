@@ -109,6 +109,15 @@ specification, construction planning, compilation, rendering, validation, and
 evidence publication. Use `--quiet` to suppress these updates in scripts; the final
 VSDX and evidence paths are still printed.
 
+Independent generation commands may run concurrently when every command uses a
+different output path and evidence directory. Shell variables are local to one
+terminal, so either define a run-directory variable separately in every terminal or
+use explicit paths. Visiogen rejects attempts to create a new top-level filesystem
+directory, which commonly indicates that an unset variable turned a relative path
+into a path such as `/08-event-driven/final.vsdx`. If specification or construction
+validation exhausts its repair attempt, both model responses and the final validation
+finding remain in that run's evidence directory.
+
 Generation v2 also accepts a reviewed, strict JSON or YAML professional
 specification with `--spec-file`. Natural-language input is first converted to the
 same validated specification and the result is retained in the evidence bundle.

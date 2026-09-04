@@ -164,6 +164,19 @@ def test_specification_rejects_containment_and_hard_ordering_cycles() -> None:
         DiagramSpecification.model_validate(ordering)
 
 
+def test_constraint_validation_reports_all_kind_field_errors_together() -> None:
+    invalid = specification_data()
+    invalid["constraints"][1]["axis"] = "vertical"  # type: ignore[index]
+    invalid["constraints"][1]["minimum_distance"] = None  # type: ignore[index]
+
+    with pytest.raises(ValidationError) as failure:
+        DiagramSpecification.model_validate(invalid)
+
+    message = str(failure.value)
+    assert "axis is only valid for alignment constraints" in message
+    assert "separation constraints require minimum_distance" in message
+
+
 def test_loader_rejects_unknown_extensions(tmp_path: Path) -> None:
     path = tmp_path / "spec.txt"
     path.write_text("{}")
@@ -206,5 +219,26 @@ def test_text_adapter_repairs_once_then_fails_clearly() -> None:
     assert "Validation findings" in call.calls[1][1]
 
     invalid = FakeCall(["{}", "{}"])
-    with pytest.raises(SpecificationWorkflowError, match="after one repair"):
+    with pytest.raises(SpecificationWorkflowError, match="after one repair") as failure:
         StructuredSpecificationWorkflow(invalid).specify("A system")
+    assert [item.content for item in failure.value.responses] == ["{}", "{}"]
+    assert len(failure.value.user_prompts) == 2
+    assert failure.value.validation_error is not None
+    assert "Field required" in failure.value.validation_error
+
+
+def test_text_adapter_repair_receives_every_constraint_field_finding() -> None:
+    invalid = specification_data()
+    invalid["constraints"][0]["axis"] = "horizontal"  # type: ignore[index]
+    invalid["constraints"][1]["axis"] = "vertical"  # type: ignore[index]
+    invalid["constraints"][1]["minimum_distance"] = None  # type: ignore[index]
+    repaired = specification_data()
+    call = FakeCall([json.dumps(invalid), json.dumps(repaired)])
+
+    result = StructuredSpecificationWorkflow(call).specify("A system")
+
+    assert result.attempts == 2
+    repair_prompt = call.calls[1][1]
+    assert "axis is only valid for alignment constraints" in repair_prompt
+    assert "separation constraints require minimum_distance" in repair_prompt
+    assert "Never invent a numeric separation distance" in repair_prompt

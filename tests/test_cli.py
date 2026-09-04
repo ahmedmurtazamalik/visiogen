@@ -281,6 +281,44 @@ def test_generate_reports_missing_template_cleanly(tmp_path: Path, capsys) -> No
     assert "Template file was not found" in capsys.readouterr().err
 
 
+@pytest.mark.parametrize("root_option", ["--output", "--artifact-dir"])
+def test_generate_rejects_new_root_directory_from_unset_shell_variable(
+    tmp_path: Path, capsys, root_option: str
+) -> None:
+    root = Path(Path.cwd().anchor)
+    missing_root_child = root / f"visiogen-unset-variable-{tmp_path.name}"
+    assert not missing_root_child.exists()
+    output = tmp_path / "drawing.vsdx"
+    artifacts = tmp_path / "evidence"
+    if root_option == "--output":
+        output = missing_root_child / "final.vsdx"
+    else:
+        artifacts = missing_root_child / "evidence"
+
+    with pytest.raises(SystemExit) as error:
+        main(
+            [
+                "generate",
+                "--text",
+                "Create a flow",
+                "--output",
+                str(output),
+                "--artifact-dir",
+                str(artifacts),
+                "--template",
+                str(template_file(tmp_path)),
+            ],
+            pipeline_factory=lambda *args, **kwargs: pytest.fail(
+                "pipeline must not be constructed"
+            ),
+        )
+
+    assert error.value.code == 2
+    message = capsys.readouterr().err
+    assert "directly under the filesystem root" in message
+    assert "$RUN was unset in this terminal" in message
+
+
 def test_generate_reports_pipeline_failures_cleanly(tmp_path: Path, capsys) -> None:
     class FailingPipeline:
         def generate(self, *args, **kwargs):

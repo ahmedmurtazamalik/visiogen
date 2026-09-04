@@ -126,8 +126,11 @@ def test_planner_repairs_once_and_then_fails() -> None:
     call = FakeCall(["{}", valid])
     assert StructuredConstructionPlanner(call).plan(load_specification(SPEC)).attempts == 2
     assert "Findings" in call.calls[1][1]
-    with pytest.raises(ConstructionPlanningError, match="after one repair"):
+    with pytest.raises(ConstructionPlanningError, match="after one repair") as failure:
         StructuredConstructionPlanner(FakeCall(["{}", "{}"])).plan(load_specification(SPEC))
+    assert [item.content for item in failure.value.responses] == ["{}", "{}"]
+    assert len(failure.value.user_prompts) == 2
+    assert "Field required" in failure.value.validation_error
 
 
 def test_planner_repairs_compiler_findings_before_returning() -> None:

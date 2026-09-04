@@ -46,6 +46,25 @@ def _default_template_path() -> Path:
     return Path(__file__).resolve().parents[3] / "templates" / "template.vsdx"
 
 
+def _reject_new_filesystem_root_directory(path: Path, option: str) -> None:
+    """Catch the common case where an unset shell variable erases a path prefix."""
+
+    resolved = path.absolute()
+    root = Path(resolved.anchor)
+    relative_parts = resolved.relative_to(root).parts
+    if not relative_parts:
+        raise argparse.ArgumentError(None, f"{option} must not be the filesystem root")
+    first_component = root / relative_parts[0]
+    if not first_component.exists():
+        raise argparse.ArgumentError(
+            None,
+            f"Refusing {option} path '{path}' because it would create "
+            f"'{first_component}' directly under the filesystem root. This often "
+            "means a shell variable such as $RUN was unset in this terminal; set "
+            "it in every terminal or pass an explicit path.",
+        )
+
+
 def register_generate_command(
     commands: argparse._SubParsersAction[argparse.ArgumentParser],
     *,
@@ -139,6 +158,9 @@ def _run_generate(
         raise argparse.ArgumentError(
             None, "--artifact-dir is required unless stopping after specification"
         )
+    _reject_new_filesystem_root_directory(args.output, "--output")
+    if args.artifact_dir is not None:
+        _reject_new_filesystem_root_directory(args.artifact_dir, "--artifact-dir")
     if not args.stop_after_specification and not args.template.is_file():
         raise argparse.ArgumentError(None, f"Template file was not found: {args.template}")
     if args.analysis_bundle is not None:

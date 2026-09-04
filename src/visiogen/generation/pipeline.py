@@ -12,12 +12,14 @@ from visiogen.config import Settings
 from visiogen.generation.compiler import RendererIR, compile_construction_plan
 from visiogen.generation.planner import (
     ConstructionPlanResult,
+    ConstructionPlanningError,
     StructuredConstructionPlanner,
     build_construction_prompt,
 )
 from visiogen.generation.specification import DiagramSpecification
 from visiogen.generation.specification_workflow import (
     SpecificationResult,
+    SpecificationWorkflowError,
     StructuredSpecificationWorkflow,
     build_specification_prompt,
 )
@@ -110,7 +112,27 @@ class GenerationV2Pipeline:
                 "specification",
                 "Creating and validating the diagram specification (model call)",
             )
-            specification_result = self._specifier.specify(source)
+            try:
+                specification_result = self._specifier.specify(source)
+            except SpecificationWorkflowError as error:
+                self._persist_model_trace(
+                    artifacts,
+                    "03-specification",
+                    error.user_prompts,
+                    tuple(item.content for item in error.responses),
+                    tuple(item.transport_prompt for item in error.responses),
+                )
+                if error.validation_error is not None:
+                    _write_text(
+                        artifacts / "03-specification-validation-error.txt",
+                        error.validation_error + "\n",
+                    )
+                report(
+                    "failed",
+                    "Specification remained invalid after its repair attempt; "
+                    "failure evidence was retained",
+                )
+                raise
             specification = specification_result.specification
             self._persist_model_trace(
                 artifacts,
@@ -135,7 +157,26 @@ class GenerationV2Pipeline:
             "construction",
             "Planning exact Visio shapes, geometry, and connector routes (model call)",
         )
-        plan_result = self._planner.plan(specification)
+        try:
+            plan_result = self._planner.plan(specification)
+        except ConstructionPlanningError as error:
+            self._persist_model_trace(
+                artifacts,
+                "06-construction",
+                error.user_prompts,
+                tuple(item.content for item in error.responses),
+                tuple(item.transport_prompt for item in error.responses),
+            )
+            _write_text(
+                artifacts / "06-construction-validation-error.txt",
+                error.validation_error + "\n",
+            )
+            report(
+                "failed",
+                "Construction remained invalid after its repair attempt; "
+                "failure evidence was retained",
+            )
+            raise
         self._persist_model_trace(
             artifacts,
             "06-construction",

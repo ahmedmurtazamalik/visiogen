@@ -93,16 +93,21 @@ class CompositionConstraint(SpecificationModel):
 
     @model_validator(mode="after")
     def validate_kind_fields(self) -> CompositionConstraint:
+        findings: list[str] = []
         if len(self.object_ids) != len(set(self.object_ids)):
-            raise ValueError("constraint object_ids must be unique")
+            findings.append("constraint object_ids must be unique")
         if self.kind == "alignment" and self.axis is None:
-            raise ValueError("alignment constraints require axis")
+            findings.append("alignment constraints require axis")
         if self.kind != "alignment" and self.axis is not None:
-            raise ValueError("axis is only valid for alignment constraints")
+            findings.append("axis is only valid for alignment constraints")
         if self.kind == "separation" and self.minimum_distance is None:
-            raise ValueError("separation constraints require minimum_distance")
+            findings.append("separation constraints require minimum_distance")
         if self.kind != "separation" and self.minimum_distance is not None:
-            raise ValueError("minimum_distance is only valid for separation constraints")
+            findings.append(
+                "minimum_distance is only valid for separation constraints"
+            )
+        if findings:
+            raise ValueError("; ".join(findings))
         return self
 
 

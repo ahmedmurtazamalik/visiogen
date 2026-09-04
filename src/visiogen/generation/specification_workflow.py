@@ -11,8 +11,31 @@ from visiogen.generation.specification import DiagramSpecification
 from visiogen.providers.base import ProviderResponse, StructuredModelCall
 
 
+_CONSTRAINT_FIELD_RULES = (
+    "Constraint field rules: ordering and adjacency use axis=null and "
+    "minimum_distance=null; alignment requires axis and uses "
+    "minimum_distance=null; separation requires axis=null and a positive "
+    "minimum_distance. Never invent a numeric separation distance: if the "
+    "request does not supply one, omit that separation constraint and express "
+    "the qualitative preference elsewhere."
+)
+
+
 class SpecificationWorkflowError(ValueError):
     """Raised when text cannot produce a valid specification after one repair."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        responses: list[ProviderResponse] | None = None,
+        user_prompts: list[str] | None = None,
+        validation_error: str | None = None,
+    ) -> None:
+        self.responses = tuple(responses or ())
+        self.user_prompts = tuple(user_prompts or ())
+        self.validation_error = validation_error
+        super().__init__(message)
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,6 +59,7 @@ def build_specification_prompt() -> str:
         "ambiguities or unknowns. Use lowercase snake_case IDs. Do not invent facts or resolve "
         "uncertainty silently. Hard constraints must be internally consistent. Do not choose "
         "coordinates, routes, VSDX XML, Visio masters, or ShapeSheet formulas. Return JSON only. "
+        f"{_CONSTRAINT_FIELD_RULES} "
         f"The response must satisfy this JSON Schema: {schema}"
     )
 
@@ -43,7 +67,8 @@ def build_specification_prompt() -> str:
 def _repair_prompt(text: str, response: str, error: str) -> str:
     return (
         "Repair the invalid DiagramSpecification using only the validation findings. Preserve "
-        "the request semantics and return the complete JSON object.\n\n"
+        "the request semantics and return the complete JSON object. "
+        f"{_CONSTRAINT_FIELD_RULES}\n\n"
         f"Original request:\n{text}\n\nValidation findings:\n{error}\n\n"
         f"Invalid response:\n{response}"
     )
@@ -70,7 +95,11 @@ class StructuredSpecificationWorkflow:
                 specification = DiagramSpecification.model_validate_json(responses[1].content)
             except ValidationError as repair_error:
                 raise SpecificationWorkflowError(
-                    "Specification is invalid after one repair attempt"
+                    "Specification is invalid after one repair attempt: "
+                    f"{repair_error}",
+                    responses=responses,
+                    user_prompts=prompts,
+                    validation_error=str(repair_error),
                 ) from repair_error
         return SpecificationResult(
             specification=specification,

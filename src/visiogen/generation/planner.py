@@ -39,9 +39,11 @@ class ConstructionPlanningError(ValueError):
         *,
         responses: list[ProviderResponse],
         user_prompts: list[str],
+        validation_error: str,
     ) -> None:
         self.responses = tuple(responses)
         self.user_prompts = tuple(user_prompts)
+        self.validation_error = validation_error
         super().__init__(message)
 
 
@@ -124,9 +126,11 @@ class StructuredConstructionPlanner:
                 CompilationError,
             ) as repair_error:
                 raise ConstructionPlanningError(
-                    "Construction plan is invalid after one repair attempt",
+                    "Construction plan is invalid after one repair attempt: "
+                    f"{repair_error}",
                     responses=responses,
                     user_prompts=prompts,
+                    validation_error=str(repair_error),
                 ) from repair_error
         return ConstructionPlanResult(
             plan=plan,
