@@ -16,6 +16,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 $CoordinateTolerance = 0.0001
+$ConnectorEnvelopeTolerance = 0.02
 
 function Get-NormalizedText {
     param([AllowNull()][string]$Text)
@@ -116,6 +117,177 @@ function Get-NativeConnectionSignatures {
         }
     }
     return @($signatures | Sort-Object)
+}
+
+function Get-NativeEndpointCoordinates {
+    param(
+        [Parameter(Mandatory = $true)]$Page,
+        [Parameter(Mandatory = $true)]$RootShape
+    )
+
+    $shapeIds = @{}
+    Add-ShapeTreeIds -Shape $RootShape -Ids $shapeIds
+    $endpoints = @()
+    for ($index = 1; $index -le [int]$Page.Connects.Count; $index++) {
+        $connection = $Page.Connects.Item($index)
+        $targetId = [int]$connection.ToSheet.ID
+        if (-not $shapeIds.ContainsKey($targetId)) {
+            continue
+        }
+        $endpointX = [string]$connection.FromCell.Name
+        $endpointY = $endpointX -replace "X$", "Y"
+        $connector = $connection.FromSheet
+        $endpoints += [pscustomobject]@{
+            key = "{0}|{1}|{2}" -f @([int]$connector.ID, $endpointX, $targetId)
+            x = [double]$connector.CellsU($endpointX).ResultIU
+            y = [double]$connector.CellsU($endpointY).ResultIU
+        }
+    }
+    return @($endpoints | Sort-Object key)
+}
+
+function Assert-NativeConnectionMetadata {
+    param(
+        [Parameter(Mandatory = $true)]$Page,
+        [Parameter(Mandatory = $true)][string]$Stage
+    )
+
+    for ($index = 1; $index -le [int]$Page.Connects.Count; $index++) {
+        $connection = $Page.Connects.Item($index)
+        $toCellName = [string]$connection.ToCell.Name
+        $actualToPart = [int]$connection.ToPart
+        if ($toCellName.StartsWith("Connections.")) {
+            $expectedToPart = 100 + [int]$connection.ToCell.Row
+        }
+        elseif ($toCellName -eq "PinX") {
+            $expectedToPart = 3
+        }
+        else {
+            throw "Unsupported native connection target '$toCellName' $Stage."
+        }
+        if ($actualToPart -ne $expectedToPart) {
+            throw "Native connection ToPart/ToCell mismatch $Stage for connector $([int]$connection.FromSheet.ID): expected $expectedToPart for '$toCellName', got $actualToPart."
+        }
+    }
+}
+
+function Get-NativeConnectorsForShape {
+    param(
+        [Parameter(Mandatory = $true)]$Page,
+        [Parameter(Mandatory = $true)]$RootShape
+    )
+
+    $shapeIds = @{}
+    Add-ShapeTreeIds -Shape $RootShape -Ids $shapeIds
+    $seen = @{}
+    $connectors = @()
+    for ($index = 1; $index -le [int]$Page.Connects.Count; $index++) {
+        $connection = $Page.Connects.Item($index)
+        if (-not $shapeIds.ContainsKey([int]$connection.ToSheet.ID)) {
+            continue
+        }
+        $connector = $connection.FromSheet
+        $connectorId = [int]$connector.ID
+        if (-not $seen.ContainsKey($connectorId)) {
+            $seen[$connectorId] = $true
+            $connectors += $connector
+        }
+    }
+    return @($connectors)
+}
+
+function Assert-StraightConnectorEnvelopes {
+    param(
+        [Parameter(Mandatory = $true)]$Page,
+        [Parameter(Mandatory = $true)]$RootShape,
+        [Parameter(Mandatory = $true)][string]$Label,
+        [Parameter(Mandatory = $true)][string]$Stage
+    )
+
+    foreach ($connector in @(Get-NativeConnectorsForShape -Page $Page -RootShape $RootShape)) {
+        if (
+            [int]$connector.CellExistsU("ShapeRouteStyle", 0) -eq 0 -or
+            [int]$connector.CellExistsU("ConLineRouteExt", 0) -eq 0 -or
+            [int]$connector.CellsU("ShapeRouteStyle").ResultIU -ne 2 -or
+            [int]$connector.CellsU("ConLineRouteExt").ResultIU -ne 1
+        ) {
+            continue
+        }
+
+        $beginX = [double]$connector.CellsU("BeginX").ResultIU
+        $beginY = [double]$connector.CellsU("BeginY").ResultIU
+        $endX = [double]$connector.CellsU("EndX").ResultIU
+        $endY = [double]$connector.CellsU("EndY").ResultIU
+        $expectedLeft = [Math]::Min($beginX, $endX)
+        $expectedBottom = [Math]::Min($beginY, $endY)
+        $expectedRight = [Math]::Max($beginX, $endX)
+        $expectedTop = [Math]::Max($beginY, $endY)
+        [double]$actualLeft = 0
+        [double]$actualBottom = 0
+        [double]$actualRight = 0
+        [double]$actualTop = 0
+        $connector.BoundingBox(
+            0x2004,
+            [ref]$actualLeft,
+            [ref]$actualBottom,
+            [ref]$actualRight,
+            [ref]$actualTop
+        )
+        foreach ($comparison in @(
+            @("left", $expectedLeft, $actualLeft),
+            @("bottom", $expectedBottom, $actualBottom),
+            @("right", $expectedRight, $actualRight),
+            @("top", $expectedTop, $actualTop)
+        )) {
+            if ([Math]::Abs([double]$comparison[1] - [double]$comparison[2]) -gt $ConnectorEnvelopeTolerance) {
+                throw "Shape '$Label' straight connector $([int]$connector.ID) leaves its endpoint envelope $Stage at $($comparison[0]): expected $($comparison[1]), got $($comparison[2])."
+            }
+        }
+    }
+}
+
+function Assert-EndpointOffset {
+    param(
+        [Parameter(Mandatory = $true)][string]$Label,
+        [Parameter(Mandatory = $true)][object[]]$Before,
+        [Parameter(Mandatory = $true)][object[]]$After,
+        [Parameter(Mandatory = $true)][double]$DeltaX,
+        [Parameter(Mandatory = $true)][double]$DeltaY,
+        [Parameter(Mandatory = $true)][string]$Stage
+    )
+
+    if ($Before.Count -ne $After.Count) {
+        throw "Shape '$Label' connector endpoint count changed $Stage."
+    }
+    for ($index = 0; $index -lt $Before.Count; $index++) {
+        if ($Before[$index].key -ne $After[$index].key) {
+            throw "Shape '$Label' connector endpoint identity changed $Stage."
+        }
+        Assert-Near -Expected ([double]$Before[$index].x + $DeltaX) -Actual ([double]$After[$index].x) -Description "Shape '$Label' connector endpoint X $Stage"
+        Assert-Near -Expected ([double]$Before[$index].y + $DeltaY) -Actual ([double]$After[$index].y) -Description "Shape '$Label' connector endpoint Y $Stage"
+    }
+}
+
+function Assert-EndpointsMoved {
+    param(
+        [Parameter(Mandatory = $true)][string]$Label,
+        [Parameter(Mandatory = $true)][object[]]$Before,
+        [Parameter(Mandatory = $true)][object[]]$After
+    )
+
+    if ($Before.Count -ne $After.Count) {
+        throw "Shape '$Label' connector endpoint count changed after movement."
+    }
+    for ($index = 0; $index -lt $Before.Count; $index++) {
+        if ($Before[$index].key -ne $After[$index].key) {
+            throw "Shape '$Label' connector endpoint identity changed after movement."
+        }
+        $deltaX = [Math]::Abs([double]$After[$index].x - [double]$Before[$index].x)
+        $deltaY = [Math]::Abs([double]$After[$index].y - [double]$Before[$index].y)
+        if ($deltaX -le $CoordinateTolerance -and $deltaY -le $CoordinateTolerance) {
+            throw "Shape '$Label' connector endpoint stayed fixed after movement."
+        }
+    }
 }
 
 function Assert-SameConnectionSignatures {
@@ -236,6 +408,7 @@ try {
         $page = $document.Pages.Item(1)
         $initialShapeCount = [int]$page.Shapes.Count
         $initialConnectionCount = [int]$page.Connects.Count
+        Assert-NativeConnectionMetadata -Page $page -Stage "after initial open"
         $page.Export($beforePreview)
 
         $moves = @()
@@ -243,9 +416,11 @@ try {
             $match = Find-TopLevelShapeByLabel -Page $page -Label $label
             $root = $match.Root
             $signaturesBefore = @(Get-NativeConnectionSignatures -Page $page -RootShape $root)
+            $endpointsBefore = @(Get-NativeEndpointCoordinates -Page $page -RootShape $root)
             if ($signaturesBefore.Count -le 0) {
                 throw "Shape '$label' has no native connection rows before movement."
             }
+            Assert-StraightConnectorEnvelopes -Page $page -RootShape $root -Label $label -Stage "before movement"
 
             $pinX = $root.CellsU("PinX")
             $pinY = $root.CellsU("PinY")
@@ -254,22 +429,60 @@ try {
             $expectedX = $beforeX + 0.35
             $expectedY = $beforeY + 0.15
 
-            # ResultIU preserves ShapeSheet formulas unless the cell is unguarded and writable.
-            # A guarded or constrained cell must fail rather than being force-overwritten.
-            $pinX.ResultIU = $expectedX
-            $pinY.ResultIU = $expectedY
+            $moveScope = [int]$visio.BeginUndoScope("Move Visiogen shape '$label'")
+            try {
+                # ResultIU preserves ShapeSheet formulas unless the cell is unguarded and writable.
+                # A guarded or constrained cell must fail rather than being force-overwritten.
+                $pinX.ResultIU = $expectedX
+                $pinY.ResultIU = $expectedY
+                $visio.EndUndoScope($moveScope, $true)
+                $moveScope = 0
+            }
+            finally {
+                if ($moveScope -ne 0) {
+                    $visio.EndUndoScope($moveScope, $false)
+                }
+            }
             Assert-Near -Expected $expectedX -Actual ([double]$pinX.ResultIU) -Description "Shape '$label' PinX movement"
             Assert-Near -Expected $expectedY -Actual ([double]$pinY.ResultIU) -Description "Shape '$label' PinY movement"
 
             $signaturesAfter = @(Get-NativeConnectionSignatures -Page $page -RootShape $root)
             Assert-SameConnectionSignatures -Label $label -Expected $signaturesBefore -Actual $signaturesAfter -Stage "after movement"
+            $endpointsAfter = @(Get-NativeEndpointCoordinates -Page $page -RootShape $root)
+            Assert-EndpointsMoved -Label $label -Before $endpointsBefore -After $endpointsAfter
+            Assert-NativeConnectionMetadata -Page $page -Stage "after moving '$label'"
+            Assert-StraightConnectorEnvelopes -Page $page -RootShape $root -Label $label -Stage "after movement"
+
+            $visio.Undo()
+            Assert-Near -Expected $beforeX -Actual ([double]$pinX.ResultIU) -Description "Shape '$label' PinX after undo"
+            Assert-Near -Expected $beforeY -Actual ([double]$pinY.ResultIU) -Description "Shape '$label' PinY after undo"
+            $signaturesAfterUndo = @(Get-NativeConnectionSignatures -Page $page -RootShape $root)
+            Assert-SameConnectionSignatures -Label $label -Expected $signaturesBefore -Actual $signaturesAfterUndo -Stage "after undo"
+            $endpointsAfterUndo = @(Get-NativeEndpointCoordinates -Page $page -RootShape $root)
+            Assert-EndpointOffset -Label $label -Before $endpointsBefore -After $endpointsAfterUndo -DeltaX 0 -DeltaY 0 -Stage "after undo"
+            Assert-NativeConnectionMetadata -Page $page -Stage "after undoing '$label'"
+            Assert-StraightConnectorEnvelopes -Page $page -RootShape $root -Label $label -Stage "after undo"
+
+            $visio.Redo()
+            Assert-Near -Expected $expectedX -Actual ([double]$pinX.ResultIU) -Description "Shape '$label' PinX after redo"
+            Assert-Near -Expected $expectedY -Actual ([double]$pinY.ResultIU) -Description "Shape '$label' PinY after redo"
+            $signaturesAfterRedo = @(Get-NativeConnectionSignatures -Page $page -RootShape $root)
+            Assert-SameConnectionSignatures -Label $label -Expected $signaturesBefore -Actual $signaturesAfterRedo -Stage "after redo"
+            $endpointsAfterRedo = @(Get-NativeEndpointCoordinates -Page $page -RootShape $root)
+            Assert-EndpointOffset -Label $label -Before $endpointsAfter -After $endpointsAfterRedo -DeltaX 0 -DeltaY 0 -Stage "after redo"
+            Assert-NativeConnectionMetadata -Page $page -Stage "after redoing '$label'"
+            Assert-StraightConnectorEnvelopes -Page $page -RootShape $root -Label $label -Stage "after redo"
 
             $moves += [ordered]@{
                 label = $label
                 root_shape_id = [int]$root.ID
                 pin_before = @($beforeX, $beforeY)
                 pin_after = @([double]$pinX.ResultIU, [double]$pinY.ResultIU)
+                pin_after_undo = @($beforeX, $beforeY)
+                pin_after_redo = @([double]$pinX.ResultIU, [double]$pinY.ResultIU)
                 native_connection_signatures = $signaturesBefore
+                connector_endpoints_before = $endpointsBefore
+                connector_endpoints_after = $endpointsAfterRedo
             }
         }
 
@@ -296,12 +509,14 @@ try {
         if ($reopenedConnectionCount -ne $savedConnectionCount) {
             throw "Page connection count changed after save and reopen."
         }
+        Assert-NativeConnectionMetadata -Page $reopenedPage -Stage "after save and reopen"
 
         foreach ($move in $moves) {
             $reopenedMatch = Find-TopLevelShapeByLabel -Page $reopenedPage -Label $move.label
             $reopenedRoot = $reopenedMatch.Root
             $reopenedSignatures = @(Get-NativeConnectionSignatures -Page $reopenedPage -RootShape $reopenedRoot)
             Assert-SameConnectionSignatures -Label $move.label -Expected ([string[]]$move.native_connection_signatures) -Actual $reopenedSignatures -Stage "after save and reopen"
+            Assert-StraightConnectorEnvelopes -Page $reopenedPage -RootShape $reopenedRoot -Label $move.label -Stage "after save and reopen"
             Assert-Near -Expected ([double]$move.pin_after[0]) -Actual ([double]$reopenedRoot.CellsU("PinX").ResultIU) -Description "Shape '$($move.label)' reopened PinX"
             Assert-Near -Expected ([double]$move.pin_after[1]) -Actual ([double]$reopenedRoot.CellsU("PinY").ResultIU) -Description "Shape '$($move.label)' reopened PinY"
             $move.reopened_pin = @(

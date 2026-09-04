@@ -569,6 +569,52 @@ def _configure_dynamic_connector_glue(
     _set_local_cell_value(connector, "ConFixedCode", "6")
 
 
+def _configure_explicit_connector_glue(
+    connector: Shape,
+    source: Shape,
+    source_port: str,
+    target: Shape,
+    target_port: str,
+    start: tuple[float, float],
+    finish: tuple[float, float],
+) -> None:
+    """Glue explicit route endpoints to exact named connection-point rows."""
+
+    source_point = (
+        f"PAR(PNT(Sheet.{source.ID}!Connections.{source_port}.X,"
+        f"Sheet.{source.ID}!Connections.{source_port}.Y))"
+    )
+    target_point = (
+        f"PAR(PNT(Sheet.{target.ID}!Connections.{target_port}.X,"
+        f"Sheet.{target.ID}!Connections.{target_port}.Y))"
+    )
+    for name, value, formula in (
+        ("BeginX", start[0], source_point),
+        ("BeginY", start[1], source_point),
+        ("EndX", finish[0], target_point),
+        ("EndY", finish[1], target_point),
+    ):
+        _set_local_cell_formula(connector, name, f"{value:.15g}", formula)
+    _set_local_cell_formula(
+        connector,
+        "BegTrigger",
+        "2",
+        f"_XFTRIGGER(Sheet.{source.ID}!EventXFMod)",
+    )
+    _set_local_cell_formula(
+        connector,
+        "EndTrigger",
+        "2",
+        f"_XFTRIGGER(Sheet.{target.ID}!EventXFMod)",
+    )
+    # Explicit routes own their geometry.  Letting Visio's routing algorithm take
+    # over here can replace that geometry when an endpoint moves (and value 6 is
+    # reserved for Visio's internal routing algorithm).  The endpoint formulas
+    # still recalculate, so the connector remains glued while its route stays
+    # under our control.
+    _set_local_cell_value(connector, "ConFixedCode", "2")
+
+
 def _style_connector(shape: Shape, visual: EdgeVisualSpec) -> None:
     _set_local_cell_value(shape, "BeginArrow", _ARROW_STYLE if visual.begin_arrow else "0")
     _set_local_cell_value(shape, "EndArrow", _ARROW_STYLE if visual.end_arrow else "0")
@@ -775,6 +821,29 @@ def _block_master_inheritance(shape: Shape, names: Collection[str]) -> None:
         cell.xml.attrib["F"] = "No Formula"
 
 
+def _stabilize_local_formulas(shape: Shape, names: Collection[str]) -> None:
+    """Keep editable instance values local across Visio move/undo operations.
+
+    ``No Formula`` blocks a master formula, but Visio can restore inheritance when
+    undoing an edit and then use the master's original transform. A local unguarded
+    numeric formula remains editable and gives undo an explicit instance value to
+    restore instead.
+    """
+
+    for name in names:
+        cell = shape.cells.get(name)
+        if cell is None:
+            raise RenderingError(f"cannot stabilize missing cell '{name}' on shape {shape.ID}")
+        cell.xml.attrib["F"] = cell.xml.attrib["V"]
+
+
+def _stabilize_transform_tree(shape: Shape) -> None:
+    names = ("PinX", "PinY", "Width", "Height", "LocPinX", "LocPinY")
+    _stabilize_local_formulas(shape, names)
+    for child in shape.child_shapes:
+        _stabilize_transform_tree(child)
+
+
 def _resize_group_children(shape: Shape, width: float, height: float) -> None:
     """Scale copied group children to the requested instance dimensions."""
 
@@ -932,11 +1001,15 @@ def _replace_connection_points(shape: Shape, plan: IRShape, page_height: float) 
         shape.xml.remove(existing)
     section = ET.SubElement(shape.xml, f"{namespace}Section", {"N": "Connection"})
     owner_bottom = page_height - plan.rect.y - plan.rect.height
+    # DirX/DirY is the *inward* alignment vector for a Type=0 connection
+    # point.  Reversing these signs tells Visio to approach a port through the
+    # shape itself, which produces the long loop-back routes seen after moving
+    # a connected shape.
     direction = {
-        "top": ("0", "1"),
-        "right": ("1", "0"),
-        "bottom": ("0", "-1"),
-        "left": ("-1", "0"),
+        "top": ("0", "-1"),
+        "right": ("-1", "0"),
+        "bottom": ("0", "1"),
+        "left": ("1", "0"),
     }
     for port in plan.ports:
         row = ET.SubElement(
@@ -996,7 +1069,48 @@ def _add_ir_connection(
         to_part = "3"
     else:
         to_cell = f"Connections.{port_name}"
-        to_part = "101" if endpoint == "BeginX" else "103"
+        connection_section = target.xml.find(
+            f"{namespace}Section[@N='Connection']"
+        )
+        if connection_section is None:
+            raise RenderingError(
+                f"shape {target.ID} has no connection points for port {port_name!r}"
+            )
+        active_rows = [
+            row
+            for row in connection_section.findall(f"{namespace}Row")
+            if row.attrib.get("Del") != "1"
+        ]
+        local_row_index = next(
+            (
+                index
+                for index, row in enumerate(active_rows)
+                if row.attrib.get("N") == port_name
+            ),
+            None,
+        )
+        if local_row_index is None:
+            raise RenderingError(
+                f"shape {target.ID} has no connection point named {port_name!r}"
+            )
+        inherited_rows = []
+        if target.master_shape is not None:
+            master_section = target.master_shape.xml.find(
+                f"{namespace}Section[@N='Connection']"
+            )
+            if master_section is not None:
+                inherited_rows = [
+                    row
+                    for row in master_section.findall(f"{namespace}Row")
+                    if row.attrib.get("Del") != "1"
+                ]
+        row_index = len(inherited_rows) + local_row_index
+        # Visio's ToPart value is 100 plus the zero-based Connection-row index.
+        # Master rows remain inherited and precede newly added named rows, so the
+        # effective index includes both sets.  It must agree with ToCell;
+        # hard-coded side indexes corrupt ports such as flow_in/flow_out when
+        # Visio recalculates after a move.
+        to_part = str(100 + row_index)
     attributes = {
         "FromSheet": connector.ID,
         "FromCell": endpoint,
@@ -1014,6 +1128,7 @@ def _replace_route_geometry(
     connector: Shape,
     route: tuple[IRPoint, ...],
     page_height: float,
+    connector_type: str,
 ) -> None:
     points = tuple(_to_visio_point(page_height, point) for point in route)
     minimum_x = min(point[0] for point in points)
@@ -1022,12 +1137,34 @@ def _replace_route_geometry(
     maximum_y = max(point[1] for point in points)
     width = max(maximum_x - minimum_x, 0.25)
     height = max(maximum_y - minimum_y, 0.25)
-    _set_local_cell_value(connector, "PinX", f"{(minimum_x + maximum_x) / 2:.15g}")
-    _set_local_cell_value(connector, "PinY", f"{(minimum_y + maximum_y) / 2:.15g}")
-    _set_local_cell_value(connector, "Width", f"{width:.15g}")
-    _set_local_cell_value(connector, "Height", f"{height:.15g}")
-    _set_local_cell_value(connector, "LocPinX", f"{width / 2:.15g}")
-    _set_local_cell_value(connector, "LocPinY", f"{height / 2:.15g}")
+    intermediate = points[1:-1]
+    for axis, minimum, maximum, dimension in (
+        ("X", minimum_x, maximum_x, width),
+        ("Y", minimum_y, maximum_y, height),
+    ):
+        fixed = [f"{point[0 if axis == 'X' else 1]:.15g}" for point in intermediate]
+        arguments = ",".join((f"Begin{axis}", f"End{axis}", *fixed))
+        low = f"MIN({arguments})"
+        high = f"MAX({arguments})"
+        dimension_name = "Width" if axis == "X" else "Height"
+        _set_local_cell_formula(
+            connector,
+            f"Pin{axis}",
+            f"{(minimum + maximum) / 2:.15g}",
+            f"GUARD(({low}+{high})/2)",
+        )
+        _set_local_cell_formula(
+            connector,
+            dimension_name,
+            f"{dimension:.15g}",
+            f"GUARD(MAX({high}-{low},0.25DL))",
+        )
+        _set_local_cell_formula(
+            connector,
+            f"LocPin{axis}",
+            f"{dimension / 2:.15g}",
+            f"GUARD({dimension_name}/2)",
+        )
     for section in connector.xml.findall(f"{namespace}Section[@N='Geometry']"):
         connector.xml.remove(section)
     geometry = ET.SubElement(
@@ -1039,8 +1176,33 @@ def _replace_route_geometry(
             f"{namespace}Row",
             {"T": "MoveTo" if index == 1 else "LineTo", "IX": str(index)},
         )
-        ET.SubElement(row, f"{namespace}Cell", {"N": "X", "V": f"{x - minimum_x:.15g}"})
-        ET.SubElement(row, f"{namespace}Cell", {"N": "Y", "V": f"{y - minimum_y:.15g}"})
+        x_cell = ET.SubElement(
+            row, f"{namespace}Cell", {"N": "X", "V": f"{x - minimum_x:.15g}"}
+        )
+        y_cell = ET.SubElement(
+            row, f"{namespace}Cell", {"N": "Y", "V": f"{y - minimum_y:.15g}"}
+        )
+        if index == 1:
+            x_cell.attrib["F"] = "BeginX-PinX+LocPinX"
+            y_cell.attrib["F"] = "BeginY-PinY+LocPinY"
+        elif index == len(points):
+            x_cell.attrib["F"] = "EndX-PinX+LocPinX"
+            y_cell.attrib["F"] = "EndY-PinY+LocPinY"
+        else:
+            x_cell.attrib["F"] = f"{x:.15g}-PinX+LocPinX"
+            y_cell.attrib["F"] = f"{y:.15g}-PinY+LocPinY"
+            if connector_type == "orthogonal" and index == 2:
+                previous_x, previous_y = points[0]
+                if math.isclose(y, previous_y, abs_tol=1e-12):
+                    y_cell.attrib["F"] = "BeginY-PinY+LocPinY"
+                elif math.isclose(x, previous_x, abs_tol=1e-12):
+                    x_cell.attrib["F"] = "BeginX-PinX+LocPinX"
+            if connector_type == "orthogonal" and index == len(points) - 1:
+                following_x, following_y = points[-1]
+                if math.isclose(y, following_y, abs_tol=1e-12):
+                    y_cell.attrib["F"] = "EndY-PinY+LocPinY"
+                elif math.isclose(x, following_x, abs_tol=1e-12):
+                    x_cell.attrib["F"] = "EndX-PinX+LocPinX"
     _delete_unused_master_geometry_rows(connector, set(range(1, len(points) + 1)))
 
 
@@ -1389,6 +1551,7 @@ def render_ir(
                     "TxtWidth", "TxtHeight", "VerticalAlign",
                 ),
             )
+            _stabilize_transform_tree(copied)
             _replace_connection_points(copied, plan, ir.page.height)
             if plan.container:
                 _set_section_cell(
@@ -1432,21 +1595,33 @@ def render_ir(
                     connector, source_shape, target_shape, start, finish
                 )
             else:
-                for name, value in (
-                    ("BeginX", start[0]),
-                    ("BeginY", start[1]),
-                    ("EndX", finish[0]),
-                    ("EndY", finish[1]),
-                ):
-                    _set_local_cell_value(connector, name, f"{value:.15g}")
-                _replace_route_geometry(connector, plan.route, ir.page.height)
-                _set_local_cell_value(connector, "RouteStyle", "16")
-                _block_master_inheritance(
+                _configure_explicit_connector_glue(
                     connector,
-                    (
-                        "BeginX", "BeginY", "EndX", "EndY", "PinX", "PinY",
-                        "Width", "Height", "LocPinX", "LocPinY", "RouteStyle",
-                    ),
+                    source_shape,
+                    plan.source_port,
+                    target_shape,
+                    plan.target_port,
+                    start,
+                    finish,
+                )
+                _replace_route_geometry(
+                    connector,
+                    plan.route,
+                    ir.page.height,
+                    plan.connector_type,
+                )
+                _set_local_cell_value(
+                    connector,
+                    "ShapeRouteStyle",
+                    "1" if plan.connector_type == "orthogonal" else "2",
+                )
+                _set_local_cell_value(
+                    connector,
+                    "ConLineRouteExt",
+                    "1" if plan.connector_type == "straight" else "0",
+                )
+                _block_master_inheritance(
+                    connector, ("ShapeRouteStyle", "ConLineRouteExt")
                 )
             _add_ir_connection(
                 palette.page,
@@ -1496,6 +1671,7 @@ def render_ir(
                     "TxtLocPinX", "TxtLocPinY",
                 ),
             )
+            _stabilize_transform_tree(callout)
             render_order.append((plan.z_order, sequence, callout))
             sequence += 1
 

@@ -12,6 +12,7 @@ from visiogen.generation.construction import (
     VisioConstructionPlan,
     validate_construction_plan,
 )
+from visiogen.generation.compiler import CompilationError, compile_construction_plan
 from visiogen.generation.specification import DiagramSpecification
 from visiogen.providers.base import ProviderResponse, StructuredModelCall
 
@@ -68,6 +69,8 @@ def build_construction_prompt() -> str:
         "and text rectangles, typography, fill and line styles, z-order, named ports, connector "
         "routes and bends, jumps, arrowheads, connector labels, container headers and padding, "
         "callout anchors and leaders, and traceability. Use top-left-origin page-inch coordinates. "
+        "Connector waypoints contain only intermediate route points; never repeat the source or "
+        "target port coordinate, and never create consecutive duplicate points. "
         "Create exactly one reference callout for each object with a non-null reference_number, "
         "and no reference callout for any other object. "
         "Do not emit VSDX XML, ShapeSheet formulas, package relationships, unsupported masters, "
@@ -100,7 +103,9 @@ class StructuredConstructionPlanner:
         specification: DiagramSpecification, response: ProviderResponse
     ) -> VisioConstructionPlan:
         plan = VisioConstructionPlan.model_validate_json(response.content)
-        return validate_construction_plan(specification, plan)
+        plan = validate_construction_plan(specification, plan)
+        compile_construction_plan(specification, plan)
+        return plan
 
     def plan(self, specification: DiagramSpecification) -> ConstructionPlanResult:
         system_prompt = build_construction_prompt()
@@ -108,12 +113,16 @@ class StructuredConstructionPlanner:
         responses = [self._call_model(system_prompt, prompts[0])]
         try:
             plan = self._validate(specification, responses[0])
-        except (ValidationError, ConstructionPlanError) as error:
+        except (ValidationError, ConstructionPlanError, CompilationError) as error:
             prompts.append(_repair_prompt(specification, responses[0].content, str(error)))
             responses.append(self._call_model(system_prompt, prompts[1]))
             try:
                 plan = self._validate(specification, responses[1])
-            except (ValidationError, ConstructionPlanError) as repair_error:
+            except (
+                ValidationError,
+                ConstructionPlanError,
+                CompilationError,
+            ) as repair_error:
                 raise ConstructionPlanningError(
                     "Construction plan is invalid after one repair attempt",
                     responses=responses,

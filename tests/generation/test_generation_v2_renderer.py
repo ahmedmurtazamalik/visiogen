@@ -170,6 +170,7 @@ def _comprehensive_ir() -> RendererIR:
             "left",
             ((3, 2.5), (5.5, 2.5)),
             10,
+            connector_type="straight",
             label="horizontal",
         ),
         _connector(
@@ -180,6 +181,7 @@ def _comprehensive_ir() -> RendererIR:
             "top",
             ((2.25, 3), (2.25, 4), (4.25, 4), (4.25, 4.5)),
             11,
+            connector_type="orthogonal",
         ),
         _connector(
             "diagonal",
@@ -360,6 +362,19 @@ def test_render_ir_preserves_native_structure_routes_ports_and_callouts(
         assert shape_a.cell_value("LineColor") == "#234567"
         ports = shape_a.xml.find(f"{namespace}Section[@N='Connection']")
         assert {row.attrib["N"] for row in ports} == {"top", "right", "bottom", "left"}
+        directions = {
+            row.attrib["N"]: (
+                row.find(f"{namespace}Cell[@N='DirX']").attrib["V"],
+                row.find(f"{namespace}Cell[@N='DirY']").attrib["V"],
+            )
+            for row in ports
+        }
+        assert directions == {
+            "top": ("0", "-1"),
+            "right": ("-1", "0"),
+            "bottom": ("0", "1"),
+            "left": ("1", "0"),
+        }
 
         horizontal = _outer(page.find_shape_by_text("horizontal"))
         rows = horizontal.xml.findall(
@@ -373,8 +388,47 @@ def test_render_ir_preserves_native_structure_routes_ports_and_callouts(
         assert horizontal.cell_value("LinePattern") == "2"
         assert horizontal.cell_value("EndArrow") == "4"
         assert horizontal.cell_value("TextBkgnd") == "#FFFFFF"
-        assert horizontal.cells["BeginX"].xml.attrib["F"] == "No Formula"
+        shape_b = _outer(page.find_shape_by_text("B"))
+        assert horizontal.cell_formula("BeginX") == (
+            f"PAR(PNT(Sheet.{shape_a.ID}!Connections.right.X,"
+            f"Sheet.{shape_a.ID}!Connections.right.Y))"
+        )
+        assert horizontal.cell_formula("EndX") == (
+            f"PAR(PNT(Sheet.{shape_b.ID}!Connections.left.X,"
+            f"Sheet.{shape_b.ID}!Connections.left.Y))"
+        )
+        assert "BeginX" in horizontal.cell_formula("PinX")
+        assert "EndX" in horizontal.cell_formula("PinX")
+        assert rows[0].find(f"{namespace}Cell[@N='X']").attrib["F"] == (
+            "BeginX-PinX+LocPinX"
+        )
+        assert rows[1].find(f"{namespace}Cell[@N='X']").attrib["F"] == (
+            "EndX-PinX+LocPinX"
+        )
+        assert horizontal.cell_value("ConFixedCode") == "2"
+        assert horizontal.cell_value("ShapeRouteStyle") == "2"
+        assert horizontal.cell_value("ConLineRouteExt") == "1"
+        assert horizontal.xml.find(f"{namespace}Cell[@N='RouteStyle']") is None
         assert horizontal.cells["TxtPinX"].xml.attrib["F"] == "No Formula"
+        vertical_id = next(
+            item.from_id
+            for item in page.connects
+            if item.xml.attrib["ToCell"] == "Connections.bottom"
+            and item.xml.attrib["FromCell"] == "BeginX"
+        )
+        vertical = next(shape for shape in page.all_shapes if shape.ID == vertical_id)
+        vertical_rows = vertical.xml.findall(
+            f"{namespace}Section[@N='Geometry'][@IX='0']/{namespace}Row"
+        )
+        assert vertical.cell_value("ConFixedCode") == "2"
+        assert vertical.cell_value("ShapeRouteStyle") == "1"
+        assert vertical.cell_value("ConLineRouteExt") == "0"
+        assert vertical_rows[1].find(f"{namespace}Cell[@N='X']").attrib["F"] == (
+            "BeginX-PinX+LocPinX"
+        )
+        assert vertical_rows[-2].find(f"{namespace}Cell[@N='X']").attrib["F"] == (
+            "EndX-PinX+LocPinX"
+        )
         connection_cells = {
             item.xml.attrib["FromCell"]: item.xml.attrib["ToCell"]
             for item in page.connects
@@ -384,6 +438,39 @@ def test_render_ir_preserves_native_structure_routes_ports_and_callouts(
             "BeginX": "Connections.right",
             "EndX": "Connections.left",
         }
+        shapes_by_id = {shape.ID: shape for shape in page.all_shapes}
+        for connection in page.connects:
+            to_cell = connection.xml.attrib["ToCell"]
+            if not to_cell.startswith("Connections."):
+                continue
+            target = shapes_by_id[connection.to_id]
+            port_name = to_cell.removeprefix("Connections.")
+            section = target.xml.find(f"{namespace}Section[@N='Connection']")
+            assert section is not None
+            rows = [
+                row
+                for row in section.findall(f"{namespace}Row")
+                if row.attrib.get("Del") != "1"
+            ]
+            local_index = next(
+                index
+                for index, row in enumerate(rows)
+                if row.attrib.get("N") == port_name
+            )
+            master_section = target.master_shape.xml.find(
+                f"{namespace}Section[@N='Connection']"
+            )
+            inherited_count = (
+                sum(
+                    row.attrib.get("Del") != "1"
+                    for row in master_section.findall(f"{namespace}Row")
+                )
+                if master_section is not None
+                else 0
+            )
+            assert connection.xml.attrib["ToPart"] == str(
+                100 + inherited_count + local_index
+            )
         connectors = {}
         for connection in page.connects:
             connectors.setdefault(connection.from_id, {})[
@@ -488,8 +575,11 @@ def test_professional_acceptance_candidate_is_structurally_valid(
         assert (housing.x, housing.y, housing.width, housing.height) == pytest.approx(
             (5.5, 3.5, 10, 5.8)
         )
-        assert housing.cells["Width"].xml.attrib["F"] == "No Formula"
-        assert sensor.cells["Width"].xml.attrib["F"] == "No Formula"
+        assert housing.cells["Width"].xml.attrib["F"] == housing.cell_value("Width")
+        assert sensor.cells["Width"].xml.attrib["F"] == sensor.cell_value("Width")
+        for shape in (housing, sensor, controller, database):
+            for name in ("PinX", "PinY", "Width", "Height", "LocPinX", "LocPinY"):
+                assert shape.cells[name].xml.attrib["F"] == shape.cell_value(name)
         active_children = [
             child for child in housing.child_shapes if child.xml.attrib.get("Del") != "1"
         ]

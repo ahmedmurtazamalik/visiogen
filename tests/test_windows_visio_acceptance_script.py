@@ -24,6 +24,25 @@ def test_windows_visio_acceptance_script_moves_named_shapes_and_checks_glue() ->
     assert 'CellsU("PinX")' in script
     assert 'CellsU("PinY")' in script
     assert ".ResultIU = $expectedX" in script
+    assert '.BeginUndoScope("Move Visiogen shape' in script
+    assert "$visio.Undo()" in script
+    assert "$visio.Redo()" in script
+    assert "PinX after undo" in script
+    assert "PinY after redo" in script
+    assert "after undo" in script
+    assert "after redo" in script
+    assert "Get-NativeEndpointCoordinates" in script
+    assert "Assert-EndpointOffset" in script
+    assert "Assert-EndpointsMoved" in script
+    assert "Assert-NativeConnectionMetadata" in script
+    assert "Assert-StraightConnectorEnvelopes" in script
+    assert ".ToPart" in script
+    assert ".ToCell.Row" in script
+    assert ".BoundingBox(" in script
+    assert "leaves its endpoint envelope" in script
+    assert "connector endpoint stayed fixed after movement" in script
+    assert "connector endpoint X" in script
+    assert "connector endpoint Y" in script
     assert ".ToSheet.ID" in script
     assert ".FromSheet.ID" in script
     assert ".FromCell.Name" in script

@@ -30,6 +30,9 @@ visiogen = "visiogen.cli:main"
 [tool.hatch.build.targets.wheel]
 packages = ["src/visiogen"]
 
+[tool.hatch.build.targets.wheel.force-include]
+"templates/template.vsdx" = "visiogen/templates/template.vsdx"
+
 [tool.pytest.ini_options]
 addopts = "-ra"
 testpaths = ["tests"]

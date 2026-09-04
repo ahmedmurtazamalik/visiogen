@@ -3,8 +3,12 @@
 from __future__ import annotations
 
 import argparse
+import sys
 from collections.abc import Callable
+from importlib.resources import files
 from pathlib import Path
+from time import monotonic
+from typing import Protocol
 
 from visiogen.config import Settings
 from visiogen.generation.analysis_import import (
@@ -12,11 +16,34 @@ from visiogen.generation.analysis_import import (
     import_analysis_bundle,
     write_specification,
 )
-from visiogen.generation.specification import SpecificationError, load_specification
-from visiogen.pipeline import HybridGenerationPipeline
+from visiogen.generation.pipeline import GenerationProgress
+from visiogen.generation.specification import (
+    DiagramSpecification,
+    SpecificationError,
+    load_specification,
+)
+from visiogen.pipeline import GenerationResult
 
-PipelineFactory = Callable[..., HybridGenerationPipeline]
-_DEFAULT_TEMPLATE = Path(__file__).resolve().parents[3] / "templates" / "template.vsdx"
+
+class GenerationPipeline(Protocol):
+    def generate(
+        self,
+        source: str | DiagramSpecification,
+        output_path: str | Path,
+        *,
+        artifact_dir: str | Path,
+        progress: Callable[[GenerationProgress], None] | None = None,
+    ) -> GenerationResult: ...
+
+
+PipelineFactory = Callable[..., GenerationPipeline]
+
+
+def _default_template_path() -> Path:
+    packaged = Path(str(files("visiogen").joinpath("templates", "template.vsdx")))
+    if packaged.is_file():
+        return packaged
+    return Path(__file__).resolve().parents[3] / "templates" / "template.vsdx"
 
 
 def register_generate_command(
@@ -28,7 +55,7 @@ def register_generate_command(
 
     generate = commands.add_parser(
         "generate",
-        help="Design, render, preview, and visually critique a VSDX",
+        help="Plan, compile, and render an editable native VSDX",
     )
     source = generate.add_mutually_exclusive_group(required=True)
     source.add_argument("--text", help="Natural-language diagram request")
@@ -62,12 +89,12 @@ def register_generate_command(
         "--artifact-dir",
         type=Path,
         required=False,
-        help="Visible directory for prompts, responses, previews, and provenance",
+        help="Visible directory for prompts, plans, compiler IR, and provenance",
     )
     generate.add_argument(
         "--template",
         type=Path,
-        default=_DEFAULT_TEMPLATE,
+        default=_default_template_path(),
         help="Canonical native Visio template",
     )
     generate.add_argument("--model", default="gpt-5.6-sol", help="Codex model")
@@ -80,7 +107,12 @@ def register_generate_command(
     generate.add_argument(
         "--no-critique",
         action="store_true",
-        help="Skip image critique explicitly (recorded in the manifest)",
+        help="Compatibility flag; Generation v2 visual editing is not enabled yet",
+    )
+    generate.add_argument(
+        "--quiet",
+        action="store_true",
+        help="Suppress progress updates (final output is still printed)",
     )
     generate.set_defaults(
         command_handler=lambda args: _run_generate(
@@ -95,7 +127,7 @@ def _run_generate(
     *,
     pipeline_factory: PipelineFactory,
 ) -> int:
-    """Run the existing hybrid generation pipeline."""
+    """Run the configured generation pipeline."""
 
     if args.stop_after_specification and args.analysis_bundle is None:
         raise argparse.ArgumentError(
@@ -147,10 +179,22 @@ def _run_generate(
         enable_critique=not args.no_critique,
     )
     try:
+        progress_started = monotonic()
+
+        def show_progress(event: GenerationProgress) -> None:
+            elapsed_seconds = int(monotonic() - progress_started)
+            elapsed = f"{elapsed_seconds // 60:02d}:{elapsed_seconds % 60:02d}"
+            print(
+                f"[visiogen {elapsed}] {event.message}",
+                file=sys.stderr,
+                flush=True,
+            )
+
         result = pipeline.generate(
             source,
             args.output,
             artifact_dir=args.artifact_dir,
+            progress=None if args.quiet else show_progress,
         )
     except (OSError, RuntimeError, ValueError) as error:
         raise argparse.ArgumentError(None, f"Generation failed: {error}") from error

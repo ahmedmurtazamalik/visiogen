@@ -14,8 +14,12 @@ class FakePipeline:
     def __init__(self) -> None:
         self.calls = []
 
-    def generate(self, text, output, *, artifact_dir):
+    def generate(self, text, output, *, artifact_dir, progress=None):
         self.calls.append((text, Path(output), Path(artifact_dir)))
+        if progress is not None:
+            from visiogen.generation.pipeline import GenerationProgress
+
+            progress(GenerationProgress(stage="render", message="Rendering test VSDX"))
         Path(output).parent.mkdir(parents=True, exist_ok=True)
         Path(output).write_bytes(b"vsdx")
         return GenerationResult(
@@ -91,6 +95,44 @@ def test_generate_command_accepts_input_file_and_no_critique(tmp_path: Path) -> 
 
     assert exit_code == 0
     assert pipeline.calls[0][0] == "Create a flow\n"
+
+
+def test_generate_command_reports_progress_and_quiet_suppresses_it(
+    tmp_path: Path, capsys
+) -> None:
+    template = template_file(tmp_path)
+    pipeline = FakePipeline()
+    arguments = [
+        "generate",
+        "--text",
+        "Create a flow",
+        "--output",
+        str(tmp_path / "drawing.vsdx"),
+        "--artifact-dir",
+        str(tmp_path / "evidence"),
+        "--template",
+        str(template),
+    ]
+
+    assert main(arguments, pipeline_factory=lambda *args, **kwargs: pipeline) == 0
+    assert "[visiogen 00:00] Rendering test VSDX" in capsys.readouterr().err
+
+    quiet_pipeline = FakePipeline()
+    quiet_arguments = [
+        *arguments[:],
+        "--quiet",
+    ]
+    quiet_arguments[quiet_arguments.index(str(tmp_path / "drawing.vsdx"))] = str(
+        tmp_path / "quiet.vsdx"
+    )
+    quiet_arguments[quiet_arguments.index(str(tmp_path / "evidence"))] = str(
+        tmp_path / "quiet-evidence"
+    )
+    assert main(
+        quiet_arguments,
+        pipeline_factory=lambda *args, **kwargs: quiet_pipeline,
+    ) == 0
+    assert "[visiogen" not in capsys.readouterr().err
 
 
 def test_generate_command_accepts_validated_spec_file(tmp_path: Path) -> None:

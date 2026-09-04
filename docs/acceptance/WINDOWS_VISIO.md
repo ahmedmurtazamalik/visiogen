@@ -79,15 +79,22 @@ Do not approve a prompt merely to make the automation continue.
 2. export `preview-before.png`;
 3. locate two named connected shapes, including labels nested inside native groups;
 4. move both shapes in X and Y through writable `PinX`/`PinY` cells;
-5. verify the exact native connection signatures remain unchanged;
-6. export `preview-after-move.png`;
-7. save as `candidate-resaved.vsdx`;
-8. close the document;
-9. reopen the saved document read-only;
-10. verify top-level shape and page connection counts remain stable;
-11. verify moved coordinates and exact native connection signatures survive reopening;
-12. export `preview-reopened.png`; and
-13. write checksum-bound `acceptance-report.json` evidence.
+5. verify every `Connect.ToPart` agrees with the target cell's effective native row;
+6. verify the exact native connection signatures remain unchanged and every
+   attached connector endpoint actually moves;
+7. reject any straight connector whose rendered geometry leaves its begin/end
+   envelope, which catches loop-back and rectangular detours;
+8. undo and verify the exact original shape and connector-endpoint coordinates;
+9. redo and verify the exact moved shape and connector-endpoint coordinates;
+10. export `preview-after-move.png`;
+11. save as `candidate-resaved.vsdx`;
+12. close the document;
+13. reopen the saved document read-only;
+14. verify top-level shape and page connection counts remain stable;
+15. verify moved coordinates, connection metadata, connector geometry, and exact
+    native connection signatures survive reopening;
+16. export `preview-reopened.png`; and
+17. write checksum-bound `acceptance-report.json` evidence.
 
 The corpus uses these movement targets:
 

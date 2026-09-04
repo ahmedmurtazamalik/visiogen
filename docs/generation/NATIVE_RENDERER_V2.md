@@ -23,9 +23,22 @@ container margin cell and the header receives its explicit height.
 
 Explicit straight, orthogonal, and polyline connectors receive local `MoveTo` and
 `LineTo` geometry for every route point. Begin/end page cells are connected to the
-requested named ports. Connector labels have an independent text pin, orientation,
-offset, and opaque/transparent background. Jump behavior, line style, weight,
-color, and arrowheads are applied directly.
+requested named ports with live `PAR(PNT(Sheet...!Connections...))` formulas, not
+cached page coordinates. Their first and last geometry rows follow those live
+endpoints. Intermediate planned waypoints remain fixed in page space while the
+connector transform recalculates; the endpoint-adjacent coordinate of an
+orthogonal route follows its endpoint so the first and last legs stay orthogonal
+after movement. Generated inward port vectors match Visio's Type-0 connection-point
+semantics, and each native `Connect.ToPart` is calculated from the effective row
+index after inherited master rows. This keeps `ToCell` and `ToPart` consistent when
+Visio recalculates the page.
+
+Explicit routes use `ConFixedCode=2` so Visio cannot replace their geometry after
+a move. They write the connector-local `ShapeRouteStyle` cell (`2` for straight or
+polyline, `1` for orthogonal), never the page-only `RouteStyle` cell. Straight
+routes also use `ConLineRouteExt=1`. Connector labels have an independent text pin,
+orientation, offset, and opaque/transparent background. Jump behavior, line style,
+weight, color, and arrowheads are applied directly.
 
 `dynamic` is the only automatic-routing fallback. It is visible in the IR's
 `connector_type` and uses the existing native Visio walk-glue formulas while its
@@ -40,8 +53,8 @@ plan_order)` keys after the template palette is removed.
 Linux structural tests generate and reopen a package covering horizontal,
 vertical, diagonal, branching, reciprocal, self-loop, nested-container, explicit
 callout, and dynamic-fallback cases. They verify native connection rows, named
-ports, route geometry, styles, membership formulas, z-order, template immutability,
-and package validation.
+ports, effective `ToPart` indexes, inward vectors, route geometry and routing cells,
+styles, membership formulas, z-order, template immutability, and package validation.
 
 Desktop Microsoft Visio remains authoritative for clean open, visual appearance,
 editing, endpoint movement, save, close, and reopen. Run the generated candidate
@@ -51,7 +64,7 @@ available.
 
 The comprehensive topology fixture is a structural stress test, not a visual
 acceptance candidate. Windows visual review must use the restrained
-`g5-professional-acceptance-v6.vsdx` fixture containing one housing, three
+`g5-professional-acceptance-v7.vsdx` fixture containing one housing, three
 components, two labeled routes, and two reference callouts. Its explicit geometry,
 text, route, and style cells block inherited master formulas so desktop Visio does
 not restore template defaults during recalculation. Group children scale with the
@@ -61,7 +74,19 @@ template's nested body subshape from its header during container recalculation.
 The header is likewise reduced to one explicit rectangle so inherited decorative
 geometry cannot draw outside the housing.
 
-Windows move/undo review is mandatory, not optional visual polish. The restrained
-candidate uses native movement-aware connector glue, target-relative callout leader
-endpoints, and explicit deleted overrides for suppressed master children so opening,
-moving, and undoing cannot resurrect cached master geometry.
+Windows move/undo review is mandatory, not optional visual polish. The acceptance
+automation rejects `ToPart`/`ToCell.Row` disagreement and checks the geometry bounds
+of every straight connector before movement, after movement, after undo/redo, and
+after save/reopen. The latter catches loop-back or rectangular detours even when the
+endpoint cells themselves still move. The restrained candidate also uses
+target-relative callout leader endpoints and explicit deleted overrides for
+suppressed master children so opening, moving, and undoing cannot resurrect cached
+master geometry.
+
+Generated instances also use explicit, unguarded numeric formulas for every local
+shape transform (`PinX`, `PinY`, `Width`, `Height`, `LocPinX`, and `LocPinY`). This
+is deliberate: a blocked `No Formula` instance transform can be replaced by master
+inheritance during Visio undo, restoring the master's shared default pin near the
+lower-left of the page. Numeric local formulas remain normally editable while
+giving undo an instance-specific value to restore. Dynamic connector transform
+formulas remain movement-aware and guarded.

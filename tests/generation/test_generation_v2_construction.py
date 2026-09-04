@@ -130,6 +130,18 @@ def test_planner_repairs_once_and_then_fails() -> None:
         StructuredConstructionPlanner(FakeCall(["{}", "{}"])).plan(load_specification(SPEC))
 
 
+def test_planner_repairs_compiler_findings_before_returning() -> None:
+    invalid = plan_data()
+    invalid["connectors"][0]["waypoints"][0] = {"x": 3.5, "y": 2.95}  # type: ignore[index]
+    valid = plan_data()
+    call = FakeCall([json.dumps(invalid), json.dumps(valid)])
+
+    result = StructuredConstructionPlanner(call).plan(load_specification(SPEC))
+
+    assert result.attempts == 2
+    assert "zero-length segment" in call.calls[1][1]
+
+
 def test_prompt_forbids_package_authoring() -> None:
     prompt = build_construction_prompt()
     assert "VSDX XML" in prompt and "ShapeSheet formulas" in prompt

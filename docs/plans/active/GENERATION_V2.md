@@ -1,6 +1,6 @@
 # Visiogen Generation v2 Implementation Plan
 
-**Status:** Active; G0-G4 complete, G5 implementation verified and Windows gate pending
+**Status:** Active; G0-G4 complete, G5 locally verified, G8 CLI vertical path complete
 
 **Date:** 2026-09-03
 
@@ -95,9 +95,9 @@ analysis bundle ----------+                 |
 | G3 | AI construction planner | Complete | Valid plans for all core families from real `gpt-5.6-sol`; checkpoint lineage |
 | G4 | Construction-plan validation and compiler IR | Complete | Hard-validation and deterministic compilation tests; checkpoint lineage |
 | G5 | Native renderer v2 | In progress | Linux structural gate passes; Windows native lifecycle pending |
-| G6 | Visual measurement and diagnostics | Not started | Machine-readable geometry and preview diagnostics |
-| G7 | Iterative AI visual editing | Not started | Bounded patch loop with final re-approval |
-| G8 | Vertical Generation v2 pipeline | Not started | All three input modes produce complete evidence bundles |
+| G6 | Visual measurement and diagnostics | Deferred | Machine-readable geometry and preview diagnostics |
+| G7 | Iterative AI visual editing | Deferred | Bounded patch loop with final re-approval |
+| G8 | Vertical Generation v2 pipeline | Complete for local CLI scope | Text, spec, and analysis inputs reach the v2 renderer with common evidence |
 | G9 | Quality corpus and comparative evaluation | Not started | v2 beats frozen v1 baseline and passes thresholds |
 | G10 | Windows native acceptance and cutover | Not started | Checksum-bound native and human acceptance |
 | GX | Direct-XML research experiment | Optional | Comparative feasibility report; no release dependency |
@@ -497,6 +497,31 @@ Work:
 same evidence contract. Failures cannot overwrite earlier evidence or masquerade
 as approved output.
 
+**Accepted local scope:** The public CLI now defaults to the v2 pipeline for all
+three existing input modes. It persists the normalized specification, versioned
+construction prompts and responses, validated construction plan, compiler IR,
+rendered VSDX, provider identity, timings, source state, and hashes. Atomic path
+handling prevents an output collision from overwriting reserved evidence. The
+text-to-VSDX fake-provider vertical test renders and revalidates a real native VSDX;
+the existing CLI and analysis-import tests cover professional specifications and
+analysis bundles at the same boundary. The CLI reports elapsed-time progress for
+each long-running and deterministic stage, with `--quiet` available for scripts.
+
+A development-source real-provider run also completed through the public command
+with `codex/gpt-5.6-sol`. It required two specification attempts and one
+construction attempt, produced a structurally valid 402 KiB VSDX, and retained an
+output SHA-256 of
+`6c46ec6fe5c789399ef4201745ef598ecaf6ea64827436dd992db1d2f57ff3bb`.
+The run recorded a dirty worktree and therefore proves integration behavior only;
+it is not immutable release acceptance. The final local repository gate passes
+with 571 tests, and the sdist/wheel build and CLI help checks pass.
+
+The earlier transition-engine flag, resume-from-plan workflow, previews,
+measurements, patches, and final visual approval are not necessary to make the v2
+CLI usable and are deferred. The manifest reports that visual diagnostics and
+editing were not performed and that Windows acceptance is pending. This local G8
+decision makes no visual-quality or native-Windows acceptance claim.
+
 ### G9 — Quality corpus and comparative evaluation
 
 **Purpose:** Establish that V2 is visibly and semantically better, not merely newer.
@@ -566,8 +591,42 @@ ends reference target pins. Replacement candidate:
 `artifacts/g5-professional-acceptance-v6.vsdx`,
 SHA-256
 `aaeb85078def9656c0f135ba07e5be71afbafe6dc3c57946db3099d24f09507c`.
-G5 remains in progress pending Windows open/edit/move/save/reopen review of that
-exact artifact.
+The sixth Windows review still showed that undo could restore every moved instance
+to the master transform's shared default point near the lower-left of the page.
+The renderer had represented authoritative instance transforms as blocked
+`No Formula` cells; undo could restore master inheritance instead of the instance's
+original coordinate. Instance transforms now use explicit, unguarded numeric local
+formulas, preserving editability while giving undo a stable local value to restore.
+The Windows automation now performs move, undo, redo, save, close, and reopen with
+exact coordinate and connection-signature assertions. Replacement candidate:
+`artifacts/g5-professional-acceptance-v7.vsdx`, SHA-256
+`a3bb0b64c09b04949f7aade9d70e0ec593dafaaedc5d6abae18dc27679e245ab`.
+G5 remains in progress pending Windows review of that exact artifact.
+
+A subsequent connector review confirmed that explicit routes had `Connect` rows
+but still stored `BeginX`/`BeginY` and `EndX`/`EndY` as fixed page coordinates.
+They could look attached while remaining geometrically static. Explicit connectors
+now use live `PAR(PNT(...))` formulas against their exact named ports. Endpoint
+geometry follows those formulas, connector transforms recalculate from the live
+ends and fixed intermediate waypoints, and the Windows gate fails if any attached
+endpoint stays stationary when its shape moves. Focused replacement candidate:
+`artifacts/g5-connector-acceptance-v8.vsdx`, SHA-256
+`08eaa99d99dc27893d46386e8d5808f9c34e07369a519470baa8b249bf53ff11`.
+
+Windows movement of that candidate exposed four conflicting pieces of connector
+metadata. Generated Type-0 connection points used outward rather than Visio-native
+inward direction vectors; `Connect.ToPart` was hard-coded instead of accounting for
+the named port's effective row after inherited master rows; the instance wrote the
+page-only `RouteStyle` cell; and value `16` meant center-to-center rather than
+straight routing. That combination let first-open cached geometry look plausible
+but produced long loop-back rectangles on the first move. The renderer now uses
+inward vectors, derives `ToPart` from the effective port row, writes
+`ShapeRouteStyle`/`ConLineRouteExt`, and fixes explicit route geometry with
+`ConFixedCode=2`. Orthogonal endpoint-adjacent bends follow their live endpoint.
+The Windows gate now rejects metadata disagreement and straight-connector geometry
+outside the begin/end envelope across move, undo, redo, save, and reopen. Focused
+replacement candidate: `artifacts/g5-connector-acceptance-v9.vsdx`, SHA-256
+`30f115a4cd56b62dba56d9aa3944797aaa6238e14aaaf10aeb47ad8b35e0864b`.
 
 ### GX — Constrained direct-VSDX XML research experiment
 

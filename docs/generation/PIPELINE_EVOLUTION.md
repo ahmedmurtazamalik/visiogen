@@ -60,8 +60,8 @@ small targeted edit. The historical three-case hybrid bundle also skipped the
 visual-critique stage and retained no final previews, so it is not a complete
 Generation v1 quality baseline.
 
-Generation v1 remains the legacy path while Generation v2 proceeds through its
-release gates.
+Generation v1 remains in the codebase as the legacy implementation; the public CLI
+now uses the Generation v2 vertical path.
 
 ## 3. AI-directed construction and compiler pipeline — Generation v2
 
@@ -90,10 +90,11 @@ leaders, and z-order. Deterministic code validates those decisions, resolves the
 into known-good template and native Visio structures, and compiles the VSDX
 without inventing undocumented aesthetics.
 
-As of 2026-09-03, G0–G4 are complete. The G5 renderer is implemented and passes
-Linux structural verification, while its Windows native-Visio lifecycle gate is
-pending. Visual diagnostics, iterative patching, vertical v2 integration,
-comparative evaluation, and final cutover remain later phases.
+As of 2026-09-04, G0–G4 are complete, the G5 renderer passes Linux structural
+verification, and the G8 vertical pipeline is the public CLI default. G6 visual
+diagnostics and G7 iterative patching are deferred rather than prerequisites for
+the first complete CLI path. Comparative evaluation and Windows native-Visio
+acceptance remain pending.
 
 ## Deferred or experimental alternatives
 

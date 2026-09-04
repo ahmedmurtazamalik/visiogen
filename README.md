@@ -14,11 +14,10 @@ directions:
 2. **Document analysis:** inspect diagrams in PDF or DOCX documents, describe their
    visible semantics, and compare them with related document text.
 
-The Generation v1 pipeline and public CLI are implemented. Generation v2 is being
-introduced incrementally: its specification, analysis-import, construction-plan,
-compiler, and native-renderer contracts are implemented, while visual diagnostics,
-iterative editing, vertical integration, comparative evaluation, and Windows
-cutover remain open. Document analysis has completed safe
+The public `visiogen generate` command now runs the Generation v2 vertical pipeline:
+specification, analysis import, AI construction planning, deterministic compilation,
+and native VSDX rendering. Visual diagnostics, iterative editing, comparative
+evaluation, and Windows native acceptance remain later gates. Document analysis has completed safe
 deterministic PDF/DOCX ingestion, diagram discovery/image preparation, and accepted
 evidence-grounded visual observation, semantic reconstruction, faithful textual
 description, bounded document-text claim extraction, conservative entity alignment,
@@ -35,10 +34,10 @@ patent drawings.
 ```text
 Generation                         Analysis
 text request                       PDF or DOCX
-    → AI diagram design                → safe document decomposition
-    → hard validation                  → diagram discovery
-    → native VSDX rendering            → visual semantic reconstruction
-    → image-based critique             → faithful textual description
+    → validated specification          → safe document decomposition
+    → AI construction plan             → diagram discovery
+    → deterministic compiler           → visual semantic reconstruction
+    → native VSDX rendering            → faithful textual description
     → editable Visio draft             → text/diagram consistency findings
 ```
 
@@ -48,8 +47,7 @@ is developed independently.
 
 ## Generation architecture
 
-The public `visiogen generate` command currently uses the Generation v1 hybrid
-pipeline:
+The former Generation v1 hybrid pipeline was:
 
 ```text
 text request
@@ -74,25 +72,28 @@ natural language / professional specification / analysis bundle
 → AI-authored VisioConstructionPlan
 → deterministic validation and renderer-neutral compilation
 → native VSDX renderer
-→ Microsoft Visio preview and visual diagnostics
-→ bounded visual edit patches
-→ preview re-approval and native lifecycle acceptance
+→ editable VSDX and provenance bundle
 ```
 
-G0–G4 are complete. The G5 native renderer is implemented and passes Linux
-structural verification; its checksum-bound Windows Visio lifecycle gate is still
-pending. It is not yet wired into the public generation command, so the existing
-Generation v1 path remains the supported CLI behavior until the v2 release gates
-are complete. See the [Generation v2 implementation plan](docs/plans/active/GENERATION_V2.md),
+G0–G4 are complete, the G5 renderer passes its local structural gate, and the G8
+vertical path is wired into the public CLI. G6 visual diagnostics and G7 iterative
+editing were not required for the first complete text/specification-to-VSDX path
+and remain deferred. Windows Visio lifecycle acceptance and comparative quality
+evaluation are still pending. Explicit connectors now use live named-port glue,
+Visio-native inward direction vectors, consistent connection-row metadata, and
+movement-aware route geometry. The Windows gate checks endpoint movement and rejects
+straight-line detours across move, undo, redo, save, and reopen. See the
+[Generation v2 implementation plan](docs/plans/active/GENERATION_V2.md),
 [native renderer contract](docs/generation/NATIVE_RENDERER_V2.md), and
 [pipeline evolution](docs/generation/PIPELINE_EVOLUTION.md).
 
-The authoritative contract for the current public pipeline is
-[`docs/architecture/HYBRID_AI.md`](docs/architecture/HYBRID_AI.md).
+The historical v1 contract is [`docs/architecture/HYBRID_AI.md`](docs/architecture/HYBRID_AI.md).
 
 ## Generate a diagram
 
-Requirements are Python 3.11+, [uv](https://docs.astral.sh/uv/), and an authenticated Codex CLI. The complete visual-critique path additionally requires Windows and desktop Microsoft Visio, which is used both for preview export and authoritative native acceptance. Linux can run design/render with `--no-critique`, but that does not close visual acceptance.
+Requirements are Python 3.11+, [uv](https://docs.astral.sh/uv/), and an authenticated
+Codex CLI. Generation and structural VSDX validation run on Linux. Desktop Microsoft
+Visio on Windows remains authoritative for visual and native lifecycle acceptance.
 
 ```bash
 uv sync --extra dev
@@ -102,6 +103,11 @@ uv run visiogen generate \
   --output artifacts/my-run/final.vsdx \
   --artifact-dir artifacts/my-run/evidence
 ```
+
+While the command runs, it prints elapsed-time stage updates to stderr for
+specification, construction planning, compilation, rendering, validation, and
+evidence publication. Use `--quiet` to suppress these updates in scripts; the final
+VSDX and evidence paths are still printed.
 
 Generation v2 also accepts a reviewed, strict JSON or YAML professional
 specification with `--spec-file`. Natural-language input is first converted to the
@@ -113,11 +119,16 @@ specification with `--analysis-bundle --stop-after-specification`. Ambiguous and
 unsupported observations remain explicit review items. See the
 [analysis import contract](docs/generation/ANALYSIS_IMPORT.md).
 
-The default provider/model is the locally authenticated Codex CLI using `gpt-5.6-sol`. Every run preserves the exact request, logical system/user prompts, exact transport prompts sent after adapter wrapping, raw structured responses, validated designs, initial and revised VSDX files, preview images, timing, provider/model identity, and final SHA-256 checksum.
+The default provider/model is the locally authenticated Codex CLI using
+`gpt-5.6-sol`. Every v2 run preserves the exact request, logical and transport
+prompts, raw structured responses, validated specification and construction plan,
+compiler IR, final VSDX, timing, provider/model identity, and SHA-256 checksums.
 
 The adapter uses an ephemeral read-only workspace, ignores Codex user config/rules, gives model-run shell commands no inherited environment, and passes the Codex process only a small runtime/auth allowlist. It is nevertheless an agentic local CLI with read access under Codex's sandbox policy. Treat diagram requests as trusted local input; adversarial third-party documents containing embedded instructions require stronger OS/container isolation or a non-agentic API adapter.
 
-Visual critique is enabled by default. It can be explicitly skipped with `--no-critique`; the manifest records that it did not occur.
+The v2 CLI does not yet perform preview-based visual editing. The compatibility
+flag `--no-critique` is accepted but has no additional effect; the manifest records
+that visual diagnostics and editing were not performed.
 
 ```bash
 uv run visiogen generate \
